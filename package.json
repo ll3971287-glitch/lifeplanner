@@ -1,0 +1,27 @@
+{
+  "name": "ultimate-life-system",
+  "private": true,
+  "version": "2.3.0",
+  "type": "module",
+  "description": "Ultimate Life System 个人任务 & 项目进度管理（本地 Web 版）",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "icons": "node scripts/gen-icons.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.4.6",
+    "fake-indexeddb": "^6.0.0",
+    "jsdom": "^25.0.1",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}
