@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>数据救援 / 导出</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        margin: 0;
+        padding: 16px;
+        background: #faf9f6;
+        color: #3b3934;
+        line-height: 1.6;
+      }
+      .card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+        margin-bottom: 12px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 8px;
+      }
+      .muted {
+        color: #8a867c;
+        font-size: 13px;
+      }
+      .origin {
+        font-family: monospace;
+        background: #f1efe9;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 160px;
+        font-family: monospace;
+        font-size: 11px;
+        border: 1px solid #dcd9d0;
+        border-radius: 10px;
+        padding: 8px;
+        background: #fff;
+      }
+      button {
+        font-size: 14px;
+        padding: 9px 14px;
+        border-radius: 10px;
+        border: 1px solid #dcd9d0;
+        background: #fff;
+        margin: 4px 6px 4px 0;
+      }
+      button.primary {
+        background: #5476b8;
+        border-color: #5476b8;
+        color: #fff;
+        font-weight: 700;
+      }
+      .chunk {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        border-bottom: 1px dashed #e6e3da;
+        padding: 6px 0;
+      }
+      .stat {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-size: 13px;
+      }
+      .stat i {
+        font-style: normal;
+        background: #f1efe9;
+        border-radius: 999px;
+        padding: 2px 10px;
+      }
+      .err {
+        white-space: pre-wrap;
+        font-family: monospace;
+        font-size: 12px;
+        color: #b4453a;
+      }
+      .ok {
+        color: #2e7d4f;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>数据救援 / 导出</h1>
+      <p class="muted">
+        当前网址 Origin：<span class="origin" id="origin"></span><br />
+        这个页面只做一件事：把<strong>当前网址下浏览器里存的数据</strong>原样读出来，供你复制保存。
+        如果你以前就是用这个网址使用应用的，数据就会出现在下面。
+      </p>
+      <p id="summary" class="muted">正在读取…</p>
+      <div class="stat" id="stats"></div>
+    </div>
+
+    <div class="card" id="dataCard" style="display: none">
+      <h1>数据内容（JSON）</h1>
+      <p class="muted">先点「复制全部数据」，粘贴到微信「文件传输助手」里存好；若粘贴被截断，用下面的「分片复制」逐段来。</p>
+      <textarea id="jsonBox" readonly></textarea>
+      <div>
+        <button class="primary" id="copyAll">复制全部数据</button>
+        <button id="download">尝试下载文件</button>
+        <button id="refresh">重新读取</button>
+      </div>
+      <div id="chunks"></div>
+    </div>
+
+    <div class="card" id="errCard" style="display: none">
+      <h1>诊断信息</h1>
+      <div class="err" id="errBox"></div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id)
+      $('origin').textContent = location.origin
+      const errors = []
+      function logErr(msg) {
+        errors.push(msg)
+        $('errCard').style.display = 'block'
+        $('errBox').textContent = errors.join('\n')
+      }
+      window.addEventListener('error', (e) => logErr('[error] ' + (e.message || e)))
+
+      const CHUNK = 3000
+      let fullText = ''
+
+      function openDb() {
+        return new Promise((resolve, reject) => {
+          let upgraded = false
+          const req = indexedDB.open('lifeplanner')
+          req.onupgradeneeded = () => {
+            upgraded = true
+            try {
+              req.result.createObjectStore('kv')
+            } catch (e) {}
+          }
+          req.onsuccess = () => resolve({ db: req.result, created: upgraded })
+          req.onerror = () => reject(req.error)
+          req.onblocked = () => reject(new Error('数据库被其它页面占用：请关闭同一网址下已打开的其它标签页/窗口后重试'))
+        })
+      }
+      function get(db, key) {
+        return new Promise((resolve, reject) => {
+          const r = db.transaction('kv', 'readonly').objectStore('kv').get(key)
+          r.onsuccess = () => resolve(r.result)
+          r.onerror = () => reject(r.error)
+        })
+      }
+
+      async function load() {
+        try {
+          const { db, created } = await openDb()
+          const data = await get(db, 'data')
+          const backup = await get(db, 'backup')
+          const pick = data != null ? data : backup
+          const from = data != null ? 'data' : backup != null ? 'backup（最近一次自动备份）' : ''
+          if (!pick) {
+            $('summary').innerHTML = created
+              ? '<strong>这个浏览器里没有该应用的数据</strong>（数据库是刚新建的空库）。请确认：① 用的是以前那个浏览器；② 网址与以前完全一致。'
+              : '<strong>没有读到数据</strong>（库里没有 data/backup 记录）。'
+            return
+          }
+          const counts = Object.entries(pick)
+            .filter(([, v]) => Array.isArray(v))
+            .map(([k, v]) => `<i>${k}: ${v.length}</i>`)
+            .join('')
+          $('summary').innerHTML = `<span class="ok">✓ 读到数据</span>（来源：${from}）`
+          $('stats').innerHTML = counts
+          fullText = JSON.stringify(pick, null, 2)
+          $('jsonBox').value = fullText
+          $('dataCard').style.display = 'block'
+          renderChunks()
+        } catch (e) {
+          $('summary').innerHTML = '<strong>读取失败</strong>'
+          logErr('[load] ' + (e && e.message ? e.message : e))
+        }
+      }
+
+      function renderChunks() {
+        const box = $('chunks')
+        box.innerHTML = ''
+        if (fullText.length <= CHUNK) return
+        const total = Math.ceil(fullText.length / CHUNK)
+        const tip = document.createElement('p')
+        tip.className = 'muted'
+        tip.textContent = `数据较大（${fullText.length} 字符），共 ${total} 段，逐段复制后在目标设备逐段粘贴导入：`
+        box.appendChild(tip)
+        for (let i = 0; i < total; i++) {
+          const seg = fullText.slice(i * CHUNK, (i + 1) * CHUNK)
+          const row = document.createElement('div')
+          row.className = 'chunk'
+          const label = document.createElement('span')
+          label.className = 'muted'
+          label.textContent = `第 ${i + 1}/${total} 段（${seg.length} 字符）`
+          const btn = document.createElement('button')
+          btn.textContent = '复制本段'
+          btn.onclick = () => doCopy(seg, btn)
+          row.appendChild(label)
+          row.appendChild(btn)
+          box.appendChild(row)
+        }
+      }
+
+      async function doCopy(text, btn) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text)
+          } else {
+            const ta = $('jsonBox')
+            ta.value = text
+            ta.select()
+            document.execCommand('copy')
+            ta.value = fullText
+          }
+          if (btn) {
+            const old = btn.textContent
+            btn.textContent = '✓ 已复制'
+            setTimeout(() => (btn.textContent = old), 1200)
+          }
+        } catch (e) {
+          logErr('[copy] ' + (e && e.message ? e.message : e) + '（可长按文本框手动全选复制）')
+          $('jsonBox').select()
+        }
+      }
+
+      $('copyAll').onclick = (e) => doCopy(fullText, e.target)
+      $('refresh').onclick = load
+      $('download').onclick = () => {
+        try {
+          const blob = new Blob([fullText], { type: 'application/json' })
+          const a = document.createElement('a')
+          a.href = URL.createObjectURL(blob)
+          a.download = 'lifeplanner-rescue.json'
+          document.body.appendChild(a)
+          a.click()
+          a.remove()
+        } catch (e) {
+          logErr('[download] ' + (e && e.message ? e.message : e))
+        }
+      }
+
+      load()
+    </script>
+  </body>
+</html>
