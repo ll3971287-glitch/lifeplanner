@@ -9,6 +9,8 @@
       </div>
     </section>
 
+    <FocusChainCard @start="startFromChain" />
+
     <section class="stats-row">
       <div class="stat card">
         <span class="num">{{ todayStats.count }}</span>
@@ -71,6 +73,7 @@ import { todayFocusStats, sessionsOnDay, projectSubTasks } from '../selectors.js
 import { fmtDurationMin, fmtTime, startOfDayTs } from '../utils/date.js'
 import { shortDate } from '../format.js'
 import FocusTimer from '../components/focus/FocusTimer.vue'
+import FocusChainCard from '../components/focus/FocusChainCard.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import Icon from '../components/ui/Icon.vue'
 
@@ -127,6 +130,11 @@ function targetNameOf(s) {
 function pick(type, id) {
   store.setFocusTarget(type, id)
   pickerOpen.value = false
+}
+
+// 专注链的「立即专注」：沿用当前计时模式开始一轮专注
+function startFromChain() {
+  store.startFocusRun({ mode: store.focusState.mode })
 }
 
 function pickNone() {
