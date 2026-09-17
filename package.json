@@ -1,7 +1,7 @@
 {
   "name": "ultimate-life-system",
   "private": true,
-  "version": "2.3.0",
+  "version": "2.3.1",
   "type": "module",
   "description": "Ultimate Life System 个人任务 & 项目进度管理（本地 Web 版）",
   "scripts": {
@@ -10,7 +10,8 @@
     "preview": "vite preview --host",
     "icons": "node scripts/gen-icons.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "deploy": "vite build && touch dist/.nojekyll && node scripts/deploy-gh-pages.mjs"
   },
   "dependencies": {
     "vue": "^3.5.13",
