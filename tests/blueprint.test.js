@@ -163,11 +163,11 @@ describe('蓝图编辑表单', () => {
   })
 })
 
-describe('半年视窗时间轴', () => {
+describe('季度视窗时间轴', () => {
   it('无期望达成时间的条目进入构想池，带截止期的条目渲染为进度条', async () => {
     const now = Date.now()
     store.addBlueprint({ title: '模糊构想', goalText: '退休前', status: 'idea' })
-    const timed = store.addBlueprint({ title: '有期限目标', status: 'doing', goalEndTs: now + 60 * DAY_MS })
+    const timed = store.addBlueprint({ title: '有期限目标', status: 'doing', goalEndTs: now + 3600000 })
     const w = mount(BlueprintTimeline, { props: { items: store.state.blueprints } })
     await nextTick()
     expect(w.text()).toContain('构想池')
@@ -177,13 +177,13 @@ describe('半年视窗时间轴', () => {
     w.unmount()
   })
 
-  it('切换到下一个半年视窗', async () => {
+  it('切换到下一个季度视窗', async () => {
     const now = Date.now()
     store.addBlueprint({ title: '远期目标', status: 'idea', goalEndTs: now + 14 * 30 * DAY_MS })
     const w = mount(BlueprintTimeline, { props: { items: store.state.blueprints } })
     await nextTick()
     const before = w.findAll('.bar').length
-    // 点击“下一个半年”
+    // 点击“下一个季度”
     const btns = w.findAll('.vp-btn')
     const labelBefore = w.find('.vp-title strong').text()
     await btns[1].trigger('click')
