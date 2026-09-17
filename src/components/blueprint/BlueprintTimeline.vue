@@ -1,23 +1,23 @@
 <template>
   <div class="bp-tl">
     <div class="col gap10 tl-wrap">
-      <!-- 半年视窗时间轴 -->
+      <!-- 季度视窗时间轴 -->
       <div class="view card">
         <div class="vp-toolbar row-between">
-          <button type="button" class="vp-btn" title="上一个半年" @click="step(-1)">
+          <button type="button" class="vp-btn" title="上一个季度" @click="step(-1)">
             <Icon name="chevronLeft" :size="15" />
           </button>
           <div class="vp-title">
-            <strong>{{ viewYear }} {{ viewHalf === 0 ? '上半年' : '下半年' }}</strong>
-            <span class="muted mini">（{{ monthsRangeLabel }}）· 左右拖动切换半年</span>
+            <strong>{{ viewYear }} 年 第{{ viewQuarter + 1 }}季度</strong>
+            <span class="muted mini">（{{ monthsRangeLabel }}）· 左右拖动切换季度</span>
           </div>
-          <button type="button" class="vp-btn" title="下一个半年" @click="step(1)">
+          <button type="button" class="vp-btn" title="下一个季度" @click="step(1)">
             <Icon name="chevronRight" :size="15" />
           </button>
         </div>
         <div class="vp-hint row gap6">
           <button type="button" class="mini-btn" @click="goNow">回到当前</button>
-          <span class="muted mini">进度条跨出视窗会在相邻半年里继续显示</span>
+          <span class="muted mini">进度条跨出视窗会在相邻季度里继续显示</span>
         </div>
 
         <div class="vp-body" @pointerdown="startDrag" @pointermove="onDrag" @pointerup="endDrag" @pointercancel="endDrag">
@@ -27,7 +27,7 @@
             </div>
           </div>
           <div class="lanes" :style="{ height: Math.max(60, lanes * LANE_H) + 'px' }">
-            <div v-if="!bars.length" class="no-bar muted">该半年内没有规划截止的蓝图</div>
+            <div v-if="!bars.length" class="no-bar muted">该季度内没有规划截止的蓝图</div>
             <div v-for="(bar, i) in bars" :key="bar.id" class="lane" :style="{ top: i * LANE_H + 'px' }">
               <div
                 class="bar"
@@ -81,26 +81,26 @@ const MW = 92 // 月刻度列宽
 const LANE_H = 42 // 每条目行高
 const statusOf = (k) => BLUEPRINT_STATUS[k] || BLUEPRINT_STATUS.idea
 
-// —— 半年视窗锚点（连续整数：year*2 + half）
-const cursor = ref(halfIdxOf(Date.now()))
-function halfIdxOf(ts) {
+// —— 季度视窗锚点（连续整数：year*4 + quarter）
+const cursor = ref(quarterIdxOf(Date.now()))
+function quarterIdxOf(ts) {
   const d = new Date(ts)
-  return d.getFullYear() * 2 + (d.getMonth() < 6 ? 0 : 1)
+  return d.getFullYear() * 4 + Math.floor(d.getMonth() / 3)
 }
-const viewYear = computed(() => Math.floor(cursor.value / 2))
-const viewHalf = computed(() => cursor.value % 2)
-const viewStart = computed(() => new Date(viewYear.value, viewHalf.value * 6, 1).getTime())
-const viewEnd = computed(() => new Date(viewYear.value, viewHalf.value * 6 + 6, 1).getTime())
+const viewYear = computed(() => Math.floor(cursor.value / 4))
+const viewQuarter = computed(() => cursor.value % 4)
+const viewStart = computed(() => new Date(viewYear.value, viewQuarter.value * 3, 1).getTime())
+const viewEnd = computed(() => new Date(viewYear.value, viewQuarter.value * 3 + 3, 1).getTime())
 
 const months = computed(() => {
   const out = []
-  for (let i = 0; i < 6; i++) {
-    const d = new Date(viewYear.value, viewHalf.value * 6 + i, 1)
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(viewYear.value, viewQuarter.value * 3 + i, 1)
     out.push({ label: `${d.getMonth() + 1}月`, ts: d.getTime() })
   }
   return out
 })
-const monthsRangeLabel = computed(() => `${months.value[0].label} ~ ${months.value[5].label}`)
+const monthsRangeLabel = computed(() => `${months.value[0].label} ~ ${months.value[2].label}`)
 
 // —— 条目拆分：构想池（无终点）与时间轴
 const timed = computed(() => props.items.filter((b) => goalEnd(b) != null))
@@ -129,7 +129,7 @@ const bars = computed(() => {
     const e = goalEnd(b)
     if (e < start || s > end) continue // 与视窗无交集
     const x = Math.max(0, pxOf(Math.max(s, start)))
-    const right = Math.min(6 * MW, pxOf(Math.min(e, end)))
+    const right = Math.min(3 * MW, pxOf(Math.min(e, end)))
     const dim = b.dimension ? dimLabel(b.dimension, store.state.settings.blueprintDims) : '未分组'
     const rangeText = `${fmtDate(s)} ~ ${fmtDate(e)}`
     out.push({
@@ -152,7 +152,7 @@ const nowTs = computed(() => Date.now())
 const nowInView = computed(() => nowTs.value >= viewStart.value && nowTs.value < viewEnd.value)
 const nowPx = computed(() => pxOf(nowTs.value))
 
-// —— 拖拽切换半年
+// —— 拖拽切换季度
 const vpDrag = { x: 0, moved: 0 }
 function startDrag(e) {
   vpDrag.x = e.clientX
@@ -177,7 +177,7 @@ function step(dir) {
   cursor.value += dir
 }
 function goNow() {
-  cursor.value = halfIdxOf(Date.now())
+  cursor.value = quarterIdxOf(Date.now())
 }
 function emitOpen(bar) {
   if (vpDrag.moved > 8) return
@@ -315,7 +315,7 @@ const lanes = computed(() => bars.value.length)
 
 .months-grid {
   display: grid;
-  grid-template-columns: repeat(6, 92px);
+  grid-template-columns: repeat(3, 92px);
   border: 1px solid var(--line);
   border-bottom: none;
   background: color-mix(in srgb, var(--line) 45%, transparent);
