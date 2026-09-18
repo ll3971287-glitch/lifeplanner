@@ -176,7 +176,6 @@ export function projectStats(state, projectId) {
   const doneList = projectTodosList.filter((t) => t.completed)
   const done = doneList.length
   const total = projectTodosList.length
-  const allDone = total > 0 && done === total
   const mode = proj && proj.progressMode === 'hours' ? 'hours' : 'count'
   if (mode === 'hours') {
     const totalWork = Math.max(0, Number(proj.totalWorkload) || 0)
@@ -187,10 +186,15 @@ export function projectStats(state, projectId) {
         : total
           ? Math.min(100, Math.round((done / total) * 100))
           : 0
-    return { total, done, pct, allDone, mode, doneWork, totalWork, unit: proj.workloadUnit || '小时' }
+    const allDone = totalWork > 0 ? doneWork >= totalWork : total > 0 && done === total
+    return { total, done, pct, allDone, mode, doneWork, totalWork, unit: proj.workloadUnit || '小时', planTotal: 0, denom: totalWork }
   }
-  const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0
-  return { total, done, pct, allDone, mode, doneWork: 0, totalWork: 0, unit: '' }
+  // 按任务数量统计：分母 = 用户预设的任务总量；未设置时回退为当前已建任务数
+  const planTotal = Math.max(0, Number(proj && proj.totalWorkload) || 0)
+  const denom = planTotal > 0 ? planTotal : total
+  const pct = denom ? Math.min(100, Math.round((done / denom) * 100)) : 0
+  const allDone = denom > 0 && done >= denom
+  return { total, done, pct, allDone, mode, doneWork: 0, totalWork: 0, unit: '', planTotal, denom }
 }
 
 export function fmtWork(n) {
@@ -201,6 +205,7 @@ export function fmtWork(n) {
 export function projectProgressText(state, projectId) {
   const st = projectStats(state, projectId)
   if (st.mode === 'hours') return `${fmtWork(st.doneWork)}/${fmtWork(st.totalWork)} ${st.unit}`
+  if (st.planTotal > 0) return `${st.done}/${st.planTotal} 任务`
   return `${st.done}/${st.total} 子任务`
 }
 
