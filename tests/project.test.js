@@ -6,7 +6,7 @@ import { store, defaultState } from '../src/store.js'
 import { parseDateStr } from '../src/utils/date.js'
 import ProjectFormModal from '../src/components/project/ProjectFormModal.vue'
 import { catOf } from '../src/projectMeta.js'
-import { projectStats } from '../src/selectors.js'
+import { projectStats, projectProgressText } from '../src/selectors.js'
 import ProjectsView from '../src/views/ProjectsView.vue'
 import ProjectDetailView from '../src/views/ProjectDetailView.vue'
 import ConfirmDialog from '../src/components/ui/ConfirmDialog.vue'
@@ -116,18 +116,48 @@ describe('项目编辑面板：二次修改与实时生效', () => {
     w.unmount()
   })
 
+  it('数量统计以预设总任务数为分母（而非已建任务数）', () => {
+    const p = store.addProject({ name: '预设量项目', category: 'project', totalWorkload: 10, workloadUnit: '个' })
+    const t1 = store.addSubTask({ projectId: p.id, name: 't1' })
+    store.addSubTask({ projectId: p.id, name: 't2' })
+    store.addSubTask({ projectId: p.id, name: 't3' })
+    // 已建 3 个任务，完成 1 个 → 1/10 = 10%（不是 1/3 = 33%）
+    store.toggleTodo(t1.id, true)
+    expect(projectStats(store.state, p.id).pct).toBe(10)
+    expect(projectProgressText(store.state, p.id)).toBe('1/10 任务')
+    // 未做满预设量不算完成
+    expect(projectStats(store.state, p.id).allDone).toBe(false)
+    // 把预设量调成 3 → 立刻按 1/3 计算
+    store.updateProject(p.id, { totalWorkload: 3 })
+    expect(projectStats(store.state, p.id).pct).toBe(33)
+    // 三个都完成 → 100% 且达成
+    const rest = store.state.todos.filter((t) => t.projectId === p.id && !t.completed)
+    for (const t of rest) store.toggleTodo(t.id, true)
+    expect(projectStats(store.state, p.id).pct).toBe(100)
+    expect(projectStats(store.state, p.id).allDone).toBe(true)
+  })
+
+  it('未设预设量时仍按实际任务数统计（兼容旧项目）', () => {
+    const p = store.addProject({ name: '老项目', category: 'project' })
+    store.addSubTask({ projectId: p.id, name: 'a' })
+    const b = store.addSubTask({ projectId: p.id, name: 'b' })
+    store.toggleTodo(b.id, true)
+    expect(projectStats(store.state, p.id).pct).toBe(50)
+    expect(projectProgressText(store.state, p.id)).toBe('1/2 子任务')
+  })
+
   it('切换进度统计方式后进度按新规则重算', () => {
-    const p = store.addProject({ name: 'P', category: 'project', totalWorkload: 10, workloadUnit: '小时' })
+    const p = store.addProject({ name: 'P', category: 'project' })
     const a = store.addSubTask({ projectId: p.id, name: 'A', estimatedHours: 8 })
     const b = store.addSubTask({ projectId: p.id, name: 'B', estimatedHours: 2 })
     store.toggleTodo(a.id, true)
-    // 默认按任务数量：1/2 = 50%
+    // 默认按任务数量（未设预设量）：1/2 = 50%
     expect(projectStats(store.state, p.id).pct).toBe(50)
-    // 改为按预计时长：8/10 = 80%
-    store.updateProject(p.id, { progressMode: 'hours' })
+    // 改为按预计时长并给总工作量 10 小时：8/10 = 80%
+    store.updateProject(p.id, { progressMode: 'hours', totalWorkload: 10, workloadUnit: '小时' })
     expect(projectStats(store.state, p.id).pct).toBe(80)
-    // 再改回数量统计 → 立即回到 50%
-    store.updateProject(p.id, { progressMode: 'count' })
+    // 改回数量统计且清空预设量 → 回到 50%
+    store.updateProject(p.id, { progressMode: 'count', totalWorkload: 0 })
     expect(projectStats(store.state, p.id).pct).toBe(50)
     expect(b.completed).toBe(false)
   })
