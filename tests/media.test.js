@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import { store, defaultState } from '../src/store.js'
 import { mediaOf, mediaCounts, mediaCategoryStats, mediaFavorites } from '../src/selectors.js'
 import { progressInfo, ratingStars, wishLabel } from '../src/mediaMeta.js'
@@ -10,7 +11,8 @@ import MediaDrawer from '../src/components/media/MediaDrawer.vue'
 import MediaFormModal from '../src/components/media/MediaFormModal.vue'
 import MediaTimeline from '../src/components/media/MediaTimeline.vue'
 import ReviewFormModal from '../src/components/review/ReviewFormModal.vue'
-import { mediaOverview, mediaTopRated, mediaTimeline } from '../src/selectors.js'
+import { mediaOverview, mediaTopRated, mediaTimeline, recentMedia } from '../src/selectors.js'
+import HomeView from '../src/views/HomeView.vue'
 import { DAY_MS } from '../src/utils/date.js'
 
 beforeEach(() => {
@@ -280,6 +282,49 @@ describe('书影音：第二阶段（总览 / TOP / 时间线 / 复盘联动）'
     const after = store.state.mediaItems.find((x) => x.id === m.id)
     expect(after.title).toBe('本周读完的书')
     expect(after.oneLine).toBe('非常推荐')
+    w.unmount()
+  })
+})
+
+describe('首页「最近在看」板块', () => {
+  async function mountHome() {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/media', component: { template: '<div/>' } },
+        { path: '/todos', component: { template: '<div/>' } },
+        { path: '/blueprints', component: { template: '<div/>' } },
+        { path: '/relations', component: { template: '<div/>' } },
+        { path: '/projects/:id', component: { template: '<div/>' } },
+      ],
+    })
+    router.push('/')
+    const w = mount(HomeView, { global: { plugins: [router] } })
+    return { w, router }
+  }
+
+  it('展示进行中的书影音记录，点击打开详情抽屉', async () => {
+    const m = store.addMedia({ category: 'book', title: '正在读的书', creator: '某作者', status: 'doing', totalPages: 300, currentPage: 90 })
+    const { w } = await mountHome()
+    await nextTick()
+    expect(w.text()).toContain('最近在看')
+    expect(w.text()).toContain('正在读的书')
+    expect(w.text()).toContain('90/300 页')
+    const row = w.findAll('.h-row').find((r) => r.text().includes('正在读的书'))
+    await row.trigger('click')
+    await nextTick()
+    expect(document.body.textContent).toContain('进度')
+    expect(document.body.textContent).toContain('私密备忘录')
+    w.unmount()
+    expect(m.status).toBe('doing')
+  })
+
+  it('没有进行中记录时不显示该板块（回退最近更新由选择器保证）', async () => {
+    expect(recentMedia(store.state)).toHaveLength(0)
+    const { w } = await mountHome()
+    await nextTick()
+    expect(w.text()).not.toContain('最近在看')
     w.unmount()
   })
 })
