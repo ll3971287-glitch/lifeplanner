@@ -19,13 +19,21 @@
     </div>
 
     <div class="grid" :class="scope">
-      <GoalPeriodCard v-for="i in cardCount" :key="scope + i" :year="year" :scope="scope" :index="i - 1" />
+      <GoalPeriodCard
+        v-for="i in cardCount"
+        :key="scope + year + i"
+        :ref="(el) => setCardRef(i - 1, el)"
+        :year="year"
+        :scope="scope"
+        :index="i - 1"
+        :current="isCurrent(i - 1)"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import SegControl from '../ui/SegControl.vue'
 import Icon from '../ui/Icon.vue'
 import GoalPeriodCard from './GoalPeriodCard.vue'
@@ -38,6 +46,28 @@ const scope = ref('month')
 const year = ref(thisYear)
 
 const scopeOptions = GOAL_SCOPES.map((s) => ({ label: s.label, value: s.key }))
+
+// 当前所处的月 / 季度
+const now = new Date()
+const currentMonthIdx = now.getMonth()
+const currentQuarterIdx = Math.floor(now.getMonth() / 3)
+const isCurrent = (index) => year.value === thisYear && index === (scope.value === 'month' ? currentMonthIdx : currentQuarterIdx)
+
+// 进入板块或切换视图/年份时，直接定位到当前月 / 当前季度
+const cardEls = ref([])
+function setCardRef(i, el) {
+  cardEls.value[i] = el
+}
+function locateCurrent() {
+  if (year.value !== thisYear) return
+  const idx = scope.value === 'month' ? currentMonthIdx : currentQuarterIdx
+  const el = cardEls.value[idx] && cardEls.value[idx].$el ? cardEls.value[idx].$el : cardEls.value[idx]
+  if (el && typeof el.scrollIntoView === 'function') {
+    el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
+}
+onMounted(() => nextTick(locateCurrent))
+watch([scope, year], () => nextTick(locateCurrent))
 const cardCount = computed(() => (GOAL_SCOPES.find((s) => s.key === scope.value) || GOAL_SCOPES[0]).count)
 </script>
 
