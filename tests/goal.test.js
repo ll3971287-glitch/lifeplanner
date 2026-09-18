@@ -83,6 +83,34 @@ describe('目标板块 UI', () => {
     w.unmount()
   })
 
+  it('进入时定位并标记当前月/当前季度卡片', async () => {
+    const scrollSpy = vi.fn()
+    window.HTMLElement.prototype.scrollIntoView = scrollSpy
+    const w = mount(GoalsPanel)
+    await nextTick()
+    await nextTick()
+    // 当前月卡片带 is-current 标记且被滚动定位
+    const cards = w.findAll('.gp-card')
+    const monthIdx = new Date().getMonth()
+    expect(cards[monthIdx].classes()).toContain('is-current')
+    expect(cards.filter((c) => c.classes().includes('is-current'))).toHaveLength(1)
+    expect(scrollSpy).toHaveBeenCalled()
+    // 切到季度视图 → 当前季度卡片被标记
+    const segs = w.findAll('.seg-item')
+    await segs[1].trigger('click')
+    await nextTick()
+    await nextTick()
+    const qCards = w.findAll('.gp-card')
+    const qIdx = Math.floor(new Date().getMonth() / 3)
+    expect(qCards[qIdx].classes()).toContain('is-current')
+    // 切到非今年 → 不再有"当前"标记
+    await w.findAll('.nav-btn')[0].trigger('click')
+    await nextTick()
+    expect(w.findAll('.gp-card.is-current')).toHaveLength(0)
+    delete window.HTMLElement.prototype.scrollIntoView
+    w.unmount()
+  })
+
   it('年份可切换并回到今年', async () => {
     const w = mount(GoalsPanel)
     await nextTick()
