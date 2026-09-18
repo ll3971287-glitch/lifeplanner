@@ -44,6 +44,25 @@
     </div>
 
     <div class="field">
+      <span class="field-label">关联目标（只读引用，改复盘不会改动目标数据）</span>
+      <div v-if="pickableGoals.length" class="goal-pick">
+        <button
+          v-for="g in pickableGoals"
+          :key="g.id"
+          type="button"
+          class="goal-chip"
+          :class="{ on: form.goals.includes(g.id), done: g.done }"
+          @click="toggleGoal(g.id)"
+        >
+          <Icon v-if="g.done" name="check" :size="11" />
+          <span class="gk-name">{{ g.name }}</span>
+          <span class="gk-period muted">{{ periodShortLabel(g) }}</span>
+        </button>
+      </div>
+      <p v-else class="muted rule-tip">这个周期还没有目标，可先到「目标」板块添加。</p>
+    </div>
+
+    <div class="field">
       <span class="field-label">整体总结</span>
       <textarea v-model="form.fields.summary" class="textarea" rows="3" placeholder="一句话总结这个周期" />
     </div>
@@ -71,6 +90,7 @@ import {
   parseDateStr,
 } from '../../utils/date.js'
 import { completedTodosInRange, archivedProjectsInRange } from '../../selectors.js'
+import { periodShort, goalScopeForReview } from '../../goalMeta.js'
 import { showToast } from '../../ui.js'
 import SegControl from '../ui/SegControl.vue'
 import Icon from '../ui/Icon.vue'
@@ -92,7 +112,26 @@ const form = ref({
   fields: props.review
     ? { ...props.review.fields }
     : { plan: '', events: '', problems: '', improvement: '', summary: '' },
+  goals: props.review && Array.isArray(props.review.goals) ? [...props.review.goals] : [],
 })
+
+// 可关联的目标：日/周/月复盘 → 当月目标；年/五年复盘 → 该年全部目标
+const pickableGoals = computed(() => {
+  const d = new Date(form.value.anchorBase)
+  const year = d.getFullYear()
+  const month = d.getMonth()
+  const scopeFor = goalScopeForReview(form.value.type)
+  if (scopeFor === 'year') return store.state.goals.filter((g) => g.year === year)
+  return store.state.goals.filter((g) => g.year === year && g.scope === 'month' && g.index === month)
+})
+function periodShortLabel(g) {
+  return periodShort(g.year, g.scope, g.index)
+}
+function toggleGoal(id) {
+  const i = form.value.goals.indexOf(id)
+  if (i >= 0) form.value.goals.splice(i, 1)
+  else form.value.goals.push(id)
+}
 
 const UNIT = { day: '日', week: '周', month: '月', year: '年', five: '五年' }
 
@@ -149,6 +188,7 @@ function save() {
     type: form.value.type,
     periodDate: anchor.value,
     fields: form.value.fields,
+    goals: [...form.value.goals],
   }
   if (editing) {
     store.updateReview(props.review.id, payload)
