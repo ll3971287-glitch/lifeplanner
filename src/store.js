@@ -38,17 +38,20 @@ export function defaultState() {
     reviews: [],
     blueprints: [],
     relations: [],
+    goals: [],
+    goalNotes: {},
   }
 }
 
 const TODO_PATCH_KEYS = ['title', 'note', 'timeType', 'startAt', 'endAt', 'tagIds', 'parentId', 'recurrence', 'priority', 'projectId', 'estimatedHours', 'onHome', 'snoozeUntil']
 const PROJECT_PATCH_KEYS = ['name', 'type', 'desc', 'totalWorkload', 'workloadUnit', 'deadline', 'tagIds', 'completed', 'completedAt', 'progressMode', 'category']
 const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMin', 'startDate', 'endDate', 'rule', 'countUnlimited']
-const REVIEW_PATCH_KEYS = ['type', 'periodDate', 'fields']
+const REVIEW_PATCH_KEYS = ['type', 'periodDate', 'fields', 'goals']
 const TAG_PATCH_KEYS = ['name', 'color']
 const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBreakMin', 'dailyFocusGoalMin', 'navOrder', 'homeOrder', 'showProjectsOnHome', 'showBlueprintsOnCalendar', 'blueprintDims', 'focusChain']
 const BLUEPRINT_PATCH_KEYS = ['title', 'goalDateTs', 'goalStartTs', 'goalEndTs', 'goalText', 'dimension', 'desc', 'status', 'notes', 'level']
 const RELATION_PATCH_KEYS = ['name', 'gender', 'age', 'birthYear', 'birthMonth', 'birthDay', 'place', 'affinity', 'note']
+const GOAL_PATCH_KEYS = ['name', 'desc', 'done', 'year', 'scope', 'index', 'order']
 
 function clampAffinity(v) {
   const n = Number(v)
@@ -67,8 +70,11 @@ export function normalizeData(raw) {
   const out = { ...def }
   if (raw && typeof raw === 'object') {
     if (typeof raw.version === 'number') out.version = raw.version
-    for (const arr of ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations']) {
+    for (const arr of ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals']) {
       if (Array.isArray(raw[arr])) out[arr] = raw[arr]
+    }
+    if (raw.goalNotes && typeof raw.goalNotes === 'object' && !Array.isArray(raw.goalNotes)) {
+      out.goalNotes = { ...raw.goalNotes }
     }
     if (raw.settings && typeof raw.settings === 'object') {
       out.settings = { ...def.settings, ...raw.settings }
@@ -729,8 +735,61 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     scheduleSave()
   }
 
+  // ---------- 目标（月度 / 季度） ----------
+  function sameGoalPeriod(g, year, scope, index) {
+    return g.year === year && g.scope === scope && g.index === index
+  }
+
+  function addGoal({ year, scope = 'month', index = 0, name, desc = '' } = {}) {
+    const g = {
+      id: uid(),
+      year,
+      scope,
+      index,
+      name,
+      desc: desc || '',
+      done: false,
+      order: state.goals.filter((x) => sameGoalPeriod(x, year, scope, index)).length,
+      createdAt: now(),
+    }
+    state.goals.push(g)
+    scheduleSave()
+    return g
+  }
+
+  function updateGoal(id, p) {
+    const g = state.goals.find((x) => x.id === id)
+    if (!g) return null
+    patch(g, p, GOAL_PATCH_KEYS)
+    scheduleSave()
+    return g
+  }
+
+  function deleteGoal(id) {
+    state.goals = state.goals.filter((g) => g.id !== id)
+    // 同步清理复盘里的关联引用（不影响其它数据）
+    for (const r of state.reviews) {
+      if (Array.isArray(r.goals) && r.goals.includes(id)) r.goals = r.goals.filter((x) => x !== id)
+    }
+    scheduleSave()
+  }
+
+  function toggleGoalDone(id, done) {
+    const g = state.goals.find((x) => x.id === id)
+    if (!g) return
+    g.done = done != null ? done : !g.done
+    scheduleSave()
+  }
+
+  function setGoalNote(year, scope, index, text) {
+    const k = `${scope}-${year}-${index}`
+    if (text && text.trim()) state.goalNotes[k] = text
+    else delete state.goalNotes[k]
+    scheduleSave()
+  }
+
   // ---------- 复盘 ----------
-  function addReview({ type = 'day', periodDate = null, fields = {} } = {}) {
+  function addReview({ type = 'day', periodDate = null, fields = {}, goals = [] } = {}) {
     const r = {
       id: uid(),
       type,
@@ -742,6 +801,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
         improvement: fields.improvement || '',
         summary: fields.summary || '',
       },
+      goals: Array.isArray(goals) ? [...goals] : [],
       createdAt: now(),
       updatedAt: now(),
     }
@@ -802,7 +862,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     return JSON.parse(JSON.stringify({ ...state, version: 1 }))
   }
 
-  const DATA_ARRS = ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations']
+  const DATA_ARRS = ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals']
 
   function assertValidData(d) {
     if (!d || typeof d !== 'object') throw new Error('文件内容不是有效的数据对象')
@@ -893,6 +953,11 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     addRelation,
     updateRelation,
     deleteRelation,
+    addGoal,
+    updateGoal,
+    deleteGoal,
+    toggleGoalDone,
+    setGoalNote,
     setSetting,
     init,
     reload,
