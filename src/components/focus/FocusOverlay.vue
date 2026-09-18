@@ -20,12 +20,26 @@
 </template>
 
 <script setup>
+import { watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { store } from '../../store.js'
+import { playChime, unlockAudio } from '../../sound.js'
 import FocusTimer from './FocusTimer.vue'
 import Icon from '../ui/Icon.vue'
 
 const router = useRouter()
+
+// 专注到点 → 上行铃声；休息结束 → 柔和提示音（与设置里的开关联动）
+watch(
+  () => store.focusState.phase,
+  (now, before) => {
+    if (store.state.settings.soundOn === false) return
+    if (before === 'run' && now === 'break') playChime('focusEnd')
+    else if (before === 'break' && now === 'idle') playChime('breakEnd')
+  }
+)
+
+onMounted(unlockAudio)
 
 function goFocusPage() {
   store.closeFocus()
