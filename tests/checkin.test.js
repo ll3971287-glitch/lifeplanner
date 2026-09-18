@@ -301,3 +301,78 @@ describe('CheckinDetailView 与图表', () => {
     w.unmount()
   })
 })
+
+describe('打卡图表数据修复与补打卡', () => {
+  async function mountDetail(id) {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/checkins/:id', component: { template: '<div/>' } }, { path: '/checkins', component: { template: '<div/>' } }] })
+    await router.push(`/checkins/${id}`)
+    await router.isReady()
+    return mount(CheckinDetailView, { global: { plugins: [router] } })
+  }
+
+  it('折线图序列覆盖到今天，当天有记录时柱子高度大于 0（回归）', async () => {
+    const c = store.addCheckin({ name: '跑步', dailyTargetCount: 1 })
+    const today = startOfDayTs(Date.now())
+    store.addCheckinRecord(c.id, { count: 2, at: today + 9 * 3600000 })
+    const w = await mountDetail(c.id)
+    await nextTick()
+    const bars = w.findComponent(LineChart).findAll('rect.bar')
+    expect(bars).toHaveLength(30)
+    // 序列最后一天 = 今天，且有记录 → 高度 > 0
+    const last = bars[bars.length - 1]
+    expect(Number(last.attributes('height'))).toBeGreaterThan(0)
+    // 30 天前那一天没有记录 → 高度为 0
+    expect(Number(bars[0].attributes('height'))).toBe(0)
+    w.unmount()
+  })
+
+  it('补打卡：可选过去日期，记录计入统计与图表', async () => {
+    const c = store.addCheckin({ name: '冥想', dailyTargetCount: 1, fixedDurationMin: 10 })
+    const w = await mountDetail(c.id)
+    await nextTick()
+    const mkBtn = w.findAll('button').find((b) => b.text().includes('补打卡'))
+    await mkBtn.trigger('click')
+    await nextTick()
+    const panels = [...document.querySelectorAll('.modal-panel')]
+    const panel = panels[panels.length - 1]
+    const y = new Date(Date.now() - 86400000)
+    const ds = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`
+    const dateInput = panel.querySelector('input[type="date"]')
+    dateInput.value = ds
+    dateInput.dispatchEvent(new Event('change'))
+    await nextTick()
+    const save = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('补上'))
+    save.click()
+    await nextTick()
+    expect(store.state.checkinRecords).toHaveLength(1)
+    const rec = store.state.checkinRecords[0]
+    expect(new Date(rec.at).getDate()).toBe(y.getDate())
+    expect(rec.durationMin).toBe(10)
+    expect(rec.note).toBe('补打卡')
+    // 累计时长随之更新
+    expect(w.text()).toContain('10')
+    w.unmount()
+  })
+
+  it('补打卡拒绝未来日期', async () => {
+    const c = store.addCheckin({ name: '喝水', dailyTargetCount: 1 })
+    const w = await mountDetail(c.id)
+    await nextTick()
+    const mkBtn = w.findAll('button').find((b) => b.text().includes('补打卡'))
+    await mkBtn.trigger('click')
+    await nextTick()
+    const panels = [...document.querySelectorAll('.modal-panel')]
+    const panel = panels[panels.length - 1]
+    const t = new Date(Date.now() + 86400000)
+    const ds = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+    const dateInput = panel.querySelector('input[type="date"]')
+    dateInput.value = ds
+    dateInput.dispatchEvent(new Event('change'))
+    await nextTick()
+    const save = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('补上'))
+    save.click()
+    await nextTick()
+    expect(store.state.checkinRecords).toHaveLength(0)
+    w.unmount()
+  })
+})
