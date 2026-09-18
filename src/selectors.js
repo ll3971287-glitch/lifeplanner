@@ -589,3 +589,12 @@ export function mediaInRange(state, fromTs, toTsExclusive) {
     })
     .sort((a, b) => mediaTimelineTs(b) - mediaTimelineTs(a))
 }
+
+// 首页「最近在看」：优先进行中的记录，没有则取最近更新的
+export function recentMedia(state, limit = 5) {
+  const doing = state.mediaItems
+    .filter((m) => m.status === 'doing')
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+  if (doing.length) return doing.slice(0, limit)
+  return [...state.mediaItems].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, limit)
+}
