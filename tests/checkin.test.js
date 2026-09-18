@@ -208,6 +208,16 @@ describe('CheckinsView', () => {
     w.unmount()
   })
 
+  it('打卡专注按钮图标不为空（闹钟图形）', async () => {
+    store.addCheckin({ name: '晨跑', dailyTargetCount: 1 })
+    const w = mountView()
+    await nextTick()
+    const btn = w.find('.focus-mini')
+    expect(btn.exists()).toBe(true)
+    expect(btn.findAll('svg circle, svg polyline, svg line, svg path').length).toBeGreaterThan(0)
+    w.unmount()
+  })
+
   it('卡片专注按钮拉起针对该打卡项目的番茄专注', async () => {
     const c = store.addCheckin({ name: '晨跑', dailyTargetCount: 1 })
     const w = mountView()
