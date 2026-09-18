@@ -163,7 +163,36 @@ describe('蓝图编辑表单', () => {
   })
 })
 
-describe('季度视窗时间轴', () => {
+describe('蓝图等级与尺寸渲染', () => {
+  it('新建默认小蓝图，可改为中/大', () => {
+    const b = store.addBlueprint({ title: '默认等级' })
+    expect(b.level).toBe('small')
+    store.updateBlueprint(b.id, { level: 'large' })
+    expect(store.state.blueprints[0].level).toBe('large')
+  })
+
+  it('进度条按等级渲染不同尺寸，大蓝图排在上方', async () => {
+    const now = Date.now()
+    store.addBlueprint({ title: '小事一桩', level: 'small', status: 'doing', goalEndTs: now + 3600000 })
+    store.addBlueprint({ title: '中等目标', level: 'medium', status: 'doing', goalEndTs: now + 3600000 })
+    store.addBlueprint({ title: '人生大事', level: 'large', status: 'doing', goalEndTs: now + 3600000 })
+    const w = mount(BlueprintTimeline, { props: { items: store.state.blueprints } })
+    await nextTick()
+    const bars = w.findAll('.bar')
+    expect(bars).toHaveLength(3)
+    // 排序：大 → 中 → 小
+    expect(bars[0].text()).toContain('人生大事')
+    expect(bars[1].text()).toContain('中等目标')
+    expect(bars[2].text()).toContain('小事一桩')
+    // 尺寸：大 > 中 > 小
+    expect(bars[0].attributes('style')).toContain('height: 46px')
+    expect(bars[1].attributes('style')).toContain('height: 34px')
+    expect(bars[2].attributes('style')).toContain('height: 24px')
+    w.unmount()
+  })
+})
+
+describe('四个月视窗时间轴', () => {
   it('无期望达成时间的条目进入构想池，带截止期的条目渲染为进度条', async () => {
     const now = Date.now()
     store.addBlueprint({ title: '模糊构想', goalText: '退休前', status: 'idea' })
