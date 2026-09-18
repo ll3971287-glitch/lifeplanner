@@ -7,6 +7,7 @@ import { periodTitle, periodMonths, noteKey } from '../src/goalMeta.js'
 import GoalsPanel from '../src/components/goal/GoalsPanel.vue'
 import GoalPeriodCard from '../src/components/goal/GoalPeriodCard.vue'
 import ReviewsView from '../src/views/ReviewsView.vue'
+import GoalsView from '../src/views/GoalsView.vue'
 import ReviewFormModal from '../src/components/review/ReviewFormModal.vue'
 import ReviewCard from '../src/components/review/ReviewCard.vue'
 
@@ -167,20 +168,21 @@ describe('目标板块 UI', () => {
 })
 
 describe('复盘页目标入口与关联', () => {
-  it('点击入口卡进入目标板块，可返回复盘列表', async () => {
+  it('复盘页不再内嵌目标板块（已拆为独立页面）', async () => {
     store.addGoal({ year: YEAR, scope: 'month', index: 0, name: '入口前的目标' })
     const w = mount(ReviewsView)
     await nextTick()
-    expect(w.find('.goal-entry').exists()).toBe(true)
-    expect(w.text()).toContain('1 个目标')
-    await w.find('.goal-entry').trigger('click')
+    expect(w.find('.goal-entry').exists()).toBe(false)
+    expect(w.text()).not.toContain('个目标')
+    w.unmount()
+  })
+
+  it('独立目标页面：渲染 12 张月度卡，且没有“返回复盘”', async () => {
+    const w = mount(GoalsView)
     await nextTick()
     expect(w.findAll('.gp-card')).toHaveLength(12)
-    expect(w.text()).not.toContain('写日报')
-    const back = w.findAll('button').find((b) => b.text().includes('返回复盘'))
-    await back.trigger('click')
-    await nextTick()
-    expect(w.find('.goal-entry').exists()).toBe(true)
+    expect(w.text()).not.toContain('返回复盘')
+    expect(w.text()).toContain('目标')
     w.unmount()
   })
 
