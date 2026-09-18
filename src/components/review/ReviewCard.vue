@@ -24,6 +24,13 @@
       </div>
     </div>
 
+    <div v-if="linkedGoals.length" class="linked-goals">
+      <span class="lg-label muted">关联目标</span>
+      <span v-for="g in linkedGoals" :key="g.id" class="lg-chip" :class="{ done: g.done }">
+        <Icon v-if="g.done" name="check" :size="10" />{{ g.name }}
+      </span>
+    </div>
+
     <div v-if="open" class="fields">
       <div v-for="f in FIELDS" :key="f.key" class="field-block">
         <h4 class="f-name"><i class="f-dot" :style="{ background: theme.fg }" />{{ f.label }}</h4>
@@ -38,6 +45,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { periodLabel, PERIOD_TYPE_LABEL, fmtDateTime } from '../../utils/date.js'
+import { reviewGoals } from '../../selectors.js'
+import { store } from '../../store.js'
 import Icon from '../ui/Icon.vue'
 
 const props = defineProps({
@@ -47,6 +56,7 @@ const props = defineProps({
 defineEmits(['edit', 'remove'])
 
 const open = ref(true)
+const linkedGoals = computed(() => reviewGoals(store.state, props.review))
 
 const FIELDS = [
   { key: 'plan', label: '计划内容' },
@@ -77,6 +87,35 @@ const summaryPreview = computed(() => {
 </script>
 
 <style scoped>
+.linked-goals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 2px 0;
+}
+
+.lg-label {
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.lg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+.lg-chip.done {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  text-decoration: line-through;
+}
 .review-card {
   padding: 14px;
   display: flex;
