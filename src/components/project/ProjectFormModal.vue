@@ -22,14 +22,24 @@
 
     <div class="two-col">
       <div class="field">
-        <span class="field-label">总工作量</span>
-        <input v-model.number="form.totalWorkload" type="number" min="0" step="0.5" class="input" placeholder="如 40" />
+        <span class="field-label">{{ form.progressMode === 'hours' ? '总工作量' : '总任务数（预设量）' }}</span>
+        <input
+          v-model.number="form.totalWorkload"
+          type="number"
+          min="0"
+          step="0.5"
+          class="input"
+          :placeholder="form.progressMode === 'hours' ? '如 40' : '如 10'"
+        />
       </div>
       <div class="field">
-        <span class="field-label">工作量单位</span>
-        <input v-model="form.workloadUnit" class="input" placeholder="小时" />
+        <span class="field-label">{{ form.progressMode === 'hours' ? '工作量单位' : '单位' }}</span>
+        <input v-model="form.workloadUnit" class="input" :placeholder="form.progressMode === 'hours' ? '小时' : '个'" />
       </div>
     </div>
+    <p v-if="form.progressMode === 'count'" class="muted rule-tip">
+      先设定这个项目一共计划做多少件事（总任务数），进度 = 已完成任务数 ÷ 总任务数。留空则按当前已建任务数计算。
+    </p>
 
     <div class="field">
       <span class="field-label">进度统计规则</span>
