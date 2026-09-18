@@ -95,6 +95,28 @@
         </div>
       </section>
 
+      <!-- 最近在看（书影音） -->
+      <section v-if="recentMediaList.length" class="card h-card" :style="cardStyle('media')">
+        <div class="h-head">
+          <div class="row gap4 head-left">
+            <button type="button" class="drag-handle" aria-label="拖动调整顺序" @pointerdown.stop="dragStart('media', $event)">
+              <Icon name="grip" :size="14" />
+            </button>
+            <h2 class="h-title"><Icon name="film" :size="15" /> 最近在看</h2>
+          </div>
+          <button type="button" class="more-btn muted" @click="router.push('/media')">全部 ›</button>
+        </div>
+        <div class="h-list">
+          <button v-for="m in recentMediaList" :key="m.id" type="button" class="h-row bp-home-row" @click="openMedia(m.id)">
+            <i class="bp-dot" :style="{ background: mediaCatColor(m.category) }" />
+            <span class="h-row-title">{{ m.title }}</span>
+            <span v-if="m.creator" class="time-mini muted">{{ m.creator }}</span>
+            <span v-if="mediaProgText(m)" class="time-mini muted">{{ mediaProgText(m) }}</span>
+            <span class="st-pill" :class="m.status">{{ mediaStatusLabel(m.status) }}</span>
+          </button>
+        </div>
+      </section>
+
       <!-- 项目进度 -->
       <section v-if="showProjectsOnHome" class="card h-card" :style="cardStyle('projects')">
         <div class="h-head">
@@ -228,6 +250,7 @@
 
     <CheckinRecordModal :open="recordOpen" :checkin-id="recordCheckinId" @close="recordOpen = false" @recorded="onRecorded" />
     <BlueprintDrawer :open="bpDrawerOpen" :bp-id="bpActiveId" @close="bpDrawerOpen = false" />
+    <MediaDrawer :open="mediaDrawer.open" :item-id="mediaDrawer.id" @close="mediaDrawer.open = false" />
   </div>
 </template>
 
@@ -245,10 +268,13 @@ import {
   checkinTodayList,
   checkinTodayProgressText,
   dueSoonItems,
+  recentMedia,
   reviewsFor,
 } from '../selectors.js'
 import { BLUEPRINT_STATUS, dimColor } from '../blueprintMeta.js'
 import { daysUntilBirthday, genderColor } from '../relationMeta.js'
+import { catColor as mediaCatColor, statusLabel as mediaStatusLabel, progressInfo as mediaProgressInfo } from '../mediaMeta.js'
+import MediaDrawer from '../components/media/MediaDrawer.vue'
 import { startOfDayTs, startOfWeekTs, fmtTime, DAY_MS } from '../utils/date.js'
 import { fmtFullDate, todoTimeText, fmtFocusMinute, deadlineText } from '../format.js'
 import Icon from '../components/ui/Icon.vue'
@@ -268,7 +294,7 @@ const timer = setInterval(() => {
   nowTs.value = Date.now()
 }, 60000)
 
-const DEFAULT_CARD_ORDER = ['todayTodos', 'blueprints', 'relations', 'projects', 'focus', 'checkins', 'dueSoon', 'reviews']
+const DEFAULT_CARD_ORDER = ['todayTodos', 'blueprints', 'relations', 'projects', 'focus', 'checkins', 'media', 'dueSoon', 'reviews']
 const homeGridRef = ref(null)
 const cardOrder = ref([...DEFAULT_CARD_ORDER])
 
@@ -504,6 +530,17 @@ function openBlueprint(id) {
   bpDrawerOpen.value = true
 }
 
+// 首页「最近在看」：进行中的书影音（没有则最近更新的）
+const mediaDrawer = ref({ open: false, id: null })
+const recentMediaList = computed(() => recentMedia(store.state, 5))
+function mediaProgText(m) {
+  const p = mediaProgressInfo(m)
+  return p.text
+}
+function openMedia(id) {
+  mediaDrawer.value = { open: true, id }
+}
+
 // 首页近期生日：30 天内（含今天）
 const upcomingBirthdays = computed(() => {
   const out = store.state.relations
@@ -567,9 +604,20 @@ const todayReviewDone = computed(() => reviewsFor(store.state, 'day').some((r) =
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
-.st-pill.idea {
-  color: var(--primary-deep);
-  background: color-mix(in srgb, var(--primary) 16%, transparent);
+.st-pill.idea,
+.st-pill.todo {
+  color: var(--text-dim);
+  background: var(--line);
+}
+
+.st-pill.done {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+}
+
+.st-pill.paused {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
 }
 .home {
   display: flex;
