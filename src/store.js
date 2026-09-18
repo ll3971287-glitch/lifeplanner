@@ -21,6 +21,7 @@ export function defaultState() {
       homeOrder: ['todayTodos', 'blueprints', 'projects', 'focus', 'checkins', 'dueSoon', 'reviews'],
       showProjectsOnHome: true,
       showBlueprintsOnCalendar: false,
+      soundOn: true,
       focusChain: {
         triggerText: '深呼吸三次，把手机放到一边',
         markText: '打开要做的文件，写下今天最重要的一件事',
@@ -48,7 +49,7 @@ const PROJECT_PATCH_KEYS = ['name', 'type', 'desc', 'totalWorkload', 'workloadUn
 const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMin', 'startDate', 'endDate', 'rule', 'countUnlimited']
 const REVIEW_PATCH_KEYS = ['type', 'periodDate', 'fields', 'goals']
 const TAG_PATCH_KEYS = ['name', 'color']
-const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBreakMin', 'dailyFocusGoalMin', 'navOrder', 'homeOrder', 'showProjectsOnHome', 'showBlueprintsOnCalendar', 'blueprintDims', 'focusChain']
+const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBreakMin', 'dailyFocusGoalMin', 'navOrder', 'homeOrder', 'showProjectsOnHome', 'showBlueprintsOnCalendar', 'blueprintDims', 'focusChain', 'soundOn']
 const BLUEPRINT_PATCH_KEYS = ['title', 'goalDateTs', 'goalStartTs', 'goalEndTs', 'goalText', 'dimension', 'desc', 'status', 'notes', 'level']
 const RELATION_PATCH_KEYS = ['name', 'gender', 'age', 'birthYear', 'birthMonth', 'birthDay', 'place', 'affinity', 'note']
 const GOAL_PATCH_KEYS = ['name', 'desc', 'done', 'year', 'scope', 'index', 'order']
