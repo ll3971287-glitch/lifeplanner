@@ -32,7 +32,7 @@
               <div
                 class="bar"
                 :class="['st-' + row.status, 'lv-' + row.level]"
-                :style="{ left: row.x + 'px', width: Math.max(row.w, 26) + 'px', height: row.barH + 'px', top: row.barTop + 'px' }"
+                :style="barStyle(row)"
                 :title="row.title + '　' + row.rangeText + '　（' + levelLabelOf(row) + '）'"
                 @click="emitOpen(row)"
               >
@@ -213,6 +213,17 @@ function goNow() {
 function emitOpen(bar) {
   if (vpDrag.moved > 8) return
   emit('open', bar.id)
+}
+// 进度条颜色按「人生维度」着色（状态只体现为透明度/线型）
+function barStyle(row) {
+  return {
+    left: row.x + 'px',
+    width: Math.max(row.w, 26) + 'px',
+    height: row.barH + 'px',
+    top: row.barTop + 'px',
+    background: `color-mix(in srgb, ${row.color} 34%, transparent)`,
+    borderColor: row.color,
+  }
 }
 function levelLabelOf(row) {
   return (BLUEPRINT_LEVELS[row.level] || BLUEPRINT_LEVELS.small).label
@@ -405,31 +416,21 @@ function colorOf(b) {
   gap: 6px;
   padding: 0 9px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--primary) 46%, transparent);
-  border: 1px solid color-mix(in srgb, var(--primary) 60%, transparent);
+  border: 1px solid var(--line);
   box-shadow: var(--shadow);
-}
-
-.bar.st-doing {
-  background: color-mix(in srgb, var(--accent) 26%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
-}
-
-.bar.st-idea {
-  background: color-mix(in srgb, var(--primary) 30%, transparent);
-  border-color: color-mix(in srgb, var(--primary) 55%, transparent);
 }
 
 .bar.st-paused {
   opacity: 0.5;
-  background: var(--line);
-  border-color: var(--muted);
+  border-style: dashed;
 }
 
 .bar.st-done {
-  background: color-mix(in srgb, var(--success) 20%, transparent);
-  border-color: color-mix(in srgb, var(--success) 45%, transparent);
-  opacity: 0.8;
+  opacity: 0.75;
+}
+
+.bar.st-done .bar-title {
+  text-decoration: line-through;
 }
 
 .bar .dim-dot {
