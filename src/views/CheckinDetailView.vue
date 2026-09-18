@@ -17,7 +17,7 @@
             <Icon name="checkCircle" :size="14" /> {{ todayMet ? '再记一次' : '记一次打卡' }}
           </button>
           <button type="button" class="btn btn-outline btn-sm" :disabled="!active" @click="startCheckinFocus">
-            <Icon name="timer" :size="13" /> 专注
+            <Icon name="alarm" :size="13" /> 专注
           </button>
           <button type="button" class="btn btn-outline btn-sm" @click="editOpen = true">
             <Icon name="edit" :size="13" /> 编辑
@@ -105,6 +105,7 @@ import {
 import { fmtDateTime, fmtDate, startOfDayTs, DAY_MS } from '../utils/date.js'
 import { countdownText } from '../format.js'
 import { askConfirm, showToast, randomMotivation, fireConfetti } from '../ui.js'
+import { unlockAudio } from '../sound.js'
 import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -156,6 +157,7 @@ const stats = computed(() => {
 let lastBtn = null
 
 function startCheckinFocus() {
+  unlockAudio()
   if (!checkin.value || !active.value) {
     showToast('打卡项目已过期', 'err')
     return
