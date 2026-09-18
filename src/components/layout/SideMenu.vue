@@ -70,7 +70,7 @@ const groups = [
     items: [
       { label: '未来蓝图', to: '/blueprints', icon: 'flag' },
       { label: '人情', to: '/relations', icon: 'heart' },
-      { label: '书影音', icon: 'book', soon: true },
+      { label: '书影音', to: '/media', icon: 'film' },
     ],
   },
   {
