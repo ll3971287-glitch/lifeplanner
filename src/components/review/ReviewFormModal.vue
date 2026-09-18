@@ -29,6 +29,9 @@
         <button type="button" class="btn btn-sm btn-outline" @click="insertCompleted">
           <Icon name="check" :size="13" /> 插入本周期完成情况
         </button>
+        <button type="button" class="btn btn-sm btn-outline" @click="insertMedia">
+          <Icon name="film" :size="13" /> 插入书影音记录
+        </button>
       </div>
       <textarea v-model="form.fields.events" class="textarea" rows="4" placeholder="发生了什么、完成了什么、遇到了什么" />
     </div>
@@ -89,7 +92,8 @@ import {
   fmtDate,
   parseDateStr,
 } from '../../utils/date.js'
-import { completedTodosInRange, archivedProjectsInRange } from '../../selectors.js'
+import { completedTodosInRange, archivedProjectsInRange, mediaInRange } from '../../selectors.js'
+import { catLabel, statusLabel, ratingStars } from '../../mediaMeta.js'
 import { periodShort, goalScopeForReview } from '../../goalMeta.js'
 import { showToast } from '../../ui.js'
 import SegControl from '../ui/SegControl.vue'
@@ -161,6 +165,29 @@ function shiftAnchor(dir) {
 
 function toNow() {
   form.value.anchorBase = Date.now()
+}
+
+// 自动调取本周期（周/日/月/年）的书影音记录，插入到「当日 / 周期事件」
+function insertMedia() {
+  const [s, e] = periodRangeTs(form.value.type, anchor.value)
+  const list = mediaInRange(store.state, s, e)
+  if (!list.length) {
+    showToast('该周期内暂无书影音记录', 'err')
+    return
+  }
+  const lines = list.map((m) => {
+    const act = m.category === 'book' ? '读完' : m.category === 'game' ? '玩到' : '看完'
+    const parts = [`${act}《${m.title}》`]
+    if (m.creator) parts.push(`（${m.creator}）`)
+    if (m.rating) parts.push(` ${ratingStars(m.rating)}`)
+    parts.push(` · ${catLabel(m.category)} · ${statusLabel(m.status)}`)
+    if (m.oneLine) parts.push(`
+  短评：${m.oneLine}`)
+    return `- ${parts.join('')}`
+  })
+  const block = lines.join('\n')
+  form.value.fields.events = form.value.fields.events ? `${form.value.fields.events}\n${block}` : block
+  showToast('已插入本周期书影音记录')
 }
 
 function insertCompleted() {
