@@ -12,6 +12,7 @@ import TagDetailView from './views/TagDetailView.vue'
 import ReviewsView from './views/ReviewsView.vue'
 import BlueprintsView from './views/BlueprintsView.vue'
 import RelationsView from './views/RelationsView.vue'
+import GoalsView from './views/GoalsView.vue'
 import SettingsView from './views/SettingsView.vue'
 
 export const router = createRouter({
@@ -30,6 +31,7 @@ export const router = createRouter({
     { path: '/reviews', name: 'reviews', component: ReviewsView, meta: { title: '复盘' } },
     { path: '/blueprints', name: 'blueprints', component: BlueprintsView, meta: { title: '未来蓝图' } },
     { path: '/relations', name: 'relations', component: RelationsView, meta: { title: '关系' } },
+    { path: '/goals', name: 'goals', component: GoalsView, meta: { title: '目标' } },
     { path: '/settings', name: 'settings', component: SettingsView, meta: { title: '设置' } },
   ],
   scrollBehavior() {
