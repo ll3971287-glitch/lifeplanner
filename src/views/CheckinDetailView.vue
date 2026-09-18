@@ -19,6 +19,9 @@
           <button type="button" class="btn btn-outline btn-sm" :disabled="!active" @click="startCheckinFocus">
             <Icon name="alarm" :size="13" /> 专注
           </button>
+          <button type="button" class="btn btn-outline btn-sm" @click="openMakeup">
+            <Icon name="refresh" :size="13" /> 补打卡
+          </button>
           <button type="button" class="btn btn-outline btn-sm" @click="editOpen = true">
             <Icon name="edit" :size="13" /> 编辑
           </button>
@@ -79,6 +82,32 @@
       <p v-else class="muted empty-tip">还没有打卡记录。</p>
     </section>
 
+    <BaseModal :open="makeup.open" title="补打卡" @close="makeup.open = false">
+      <div class="mk">
+        <div class="field">
+          <span class="field-label">补哪一天</span>
+          <input type="date" class="input" :value="makeup.dateStr" @change="makeup.dateStr = $event.target.value" />
+          <p class="muted mini">不能选择未来的日期；补录会直接计入该日统计与图表。</p>
+        </div>
+        <div v-if="!isUnlimitedFree" class="field">
+          <span class="field-label">次数</span>
+          <input v-model.number="makeup.count" type="number" min="1" class="input" />
+        </div>
+        <div v-if="checkin && checkin.fixedDurationMin" class="field">
+          <span class="field-label">时长（分钟）</span>
+          <input v-model.number="makeup.durationMin" type="number" min="0" class="input" />
+        </div>
+        <div class="field">
+          <span class="field-label">备注</span>
+          <input v-model="makeup.note" class="input" placeholder="如：忘记打卡，补录" />
+        </div>
+        <div class="row gap8" style="justify-content: flex-end">
+          <button type="button" class="btn btn-outline btn-sm" @click="makeup.open = false">取消</button>
+          <button type="button" class="btn btn-primary btn-sm" @click="saveMakeup">补上</button>
+        </div>
+      </div>
+    </BaseModal>
+
     <BaseModal :open="editOpen" title="编辑打卡项目" @close="editOpen = false">
       <CheckinFormModal v-if="editOpen" :checkin="checkin" @close="editOpen = false" @saved="editOpen = false" />
     </BaseModal>
@@ -92,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { store } from '../store.js'
 import {
@@ -102,7 +131,7 @@ import {
   checkinDayMet,
   checkinActive,
 } from '../selectors.js'
-import { fmtDateTime, fmtDate, startOfDayTs, DAY_MS } from '../utils/date.js'
+import { fmtDateTime, fmtDate, startOfDayTs, parseDateStr, DAY_MS } from '../utils/date.js'
 import { countdownText } from '../format.js'
 import { askConfirm, showToast, randomMotivation, fireConfetti } from '../ui.js'
 import { unlockAudio } from '../sound.js'
@@ -156,6 +185,40 @@ const stats = computed(() => {
 
 let lastBtn = null
 
+// 补打卡：为过去的日期补录一次记录（直接进入统计与图表）
+const makeup = reactive({ open: false, dateStr: '', count: 1, durationMin: 0, note: '补打卡' })
+const isUnlimitedFree = computed(() => !!(checkin.value && checkin.value.rule === 'count' && checkin.value.countUnlimited))
+
+function openMakeup() {
+  makeup.dateStr = fmtDate(Date.now())
+  makeup.count = 1
+  makeup.durationMin = (checkin.value && checkin.value.fixedDurationMin) || 0
+  makeup.note = '补打卡'
+  makeup.open = true
+}
+
+function saveMakeup() {
+  if (!checkin.value) return
+  const dayTs = parseDateStr(makeup.dateStr)
+  if (Number.isNaN(dayTs)) {
+    showToast('请选择要补的日期', 'err')
+    return
+  }
+  if (dayTs > startOfDayTs(Date.now())) {
+    showToast('不能补未来的日期', 'err')
+    return
+  }
+  const at = dayTs + 12 * 3600000 // 记在当天中午
+  store.addCheckinRecord(checkin.value.id, {
+    count: isUnlimitedFree.value ? 1 : Math.max(1, Number(makeup.count) || 1),
+    durationMin: checkin.value.fixedDurationMin ? Math.max(0, Number(makeup.durationMin) || 0) : 0,
+    at,
+    note: makeup.note.trim() || '补打卡',
+  })
+  makeup.open = false
+  showToast('已补打卡')
+}
+
 function startCheckinFocus() {
   unlockAudio()
   if (!checkin.value || !active.value) {
@@ -200,6 +263,31 @@ async function doDelete() {
 </script>
 
 <style scoped>
+.mk {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mk .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mk .field-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.mk .input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
 .detail-view {
   display: flex;
   flex-direction: column;
