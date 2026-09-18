@@ -1,6 +1,9 @@
 <template>
   <div class="projects-view">
     <div class="toolbar card">
+      <div class="cat-bar">
+        <SegControl :model-value="catTab" :options="catOptions" @update:model-value="catTab = $event" />
+      </div>
       <div class="row-between gap8 wrap">
         <SegControl :model-value="filter" :options="filterOptions" @update:model-value="filter = $event" />
         <button type="button" class="btn btn-primary" @click="openCreate">
@@ -13,7 +16,15 @@
       <div class="grid">
         <button v-for="p in activeList" :key="p.id" type="button" class="p-card card" @click="router.push(`/projects/${p.id}`)">
           <div class="p-head">
-            <span class="type-badge" :class="p.type === '工作' ? 'work' : 'study'">{{ p.type }}</span>
+            <button
+              type="button"
+              class="type-badge cat-badge"
+              :style="{ background: catColor(p) }"
+              :title="'点击调整分类（当前：' + catLabelOfKey(catOf(p)) + '）'"
+              @click.stop="openCatPick(p)"
+            >
+              {{ catMeta(p).short }}
+            </button>
             <span v-if="isOverdue(p)" class="late">已逾期</span>
           </div>
           <h3 class="p-name" :title="p.name">{{ p.name }}</h3>
@@ -38,7 +49,12 @@
         <Icon name="plus" :size="16" /> 新建第一个项目
       </button>
     </EmptyState>
-    <EmptyState v-else-if="!archivedList.length" icon="checkCircle" text="没有进行中的项目" hint="全部项目都已完成或归档" />
+    <EmptyState v-else-if="!store.state.projects.filter(inCat).length" icon="briefcase" :text="catLabelOfKey(catTab) + '下还没有项目'" hint="点右上「新建项目」，或把已有项目的分类改到这里">
+      <button type="button" class="btn btn-primary" style="margin-top: 14px" @click="openCreate">
+        <Icon name="plus" :size="16" /> 新建项目
+      </button>
+    </EmptyState>
+    <EmptyState v-else-if="!archivedList.length" icon="checkCircle" text="该分类没有进行中的项目" hint="全部项目都已完成或归档" />
 
     <div v-if="archivedList.length" class="archived">
       <button type="button" class="arch-head" @click="archOpen = !archOpen">
@@ -58,6 +74,24 @@
       </template>
     </div>
 
+    <BaseModal :open="catPick.open" title="调整项目分类" @close="catPick.open = false">
+      <div class="cat-pick">
+        <p class="muted cat-pick-tip">{{ catPick.project ? catPick.project.name : '' }}</p>
+        <button
+          v-for="c in PROJECT_CATS"
+          :key="c.key"
+          type="button"
+          class="cat-opt"
+          :class="{ on: catPick.project && catOf(catPick.project) === c.key }"
+          @click="setCat(c.key)"
+        >
+          <i class="cat-dot" :style="{ background: c.color }" />
+          <span class="cat-opt-name">{{ c.label }}</span>
+          <span class="muted mini">{{ catCount(c.key) }} 个</span>
+        </button>
+      </div>
+    </BaseModal>
+
     <BaseModal :open="form.open" :title="form.project ? '编辑项目' : '新建项目'" @close="form.open = false">
       <ProjectFormModal v-if="form.open" :project="form.project" @close="form.open = false" @saved="form.open = false" />
     </BaseModal>
@@ -70,6 +104,7 @@ import { useRouter } from 'vue-router'
 import { store } from '../store.js'
 import { activeProjects, archivedProjects, projectStats, projectOverdue, projectProgressText } from '../selectors.js'
 import { deadlineText } from '../format.js'
+import { showToast } from '../ui.js'
 import { startOfDayTs, addDaysTs } from '../utils/date.js'
 import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
@@ -78,11 +113,30 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import TagChips from '../components/ui/TagChips.vue'
 import ProjectFormModal from '../components/project/ProjectFormModal.vue'
+import { PROJECT_CATS, catOf, catMeta, catColor, catLabelOfKey } from '../projectMeta.js'
 
 const router = useRouter()
 
 const filter = ref('active')
+const catTab = ref('project')
 const archOpen = ref(false)
+const catPick = ref({ open: false, project: null })
+
+const inCat = (p) => catOf(p) === catTab.value
+function catCount(key) {
+  return store.state.projects.filter((p) => catOf(p) === key).length
+}
+const catOptions = computed(() =>
+  PROJECT_CATS.map((c) => ({ label: `${c.label} ${catCount(c.key)}`, value: c.key }))
+)
+function openCatPick(p) {
+  catPick.value = { open: true, project: p }
+}
+function setCat(key) {
+  if (catPick.value.project) store.updateProject(catPick.value.project.id, { category: key })
+  catPick.value.open = false
+  showToast('已调整分类')
+}
 const form = ref({ open: false, project: null })
 
 const filterOptions = [
@@ -92,13 +146,13 @@ const filterOptions = [
 ]
 
 const activeList = computed(() => {
-  const list = activeProjects(store.state)
+  const list = activeProjects(store.state).filter(inCat)
   if (filter.value === 'done') return []
-  if (filter.value === 'all') return [...list, ...archivedProjects(store.state)]
+  if (filter.value === 'all') return [...list, ...archivedProjects(store.state).filter(inCat)]
   return list
 })
 
-const archivedList = computed(() => archivedProjects(store.state))
+const archivedList = computed(() => archivedProjects(store.state).filter(inCat))
 
 function statsOf(p) {
   return projectStats(store.state, p.id)
@@ -130,6 +184,59 @@ function openCreate() {
 
 .toolbar {
   padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cat-bar {
+  display: flex;
+}
+
+.cat-badge {
+  border: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+.cat-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cat-pick-tip {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
+.cat-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 14.5px;
+  text-align: left;
+}
+
+.cat-opt.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-weight: 700;
+}
+
+.cat-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.cat-opt-name {
+  flex: 1;
 }
 
 .wrap {
