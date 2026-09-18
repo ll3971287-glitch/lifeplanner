@@ -1,5 +1,5 @@
 <template>
-  <div class="gp-card card">
+  <div class="gp-card card" :class="{ 'is-current': current }">
     <div class="row-between gp-head">
       <strong class="gp-title">{{ title }}</strong>
       <span class="gp-progress" :class="{ done: progress.total > 0 && progress.done === progress.total }">
@@ -95,6 +95,7 @@ const props = defineProps({
   year: { type: Number, required: true },
   scope: { type: String, required: true },
   index: { type: Number, required: true },
+  current: { type: Boolean, default: false },
 })
 const emit = defineEmits(['changed'])
 
@@ -175,6 +176,12 @@ onBeforeUnmount(() => clearTimeout(noteTimer))
   display: flex;
   flex-direction: column;
   gap: 8px;
+  scroll-margin-top: calc(var(--topbar-h, 56px) + 12px);
+}
+
+.gp-card.is-current {
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 2px 14px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .gp-head {
