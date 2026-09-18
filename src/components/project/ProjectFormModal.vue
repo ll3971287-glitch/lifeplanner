@@ -11,6 +11,11 @@
     </div>
 
     <div class="field">
+      <span class="field-label">分类（列表页的分类标签）</span>
+      <SegControl v-model="form.category" :options="catOptions" />
+    </div>
+
+    <div class="field">
       <span class="field-label">项目内容</span>
       <textarea v-model="form.desc" class="textarea" rows="3" placeholder="项目目标 / 内容说明（可选）" />
     </div>
@@ -61,6 +66,7 @@ import { store } from '../../store.js'
 import { fmtDate, parseDateStr } from '../../utils/date.js'
 import { showToast } from '../../ui.js'
 import SegControl from '../ui/SegControl.vue'
+import { PROJECT_CATS, catOf } from '../../projectMeta.js'
 import TagPicker from '../form/TagPicker.vue'
 
 const props = defineProps({
@@ -71,9 +77,12 @@ const emit = defineEmits(['close', 'saved'])
 
 const editing = !!props.project
 
+const catOptions = PROJECT_CATS.map((c) => ({ label: c.label, value: c.key }))
+
 const form = ref({
   name: props.project ? props.project.name : '',
   type: props.project ? props.project.type : '学习',
+  category: props.project ? catOf(props.project) : 'project',
   desc: props.project ? props.project.desc : '',
   totalWorkload: props.project ? props.project.totalWorkload ?? 0 : 0,
   workloadUnit: props.project ? props.project.workloadUnit : '小时',
@@ -97,6 +106,7 @@ function save() {
   const payload = {
     name,
     type: form.value.type,
+    category: form.value.category,
     desc: form.value.desc,
     totalWorkload: Number(form.value.totalWorkload) || 0,
     workloadUnit: form.value.workloadUnit.trim() || '小时',
