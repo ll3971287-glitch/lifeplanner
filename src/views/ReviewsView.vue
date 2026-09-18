@@ -1,5 +1,19 @@
 <template>
   <div class="reviews-view">
+    <!-- 目标板块入口（点击才进入） -->
+    <button v-if="panel === 'list'" type="button" class="goal-entry card" @click="panel = 'goals'">
+      <span class="ge-icon"><Icon name="flag" :size="17" /></span>
+      <span class="ge-main">
+        <span class="ge-title">目标</span>
+        <span class="ge-sub muted">按月度 / 季度规划目标清单，含日历与自由记录；供下方复盘引用</span>
+      </span>
+      <span class="ge-count muted">{{ goalTotal }} 个目标</span>
+      <Icon name="chevronRight" :size="16" />
+    </button>
+
+    <GoalsPanel v-if="panel === 'goals'" @back="panel = 'list'" />
+
+    <template v-if="panel === 'list'">
     <div class="toolbar card">
       <div class="row-between wrap gap8">
         <SegControl :model-value="type" :options="typeOptions" @update:model-value="type = $event" />
@@ -33,6 +47,7 @@
         @saved="form.open = false"
       />
     </BaseModal>
+    </template>
   </div>
 </template>
 
@@ -47,10 +62,13 @@ import SegControl from '../components/ui/SegControl.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import ReviewCard from '../components/review/ReviewCard.vue'
+import GoalsPanel from '../components/goal/GoalsPanel.vue'
 import ReviewFormModal from '../components/review/ReviewFormModal.vue'
 
 const type = ref('day')
 const form = ref({ open: false, review: null })
+const panel = ref('list')
+const goalTotal = computed(() => store.state.goals.length)
 
 const typeOptions = PERIOD_TYPES.map((t) => ({ label: PERIOD_TYPE_LABEL[t], value: t }))
 
@@ -86,6 +104,49 @@ async function removeReview(review) {
 
 .toolbar {
   padding: 12px;
+}
+
+.goal-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.ge-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  flex: none;
+}
+
+.ge-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ge-title {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.ge-sub {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ge-count {
+  font-size: 12px;
+  flex: none;
 }
 
 .wrap {
