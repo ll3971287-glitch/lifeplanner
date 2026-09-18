@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
+import { sideMenuState } from '../src/ui.js'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import Icon from '../src/components/ui/Icon.vue'
 import SegControl from '../src/components/ui/SegControl.vue'
@@ -191,13 +192,24 @@ describe('导航框架', () => {
     expect(active[0].text()).toContain('首页')
   })
 
-  it('TopBar 标题随路由变化，含五个全局入口', async () => {
+  it('TopBar：普通页只有标题 + 菜单按钮；设置页保留原有入口', async () => {
     const router = createRouter({ history: createMemoryHistory(), routes: stubRoutes() })
     router.push('/todos')
     await router.isReady()
     const w = mount(TopBar, { global: { plugins: [router] } })
     expect(w.find('.topbar-title').text()).toBe('待办')
+    // 普通页：只有 ☰ 菜单按钮，没有关系/蓝图/标签/复盘/设置图标
+    expect(w.findAll('.top-btn')).toHaveLength(1)
+    expect(w.find('.menu-btn').exists()).toBe(true)
+    await w.find('.menu-btn').trigger('click')
+    expect(sideMenuState.open).toBe(true)
+    sideMenuState.open = false
+    // 设置页：顶部保持原样（5 个入口、无菜单按钮）
+    await router.push('/settings')
+    await nextTick()
+    expect(w.find('.menu-btn').exists()).toBe(false)
     expect(w.findAll('.top-btn')).toHaveLength(5)
+    w.unmount()
   })
 
   it('router 注册 14 条路由', () => {
