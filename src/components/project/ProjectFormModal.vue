@@ -35,10 +35,11 @@
       <span class="field-label">进度统计规则</span>
       <SegControl
         :model-value="form.progressMode"
-        :options="[{ label: '按完成任务数量', value: 'count' }, { label: '按累计时长', value: 'hours' }]"
+        :options="[{ label: '按任务数量统计', value: 'count' }, { label: '按预计时长统计', value: 'hours' }]"
         @update:model-value="form.progressMode = $event"
       />
-      <p v-if="form.progressMode === 'hours'" class="muted rule-tip">按累计时长：请为子任务填写预计时长（小时），总工作量填写总小时数，进度按“已完成子任务时长 ÷ 总时长”计算。</p>
+      <p v-if="form.progressMode === 'count'" class="muted rule-tip">按任务数量统计：进度 = 已完成的任务数 ÷ 全部任务数（默认方式，随时可改）。</p>
+      <p v-else class="muted rule-tip">按预计时长统计：请为任务填写预计时长（小时），总工作量填写总小时数，进度按“已完成任务时长 ÷ 总时长”计算。</p>
     </div>
 
     <div class="field">
@@ -61,7 +62,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { store } from '../../store.js'
 import { fmtDate, parseDateStr } from '../../utils/date.js'
 import { showToast } from '../../ui.js'
@@ -71,6 +72,8 @@ import TagPicker from '../form/TagPicker.vue'
 
 const props = defineProps({
   project: { type: Object, default: null },
+  // 面板每次打开时重新装载数据（项目详情页 / 列表页共用，支持反复修改）
+  open: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['close', 'saved'])
@@ -79,19 +82,32 @@ const editing = !!props.project
 
 const catOptions = PROJECT_CATS.map((c) => ({ label: c.label, value: c.key }))
 
-const form = ref({
-  name: props.project ? props.project.name : '',
-  type: props.project ? props.project.type : '学习',
-  category: props.project ? catOf(props.project) : 'project',
-  desc: props.project ? props.project.desc : '',
-  totalWorkload: props.project ? props.project.totalWorkload ?? 0 : 0,
-  workloadUnit: props.project ? props.project.workloadUnit : '小时',
-  deadline: props.project ? props.project.deadline : null,
-  tagIds: props.project ? [...(props.project.tagIds || [])] : [],
-  progressMode: props.project ? props.project.progressMode || 'count' : 'count',
-})
+function buildForm(src) {
+  return {
+    name: src ? src.name : '',
+    type: src ? src.type : '学习',
+    category: src ? catOf(src) : 'project',
+    desc: src ? src.desc : '',
+    totalWorkload: src ? src.totalWorkload ?? 0 : 0,
+    workloadUnit: src ? src.workloadUnit : '小时',
+    deadline: src ? src.deadline : null,
+    tagIds: src ? [...(src.tagIds || [])] : [],
+    progressMode: src ? src.progressMode || 'count' : 'count',
+  }
+}
 
+const form = ref(buildForm(props.project))
 const err = ref('')
+
+// 每次打开（或切换编辑对象）都重新装载，保证「二次修改」能看到最新数据
+watch(
+  () => [props.open, props.project],
+  ([open]) => {
+    if (!open) return
+    form.value = buildForm(props.project)
+    err.value = ''
+  }
+)
 
 function dateStr(ts) {
   return ts == null ? '' : fmtDate(ts)
