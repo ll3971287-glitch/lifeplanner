@@ -6,6 +6,7 @@ import { store, defaultState } from '../src/store.js'
 import { parseDateStr } from '../src/utils/date.js'
 import ProjectFormModal from '../src/components/project/ProjectFormModal.vue'
 import { catOf } from '../src/projectMeta.js'
+import { projectStats } from '../src/selectors.js'
 import ProjectsView from '../src/views/ProjectsView.vue'
 import ProjectDetailView from '../src/views/ProjectDetailView.vue'
 import ConfirmDialog from '../src/components/ui/ConfirmDialog.vue'
@@ -88,6 +89,47 @@ describe('项目分类（学习/项目/规划）', () => {
     const b = store.addBlueprint({ title: '写一本书' })
     const p = store.breakdownProject(b.id)
     expect(p.category).toBe('plan')
+  })
+})
+
+describe('项目编辑面板：二次修改与实时生效', () => {
+  it('面板常驻场景下每次打开都回填最新数据，保存后写入仓库', async () => {
+    const p = store.addProject({ name: '旧名称', category: 'project' })
+    const w = mount(ProjectFormModal, { props: { open: false, project: p } })
+    await w.setProps({ open: true })
+    await nextTick()
+    expect(w.find('input.input').element.value).toBe('旧名称')
+    // 别处改了数据后，再次打开应看到最新值
+    store.updateProject(p.id, { name: '新名称', progressMode: 'hours' })
+    await w.setProps({ open: false })
+    await nextTick()
+    await w.setProps({ open: true })
+    await nextTick()
+    expect(w.find('input.input').element.value).toBe('新名称')
+    // 面板内二次修改并保存 → 实时写入
+    await w.find('input.input').setValue('第三次修改')
+    const segs = w.findAll('.seg-item')
+    await segs[6].trigger('click') // 进度规则第二项 = 按预计时长统计
+    await w.find('.btn-primary').trigger('click')
+    expect(store.state.projects[0].name).toBe('第三次修改')
+    expect(store.state.projects[0].progressMode).toBe('hours')
+    w.unmount()
+  })
+
+  it('切换进度统计方式后进度按新规则重算', () => {
+    const p = store.addProject({ name: 'P', category: 'project', totalWorkload: 10, workloadUnit: '小时' })
+    const a = store.addSubTask({ projectId: p.id, name: 'A', estimatedHours: 8 })
+    const b = store.addSubTask({ projectId: p.id, name: 'B', estimatedHours: 2 })
+    store.toggleTodo(a.id, true)
+    // 默认按任务数量：1/2 = 50%
+    expect(projectStats(store.state, p.id).pct).toBe(50)
+    // 改为按预计时长：8/10 = 80%
+    store.updateProject(p.id, { progressMode: 'hours' })
+    expect(projectStats(store.state, p.id).pct).toBe(80)
+    // 再改回数量统计 → 立即回到 50%
+    store.updateProject(p.id, { progressMode: 'count' })
+    expect(projectStats(store.state, p.id).pct).toBe(50)
+    expect(b.completed).toBe(false)
   })
 })
 
