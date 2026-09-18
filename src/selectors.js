@@ -481,3 +481,31 @@ export function archivedProjectsInRange(state, startTs, endTsExclusive) {
     .filter((p) => p.completed && p.completedAt != null && p.completedAt >= startTs && p.completedAt < endTsExclusive)
     .sort((a, b) => b.completedAt - a.completedAt)
 }
+
+// ---------- 目标 ----------
+
+export function goalsOf(state, year, scope, index) {
+  return state.goals
+    .filter((g) => g.year === year && g.scope === scope && g.index === index)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+}
+
+export function goalProgress(state, year, scope, index) {
+  const list = goalsOf(state, year, scope, index)
+  return { done: list.filter((g) => g.done).length, total: list.length }
+}
+
+// 某一年某周期范围内（月度=当年全部月目标；季度=4 个季度目标）
+export function goalsInYear(state, year, scope) {
+  return state.goals.filter((g) => g.year === year && g.scope === scope)
+}
+
+export function goalNoteOf(state, year, scope, index) {
+  return state.goalNotes[`${scope}-${year}-${index}`] || ''
+}
+
+// 复盘关联的目标（只读引用；已删除的自动忽略）
+export function reviewGoals(state, review) {
+  const ids = (review && review.goals) || []
+  return ids.map((id) => state.goals.find((g) => g.id === id)).filter(Boolean)
+}
