@@ -130,25 +130,89 @@ describe('专注链：状态锁与执行顺序', () => {
   })
 })
 
-describe('专注链：设置可编辑并记忆', () => {
-  it('保存后文案与预约分钟数写入设置并生效', async () => {
+describe('专注链：触发信号 / 专注标志的多条预设', () => {
+  const fc = () => store.state.settings.focusChain
+  const lastPanel = () => {
+    const panels = [...document.querySelectorAll('.modal-panel')]
+    return panels[panels.length - 1]
+  }
+
+  it('默认带多条预选，可点选切换，卡片文案随之变化', async () => {
     const w = mountCard()
-    await btnByText(w, '设置').trigger('click')
     await nextTick()
-    const inputs = [...document.querySelectorAll('.modal-panel input')]
-    inputs[0].value = '喝水'
-    inputs[0].dispatchEvent(new Event('input'))
-    inputs[1].value = '打开文档'
-    inputs[1].dispatchEvent(new Event('input'))
-    inputs[2].value = '3'
-    inputs[2].dispatchEvent(new Event('input'))
+    expect(fc().triggers.length).toBeGreaterThanOrEqual(3)
+    expect(fc().marks.length).toBeGreaterThanOrEqual(3)
+    expect(w.text()).toContain(fc().triggers[0])
+    await w.findAll('.swap-btn')[0].trigger('click') // 触发信号预设
     await nextTick()
-    const save = [...document.querySelectorAll('.modal-panel button')].find((b) => b.textContent.includes('保存'))
-    save.click()
+    const items = [...lastPanel().querySelectorAll('.preset-item')]
+    expect(items.length).toBe(fc().triggers.length)
+    items[1].querySelector('.preset-pick').click()
     await nextTick()
-    expect(store.state.settings.focusChain.triggerText).toBe('喝水')
-    expect(store.state.settings.focusChain.markText).toBe('打开文档')
-    expect(store.state.settings.focusChain.reserveMin).toBe(3)
+    expect(fc().triggerIndex).toBe(1)
+    expect(w.text()).toContain(fc().triggers[1])
+    w.unmount()
+  })
+
+  it('可新增自定义预设并自动切换使用', async () => {
+    const w = mountCard()
+    await w.findAll('.swap-btn')[0].trigger('click')
+    await nextTick()
+    const input = [...lastPanel().querySelectorAll('input')].find((i) => i.placeholder.includes('新增预设'))
+    input.value = '自定义触发信号'
+    input.dispatchEvent(new Event('input'))
+    await nextTick()
+    const addBtn = [...lastPanel().querySelectorAll('button')].find((b) => b.textContent.includes('添加'))
+    addBtn.click()
+    await nextTick()
+    expect(fc().triggers).toContain('自定义触发信号')
+    expect(fc().triggers[fc().triggerIndex]).toBe('自定义触发信号')
+    expect(w.text()).toContain('自定义触发信号')
+    w.unmount()
+  })
+
+  it('可编辑与删除预设，删除当前项后索引自动回退', async () => {
+    const w = mountCard()
+    await w.findAll('.swap-btn')[0].trigger('click')
+    await nextTick()
+    // 先切到第 2 条，再删除它 → 索引回退到第 1 条
+    const items = [...lastPanel().querySelectorAll('.preset-item')]
+    items[1].querySelector('.preset-pick').click()
+    await nextTick()
+    const items2 = [...lastPanel().querySelectorAll('.preset-item')]
+    const deletedText = fc().triggers[1]
+    items2[1].querySelectorAll('.mini-btn')[1].click() // 删除
+    await nextTick()
+    expect(fc().triggers).not.toContain(deletedText)
+    expect(fc().triggerIndex).toBe(0)
+    // 编辑第 0 条
+    const items3 = [...lastPanel().querySelectorAll('.preset-item')]
+    items3[0].querySelectorAll('.mini-btn')[0].click()
+    await nextTick()
+    const editInput = lastPanel().querySelector('input')
+    editInput.value = '改过的触发信号'
+    editInput.dispatchEvent(new Event('input'))
+    await nextTick()
+    const saveBtn = [...lastPanel().querySelectorAll('button')].find((b) => b.textContent.includes('保存'))
+    saveBtn.click()
+    await nextTick()
+    expect(fc().triggers[0]).toBe('改过的触发信号')
+    w.unmount()
+  })
+
+  it('预约倒计时分钟数仍可在设置里修改', async () => {
+    const w = mountCard()
+    const settingBtn = w.findAll('button').find((b) => b.text().includes('设置'))
+    await settingBtn.trigger('click')
+    await nextTick()
+    const input = lastPanel().querySelector('input')
+    input.value = '3'
+    input.dispatchEvent(new Event('input'))
+    await nextTick()
+    const saveBtn = [...lastPanel().querySelectorAll('button')].find((b) => b.textContent.includes('保存'))
+    saveBtn.click()
+    await nextTick()
+    expect(fc().reserveMin).toBe(3)
     expect(w.text()).toContain('预约开始（3 分钟）')
     w.unmount()
   })
