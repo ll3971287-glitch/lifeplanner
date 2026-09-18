@@ -34,6 +34,33 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
+describe('专注页番茄时长调节', () => {
+  it('右上角显示当前番茄时长，可直接调整', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/focus', component: { template: '<div/>' } },
+        { path: '/projects/:id', component: { template: '<div/>' } },
+        { path: '/todos', component: { template: '<div/>' } },
+      ],
+    })
+    router.push('/focus')
+    const w = mount(FocusView, { global: { plugins: [router] } })
+    await nextTick()
+    expect(store.state.settings.pomodoroFocusMin).toBe(25)
+    expect(w.find('.pomo-btn').text()).toContain('番茄 25 分钟')
+    await w.find('.pomo-btn').trigger('click')
+    await nextTick()
+    const chip = [...document.querySelectorAll('.pomo-chip')].find((c) => c.textContent.includes('45 分钟'))
+    chip.click()
+    await nextTick()
+    expect(store.state.settings.pomodoroFocusMin).toBe(45)
+    expect(w.find('.pomo-btn').text()).toContain('番茄 45 分钟')
+    w.unmount()
+  })
+})
+
 describe('FocusTimer 状态映射', () => {
   it('idle 显示计划时长与开始按钮', () => {
     const w = mount(FocusTimer)
