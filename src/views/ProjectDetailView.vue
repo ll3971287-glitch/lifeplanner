@@ -131,7 +131,7 @@
 
     <BaseModal :open="editOpen" :title="formProject ? '编辑项目' : '新建任务'" @close="editOpen = false">
       <template v-if="formProject">
-        <ProjectFormModal :project="formProject" @close="editOpen = false" @saved="editOpen = false" />
+        <ProjectFormModal :open="editOpen" :project="formProject" @close="editOpen = false" @saved="editOpen = false" />
       </template>
       <template v-else>
         <TodoFormModal
