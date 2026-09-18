@@ -23,8 +23,10 @@ export function defaultState() {
       showBlueprintsOnCalendar: false,
       soundOn: true,
       focusChain: {
-        triggerText: '深呼吸三次，把手机放到一边',
-        markText: '打开要做的文件，写下今天最重要的一件事',
+        triggers: ['深呼吸三次，把手机放到一边', '喝一口水，戴上耳机', '把手机静音并放到看不见的地方'],
+        marks: ['打开要做的文件，写下今天最重要的一件事', '开一个 5 分钟计时，先做最难的那一步', '列好这一轮的三个小目标'],
+        triggerIndex: 0,
+        markIndex: 0,
         reserveMin: 10,
       },
       blueprintDims: [],
@@ -73,6 +75,17 @@ export function normalizeData(raw) {
     if (typeof raw.version === 'number') out.version = raw.version
     for (const arr of ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals']) {
       if (Array.isArray(raw[arr])) out[arr] = raw[arr]
+    }
+    // 专注链预设：旧版单条文案自动迁移为预设列表
+    const fc = out.settings && out.settings.focusChain
+    if (fc && !Array.isArray(fc.triggers)) {
+      out.settings.focusChain = {
+        triggers: fc.triggerText ? [fc.triggerText] : [],
+        marks: fc.markText ? [fc.markText] : [],
+        triggerIndex: 0,
+        markIndex: 0,
+        reserveMin: fc.reserveMin || 10,
+      }
     }
     if (raw.goalNotes && typeof raw.goalNotes === 'object' && !Array.isArray(raw.goalNotes)) {
       out.goalNotes = { ...raw.goalNotes }
