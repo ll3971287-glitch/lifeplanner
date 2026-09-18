@@ -543,3 +543,49 @@ export function mediaCategoryStats(state, category) {
     rate: list.length ? Math.round((done / list.length) * 100) : 0,
   }
 }
+
+// 时间线条目时间戳：完结 → 开始 → 最近更新
+export function mediaTimelineTs(m) {
+  return m.endDate || m.startDate || m.updatedAt || m.createdAt || 0
+}
+
+// 全部记录按时间倒序（时间线视图）
+export function mediaTimeline(state) {
+  return [...state.mediaItems].sort((a, b) => mediaTimelineTs(b) - mediaTimelineTs(a))
+}
+
+// 数据总览：总体与各品类数量 / 完成率
+export function mediaOverview(state) {
+  const keys = ['book', 'movie', 'series', 'anime', 'game']
+  const byCat = keys.map((key) => {
+    const list = state.mediaItems.filter((m) => m.category === key)
+    const done = list.filter((m) => m.status === 'done').length
+    return { key, total: list.length, done, rate: list.length ? Math.round((done / list.length) * 100) : 0 }
+  })
+  const total = state.mediaItems.length
+  const done = state.mediaItems.filter((m) => m.status === 'done').length
+  return { total, done, rate: total ? Math.round((done / total) * 100) : 0, byCat }
+}
+
+// 年度 TOP 排行（已完成且有评分；year 为 null 时统计全部时间）
+export function mediaTopRated(state, year = null) {
+  const list = state.mediaItems.filter((m) => {
+    if (m.status !== 'done' || !(Number(m.rating) > 0)) return false
+    if (year == null) return true
+    const ts = m.endDate || m.startDate
+    return ts != null && new Date(ts).getFullYear() === year
+  })
+  return list
+    .sort((a, b) => Number(b.rating) - Number(a.rating) || (b.endDate || 0) - (a.endDate || 0))
+    .slice(0, 5)
+}
+
+// 某时间范围内有起止记录的书影音（复盘联动）
+export function mediaInRange(state, fromTs, toTsExclusive) {
+  return state.mediaItems
+    .filter((m) => {
+      const ts = m.endDate || m.startDate
+      return ts != null && ts >= fromTs && ts < toTsExclusive
+    })
+    .sort((a, b) => mediaTimelineTs(b) - mediaTimelineTs(a))
+}
