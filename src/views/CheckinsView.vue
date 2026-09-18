@@ -52,7 +52,7 @@
               title="开始专注打卡"
               @click.stop="focusCheckin(it)"
             >
-              <Icon name="timer" :size="17" />
+              <Icon name="alarm" :size="17" />
             </button>
             <button
               type="button"
@@ -96,6 +96,7 @@ import BaseModal from '../components/ui/BaseModal.vue'
 import CheckinFormModal from '../components/checkin/CheckinFormModal.vue'
 import CheckinRecordModal from '../components/checkin/CheckinRecordModal.vue'
 import { showToast, randomMotivation, fireConfetti } from '../ui.js'
+import { unlockAudio } from '../sound.js'
 
 const router = useRouter()
 
@@ -128,6 +129,7 @@ let lastBtn = null
 
 function focusCheckin(it) {
   if (!it.active || !it.checkin) return
+  unlockAudio()
   store.openFocus({ mode: 'pomodoro', targetType: 'checkin', targetId: it.checkin.id })
 }
 
