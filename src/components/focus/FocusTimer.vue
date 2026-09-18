@@ -65,6 +65,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { store } from '../../store.js'
+import { unlockAudio } from '../../sound.js'
 import { todayFocusStats } from '../../selectors.js'
 import { fmtDurationMin } from '../../utils/date.js'
 import { pad } from '../../utils/date.js'
@@ -151,6 +152,7 @@ const ringOffset = computed(() => {
 const todayStats = computed(() => todayFocusStats(store.state.sessions, Date.now()))
 
 function start() {
+  unlockAudio()
   store.startFocusRun({ mode: f.value.mode })
 }
 
