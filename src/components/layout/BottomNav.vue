@@ -37,8 +37,9 @@ const TAB_META = {
   projects: { label: '项目', icon: 'briefcase', to: '/projects' },
   calendar: { label: '日历', icon: 'calendar', to: '/calendar' },
   checkins: { label: '打卡', icon: 'checkCircle', to: '/checkins' },
+  media: { label: '书影音', icon: 'film', to: '/media' },
 }
-const DEFAULT_ORDER = ['home', 'todos', 'projects', 'calendar', 'checkins']
+const DEFAULT_ORDER = ['home', 'todos', 'projects', 'calendar', 'checkins', 'media']
 
 const navRef = ref(null)
 const orders = ref([...DEFAULT_ORDER])
