@@ -9,7 +9,7 @@ describe('阶段0→2：框架冒烟', () => {
     await router.isReady()
     const wrapper = mount(App, { global: { plugins: [router] } })
     expect(wrapper.find('.topbar-title').text()).toBe('首页')
-    expect(wrapper.findAll('.nav-tab')).toHaveLength(5)
+    expect(wrapper.findAll('.nav-tab')).toHaveLength(6)
     expect(wrapper.find('.page-wrap').exists()).toBe(true)
   })
 })
