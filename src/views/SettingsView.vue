@@ -65,6 +65,20 @@
     </section>
 
     <section class="card s-card">
+      <h2 class="s-title"><Icon name="clock" :size="16" /> 专注提醒</h2>
+      <div class="row-between opt-row">
+        <div class="opt-text">
+          <span class="opt-name">计时结束提示音</span>
+          <p class="muted opt-desc">专注到点、休息结束、专注链倒计时结束时会响铃提醒（程序合成音，离线可用）。</p>
+        </div>
+        <Switch
+          :model-value="store.state.settings.soundOn !== false"
+          @update:model-value="store.setSetting('soundOn', $event)"
+        />
+      </div>
+    </section>
+
+    <section class="card s-card">
       <h2 class="s-title"><Icon name="flag" :size="16" /> 未来蓝图</h2>
       <div class="row-between opt-row">
         <div class="opt-text">
@@ -133,7 +147,7 @@
     <section class="card s-card">
       <h2 class="s-title"><Icon name="checkCircle" :size="16" /> 关于</h2>
       <p class="muted desc">
-        Ultimate Life System v2.7.1 · 本地任务与项目管理<br />
+        Ultimate Life System v2.8.0 · 本地任务与项目管理<br />
         数据存放于本机 IndexedDB，无需账号，离线可用。
       </p>
     </section>
