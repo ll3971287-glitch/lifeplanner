@@ -28,6 +28,7 @@ async function mountMenu(path = '/') {
       { path: '/reviews', name: 'reviews', component: { template: '<div/>' } },
       { path: '/tags', name: 'tags', component: { template: '<div/>' } },
       { path: '/goals', name: 'goals', component: { template: '<div/>' } },
+      { path: '/media', name: 'media', component: { template: '<div/>' } },
       { path: '/settings', name: 'settings', component: { template: '<div/>' } },
     ],
   })
@@ -49,8 +50,8 @@ describe('左侧滑出菜单', () => {
     for (const label of ['未来蓝图', '人情', '书影音', '目标', '复盘', '标签', '设置']) {
       expect(itemByText(label), label).toBeTruthy()
     }
-    // 书影音标记为即将上线
-    expect(itemByText('书影音').textContent).toContain('即将上线')
+    // 书影音已是真实入口
+    expect(itemByText('书影音').textContent).not.toContain('即将上线')
     // 回顾组里「目标」排在最前
     const labels = [...document.querySelectorAll('.sm-item .sm-label')].map((n) => n.textContent)
     expect(labels.indexOf('目标')).toBeLessThan(labels.indexOf('复盘'))
@@ -68,14 +69,13 @@ describe('左侧滑出菜单', () => {
     w.unmount()
   })
 
-  it('书影音点击只提示、不跳转也不关闭', async () => {
+  it('点击书影音跳转到书影音页面', async () => {
     const { w, router } = await mountMenu('/todos')
     await nextTick()
     itemByText('书影音').click()
-    await nextTick()
-    expect(router.currentRoute.value.path).toBe('/todos')
-    expect(sideMenuState.open).toBe(true)
-    expect(toastState.message).toContain('书影音')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/media')
+    expect(sideMenuState.open).toBe(false)
     w.unmount()
   })
 
