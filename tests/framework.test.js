@@ -137,14 +137,14 @@ describe('确认框与 Toast', () => {
 })
 
 describe('导航框架', () => {
-  it('BottomNav 渲染 5 个 Tab 且高亮当前路由', async () => {
+  it('BottomNav 渲染 6 个 Tab 且高亮当前路由', async () => {
     const router = createRouter({ history: createMemoryHistory(), routes: stubRoutes() })
     router.push('/todos')
     await router.isReady()
     const w = mount(BottomNav, { global: { plugins: [router] } })
-    expect(w.findAll('.nav-tab')).toHaveLength(5)
+    expect(w.findAll('.nav-tab')).toHaveLength(6)
     const labels = w.findAll('.nav-label').map((n) => n.text())
-    expect(labels).toEqual(['首页', '待办', '项目', '日历', '打卡'])
+    expect(labels).toEqual(['首页', '待办', '项目', '日历', '打卡', '书影音'])
     const active = w.findAll('.nav-tab').find((n) => n.classes().includes('active'))
     expect(active.text()).toContain('待办')
   })
@@ -212,10 +212,10 @@ describe('导航框架', () => {
     w.unmount()
   })
 
-  it('router 注册 15 条路由', () => {
+  it('router 注册 16 条路由', () => {
     const names = realRouter.getRoutes().map((r) => r.name)
-    expect(names).toHaveLength(15)
-    for (const n of ['home', 'todos', 'projects', 'project-detail', 'calendar', 'checkins', 'checkin-detail', 'focus', 'tags', 'tag-detail', 'reviews', 'blueprints', 'relations', 'goals', 'settings']) {
+    expect(names).toHaveLength(16)
+    for (const n of ['home', 'todos', 'projects', 'project-detail', 'calendar', 'checkins', 'checkin-detail', 'focus', 'tags', 'tag-detail', 'reviews', 'blueprints', 'relations', 'goals', 'media', 'settings']) {
       expect(names).toContain(n)
     }
   })
