@@ -137,14 +137,14 @@ describe('确认框与 Toast', () => {
 })
 
 describe('导航框架', () => {
-  it('BottomNav 渲染 6 个 Tab 且高亮当前路由', async () => {
+  it('BottomNav 渲染 5 个 Tab 且高亮当前路由', async () => {
     const router = createRouter({ history: createMemoryHistory(), routes: stubRoutes() })
     router.push('/todos')
     await router.isReady()
     const w = mount(BottomNav, { global: { plugins: [router] } })
-    expect(w.findAll('.nav-tab')).toHaveLength(6)
+    expect(w.findAll('.nav-tab')).toHaveLength(5)
     const labels = w.findAll('.nav-label').map((n) => n.text())
-    expect(labels).toEqual(['首页', '待办', '项目', '日历', '打卡', '书影音'])
+    expect(labels).toEqual(['首页', '待办', '项目', '日历', '打卡'])
     const active = w.findAll('.nav-tab').find((n) => n.classes().includes('active'))
     expect(active.text()).toContain('待办')
   })
