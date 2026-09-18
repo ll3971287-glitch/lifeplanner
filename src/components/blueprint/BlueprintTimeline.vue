@@ -26,19 +26,19 @@
               <span class="m-label">{{ m.label }}</span>
             </div>
           </div>
-          <div class="lanes" :style="{ height: Math.max(60, lanes * LANE_H) + 'px', backgroundSize: colW + 'px 100%' }">
-            <div v-if="!bars.length" class="no-bar muted">这四个月内没有规划截止的蓝图</div>
-            <div v-for="(bar, i) in bars" :key="bar.id" class="lane" :style="{ top: i * LANE_H + 'px' }">
+          <div class="lanes" :style="{ height: Math.max(60, lanesH) + 'px', backgroundSize: colW + 'px 100%' }">
+            <div v-if="!rows.length" class="no-bar muted">这四个月内没有规划截止的蓝图</div>
+            <div v-for="row in rows" :key="row.id" class="lane" :style="{ top: row.top + 'px', height: row.rowH + 'px' }">
               <div
                 class="bar"
-                :class="'st-' + bar.status"
-                :style="{ left: bar.x + 'px', width: Math.max(bar.w, 26) + 'px' }"
-                :title="bar.title + '　' + bar.rangeText"
-                @click="emitOpen(bar)"
+                :class="['st-' + row.status, 'lv-' + row.level]"
+                :style="{ left: row.x + 'px', width: Math.max(row.w, 26) + 'px', height: row.barH + 'px', top: row.barTop + 'px' }"
+                :title="row.title + '　' + row.rangeText + '　（' + levelLabelOf(row) + '）'"
+                @click="emitOpen(row)"
               >
-                <i class="dim-dot" :style="{ background: bar.color }" />
-                <span class="bar-title">{{ bar.title }}</span>
-                <span class="bar-sub">{{ bar.dim }} · {{ statusOf(bar.status).label }}</span>
+                <i class="dim-dot" :style="{ background: row.color }" />
+                <span class="bar-title">{{ row.title }}</span>
+                <span class="bar-sub">{{ row.dim }} · {{ statusOf(row.status).label }}</span>
               </div>
             </div>
           </div>
@@ -68,7 +68,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { store } from '../../store.js'
-import { goalStart, goalEnd, dimLabel, dimColor, BLUEPRINT_STATUS } from '../../blueprintMeta.js'
+import { goalStart, goalEnd, dimLabel, dimColor, BLUEPRINT_STATUS, levelOf, levelBarH, levelWeight, BLUEPRINT_LEVELS } from '../../blueprintMeta.js'
 import { fmtDate } from '../../utils/date.js'
 import Icon from '../ui/Icon.vue'
 
@@ -78,7 +78,7 @@ const props = defineProps({
 const emit = defineEmits(['open'])
 
 const MW_MIN = 62 // 月刻度列宽下限（窄屏自适应时可能更小）
-const LANE_H = 42 // 每条目行高
+const ROW_PAD = 10 // 每行上下留白（条高由等级决定）
 const statusOf = (k) => BLUEPRINT_STATUS[k] || BLUEPRINT_STATUS.idea
 
 // —— 四个月视窗锚点（连续整数：year*3 + 第几块，每块 4 个月：1-4 / 5-8 / 9-12 月）
@@ -153,15 +153,30 @@ const bars = computed(() => {
       status: b.status,
       title: b.title,
       dim,
+      level: levelOf(b),
+      barH: levelBarH(b),
+      weight: levelWeight(b),
       color: b.dimension ? dimColor(b.dimension, store.state.settings.blueprintDims) : '#9ca3af',
       x,
       w: right - x,
       rangeText,
-      // 若只精确到天结束 e 为当日 00:00 → 加一天宽避免宽度 0
     })
   }
-  return out.sort((a, b) => a.x - b.x)
+  // 大蓝图在上（视觉大小 + 顺序双重区分优先级），同级按时间先后
+  return out.sort((a, b) => b.weight - a.weight || a.x - b.x)
 })
+
+// 行布局：每行高度 = 该行条高 + 留白，逐行累加定位
+const rows = computed(() => {
+  let top = 0
+  return bars.value.map((bar) => {
+    const rowH = bar.barH + ROW_PAD
+    const row = { ...bar, top, rowH, barTop: Math.round(ROW_PAD / 2) }
+    top += rowH
+    return row
+  })
+})
+const lanesH = computed(() => (rows.value.length ? rows.value[rows.value.length - 1].top + rows.value[rows.value.length - 1].rowH : 60))
 
 // 单日条宽下限：结束于该月首日的按整天算
 const nowTs = computed(() => Date.now())
@@ -199,10 +214,13 @@ function emitOpen(bar) {
   if (vpDrag.moved > 8) return
   emit('open', bar.id)
 }
+function levelLabelOf(row) {
+  return (BLUEPRINT_LEVELS[row.level] || BLUEPRINT_LEVELS.small).label
+}
 function colorOf(b) {
   return b.dimension ? dimColor(b.dimension, store.state.settings.blueprintDims) : '#9ca3af'
 }
-const lanes = computed(() => bars.value.length)
+
 </script>
 
 <style scoped>
@@ -376,14 +394,11 @@ const lanes = computed(() => bars.value.length)
   position: absolute;
   left: 0;
   right: 0;
-  height: 42px;
   border-bottom: 1px dashed var(--line);
 }
 
 .bar {
   position: absolute;
-  top: 5px;
-  height: 32px;
   border-radius: 9px;
   display: flex;
   align-items: center;
@@ -422,6 +437,29 @@ const lanes = computed(() => bars.value.length)
   height: 7px;
   border-radius: 50%;
   flex: none;
+}
+
+.bar.lv-small {
+  border-radius: 8px;
+  padding: 0 8px;
+}
+
+.bar.lv-small .bar-sub {
+  display: none;
+}
+
+.bar.lv-medium .bar-title {
+  font-size: 12.5px;
+}
+
+.bar.lv-large {
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+.bar.lv-large .bar-title {
+  font-size: 13.5px;
+  font-weight: 800;
 }
 
 .bar-title {
