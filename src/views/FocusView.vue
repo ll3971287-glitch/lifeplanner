@@ -1,6 +1,12 @@
 <template>
   <div class="focus-view">
     <section class="timer-card card">
+      <div class="row-between timer-top">
+        <span class="muted mini">番茄钟 · 自由计时</span>
+        <button type="button" class="pomo-btn" title="调整番茄专注时长" @click="pomoOpen = true">
+          <Icon name="clock" :size="13" /> 番茄 {{ store.state.settings.pomodoroFocusMin }} 分钟
+        </button>
+      </div>
       <FocusTimer />
       <div class="target-tools">
         <button type="button" class="btn btn-outline btn-sm" :disabled="busy" @click="pickerOpen = true">
@@ -38,6 +44,28 @@
       <p v-else class="muted empty-tip">今天还没有专注记录，开始第一个番茄吧。</p>
     </section>
 
+    <BaseModal :open="pomoOpen" title="番茄专注时长" @close="pomoOpen = false">
+      <div class="pomo-panel">
+        <p class="muted mini">选择或输入本轮番茄的专注分钟数（1–180）。</p>
+        <div class="row gap6 wrap">
+          <button
+            v-for="m in [10, 15, 20, 25, 30, 45, 60, 90]"
+            :key="m"
+            type="button"
+            class="pomo-chip"
+            :class="{ on: store.state.settings.pomodoroFocusMin === m }"
+            @click="setPomo(m)"
+          >
+            {{ m }} 分钟
+          </button>
+        </div>
+        <div class="row gap8 custom-row">
+          <input v-model.number="pomoInput" type="number" min="1" max="180" class="input pomo-input" placeholder="自定义分钟" @keyup.enter="setPomo(pomoInput)" />
+          <button type="button" class="btn btn-primary btn-sm" @click="setPomo(pomoInput)">设为该时长</button>
+        </div>
+      </div>
+    </BaseModal>
+
     <BaseModal :open="pickerOpen" title="选择要专注的任务" @close="pickerOpen = false">
       <div class="picker-list">
         <button type="button" class="picker-item" @click="pickNone">
@@ -72,12 +100,23 @@ import { store } from '../store.js'
 import { todayFocusStats, sessionsOnDay, projectSubTasks } from '../selectors.js'
 import { fmtDurationMin, fmtTime, startOfDayTs } from '../utils/date.js'
 import { shortDate } from '../format.js'
+import { showToast } from '../ui.js'
 import FocusTimer from '../components/focus/FocusTimer.vue'
 import FocusChainCard from '../components/focus/FocusChainCard.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import Icon from '../components/ui/Icon.vue'
 
 const pickerOpen = ref(false)
+const pomoOpen = ref(false)
+const pomoInput = ref(store.state.settings.pomodoroFocusMin)
+
+function setPomo(m) {
+  const v = Math.max(1, Math.min(180, Math.round(Number(m)) || 25))
+  store.setSetting('pomodoroFocusMin', v)
+  pomoInput.value = v
+  pomoOpen.value = false
+  showToast(`番茄专注时长已设为 ${v} 分钟`)
+}
 
 const busy = computed(() => store.focusState.phase === 'run' || store.focusState.phase === 'pause')
 
@@ -144,6 +183,58 @@ function pickNone() {
 </script>
 
 <style scoped>
+.timer-top {
+  align-items: center;
+  padding: 2px 4px 0;
+}
+
+.pomo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.pomo-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-deep);
+}
+
+.pomo-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pomo-chip {
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pomo-chip.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.custom-row {
+  align-items: center;
+}
+
+.pomo-input {
+  width: 130px;
+}
 .focus-view {
   display: flex;
   flex-direction: column;
