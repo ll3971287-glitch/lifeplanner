@@ -76,6 +76,7 @@ const groups = [
   {
     label: '回顾',
     items: [
+      { label: '目标', to: '/goals', icon: 'pin' },
       { label: '复盘', to: '/reviews', icon: 'refresh' },
       { label: '标签', to: '/tags', icon: 'tag' },
     ],
