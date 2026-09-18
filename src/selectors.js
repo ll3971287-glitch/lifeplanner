@@ -323,10 +323,11 @@ export function checkinStreak(c, map, nowTs = Date.now()) {
   return streak
 }
 
+// 图表序列：从起始日往后逐天（含起始日与今天），横轴左→右按时间递增
 export function chartDailySeries(map, fromDayTs, dayCount) {
   const arr = []
-  for (let i = dayCount - 1; i >= 0; i -= 1) {
-    const day = fromDayTs - i * DAY_MS
+  for (let i = 0; i < dayCount; i += 1) {
+    const day = fromDayTs + i * DAY_MS
     const st = dayRecordStats(map, day)
     arr.push({ ts: day, counts: st.counts, duration: st.totalDuration, records: st.records })
   }
