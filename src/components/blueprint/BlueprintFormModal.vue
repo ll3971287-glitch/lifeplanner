@@ -57,6 +57,22 @@
       </div>
 
       <div class="field">
+        <span class="field-label">蓝图等级（进度条按尺寸区分优先级）</span>
+        <div class="row gap4 seg-row">
+          <button
+            v-for="k in levelKeys"
+            :key="k"
+            type="button"
+            class="chip"
+            :class="{ on: form.level === k }"
+            @click="form.level = k"
+          >
+            {{ levelText(k) }}
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
         <span class="field-label">详细描述</span>
         <textarea v-model="form.desc" class="input ta" rows="4" placeholder="这个愿景具体是什么？为什么重要？" />
       </div>
@@ -73,7 +89,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import BaseModal from '../ui/BaseModal.vue'
 import { store } from '../../store.js'
-import { BUILTIN_DIMS, BLUEPRINT_STATUS, STATUS_ORDER, allDims as collectDims } from '../../blueprintMeta.js'
+import { BUILTIN_DIMS, BLUEPRINT_STATUS, STATUS_ORDER, LEVEL_ORDER, BLUEPRINT_LEVELS, allDims as collectDims } from '../../blueprintMeta.js'
 import { fmtDate, parseDateStr } from '../../utils/date.js'
 import { showToast } from '../../ui.js'
 import { goalStart, goalEnd } from '../../blueprintMeta.js'
@@ -90,11 +106,13 @@ const timeModes = [
   { key: 'text', label: '模糊时间' },
 ]
 const statusOrder = STATUS_ORDER
+const levelKeys = LEVEL_ORDER
+const levelText = (k) => (BLUEPRINT_LEVELS[k] || BLUEPRINT_LEVELS.small).label
 
 const statusOf = (k) => BLUEPRINT_STATUS[k] || BLUEPRINT_STATUS.idea
 const allDims = computed(() => collectDims(store.state))
 
-const form = reactive({ title: '', goalStartTs: null, goalEndTs: null, goalText: '', dimension: '', desc: '', status: 'idea' })
+const form = reactive({ title: '', goalStartTs: null, goalEndTs: null, goalText: '', dimension: '', desc: '', status: 'idea', level: 'small' })
 const mode = ref('range')
 const dateStartStr = ref('')
 const dateEndStr = ref('')
@@ -105,6 +123,7 @@ function apply(b) {
   form.desc = b.desc || ''
   form.dimension = b.dimension || ''
   form.status = b.status || 'idea'
+  form.level = b.level || 'small'
   form.goalStartTs = goalStart(b)
   form.goalEndTs = goalEnd(b)
   form.goalText = b.goalText || ''
@@ -126,6 +145,7 @@ function reset() {
   form.desc = ''
   form.dimension = ''
   form.status = 'idea'
+  form.level = 'small'
   form.goalStartTs = null
   form.goalEndTs = null
   form.goalText = ''
@@ -179,6 +199,7 @@ function save() {
     desc: form.desc,
     dimension: form.dimension,
     status: form.status,
+    level: form.level,
     goalStartTs: form.goalStartTs,
     goalEndTs: form.goalEndTs,
     goalText: form.goalText,
