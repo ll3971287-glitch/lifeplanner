@@ -5,6 +5,7 @@ import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
 import { parseDateStr } from '../src/utils/date.js'
 import ProjectFormModal from '../src/components/project/ProjectFormModal.vue'
+import { catOf } from '../src/projectMeta.js'
 import ProjectsView from '../src/views/ProjectsView.vue'
 import ProjectDetailView from '../src/views/ProjectDetailView.vue'
 import ConfirmDialog from '../src/components/ui/ConfirmDialog.vue'
@@ -43,8 +44,9 @@ describe('ProjectFormModal', () => {
     const w = mount(ProjectFormModal)
     await w.find('input.input').setValue('外包项目')
     const segs = w.findAll('.seg-item')
-    expect(segs).toHaveLength(4)
-    await segs[3].trigger('click') // 进度规则第二项
+    // 类型 2 项 + 分类 3 项 + 进度规则 2 项 = 7
+    expect(segs).toHaveLength(7)
+    await segs[6].trigger('click') // 进度规则第二项
     await w.find('.btn-primary').trigger('click')
     expect(store.state.projects[0].progressMode).toBe('hours')
   })
@@ -57,6 +59,38 @@ describe('ProjectFormModal', () => {
   })
 })
 
+describe('项目分类（学习/项目/规划）', () => {
+  it('表单可选分类并保存', async () => {
+    const w = mount(ProjectFormModal)
+    await w.find('input.input').setValue('考研计划')
+    const segs = w.findAll('.seg-item')
+    await segs[3].trigger('click') // 分类第二项 = 项目分类
+    await w.find('.btn-primary').trigger('click')
+    expect(store.state.projects[0].category).toBe('project')
+    const w2 = mount(ProjectFormModal)
+    await w2.find('input.input').setValue('学英语')
+    const segs2 = w2.findAll('.seg-item')
+    await segs2[2].trigger('click') // 分类第一项 = 学习分类
+    await w2.find('.btn-primary').trigger('click')
+    expect(store.state.projects[1].category).toBe('study')
+  })
+
+  it('老项目（无分类字段）按原类型兜底', () => {
+    const p = store.addProject({ name: '老的' })
+    delete p.category
+    p.type = '学习'
+    expect(catOf(p)).toBe('study')
+    p.type = '工作'
+    expect(catOf(p)).toBe('project')
+  })
+
+  it('蓝图拆解生成的项目归入规划分类', () => {
+    const b = store.addBlueprint({ title: '写一本书' })
+    const p = store.breakdownProject(b.id)
+    expect(p.category).toBe('plan')
+  })
+})
+
 describe('ProjectsView', () => {
   function mountView() {
     const router = stubRouter([
@@ -65,6 +99,47 @@ describe('ProjectsView', () => {
     ])
     return { w: mount(ProjectsView, { global: { plugins: [router] } }), router }
   }
+
+  it('分类标签切换：只渲染当前分类下的项目', async () => {
+    store.addProject({ name: '学习的事', category: 'study' })
+    store.addProject({ name: '项目的事', category: 'project' })
+    store.addProject({ name: '规划的事', category: 'plan' })
+    const { w } = mountView()
+    await nextTick()
+    // 默认项目分类：只看到项目分类的项目
+    expect(w.text()).toContain('项目的事')
+    expect(w.text()).not.toContain('学习的事')
+    expect(w.text()).not.toContain('规划的事')
+    // 切到学习分类
+    const segs = w.findAll('.seg-item')
+    await segs[0].trigger('click')
+    await nextTick()
+    expect(w.text()).toContain('学习的事')
+    expect(w.text()).not.toContain('项目的事')
+    // 切到规划分类
+    await segs[2].trigger('click')
+    await nextTick()
+    expect(w.text()).toContain('规划的事')
+    expect(w.text()).not.toContain('学习的事')
+    w.unmount()
+  })
+
+  it('点卡片上的分类徽章可把项目改到其它分类', async () => {
+    store.addProject({ name: '要挪的项目', category: 'project' })
+    const { w } = mountView()
+    await nextTick()
+    expect(w.text()).toContain('要挪的项目')
+    await w.find('.cat-badge').trigger('click')
+    await nextTick()
+    const opts = [...document.querySelectorAll('.cat-opt')]
+    expect(opts.length).toBe(3)
+    opts[0].click() // 学习分类
+    await nextTick()
+    expect(store.state.projects[0].category).toBe('study')
+    // 当前（项目分类）列表里不再显示
+    expect(w.text()).not.toContain('要挪的项目')
+    w.unmount()
+  })
 
   it('卡片展示项目进度（项目任务=普通待办）', () => {
     const p = store.addProject({ name: '进行中项目' })
