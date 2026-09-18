@@ -212,10 +212,10 @@ describe('导航框架', () => {
     w.unmount()
   })
 
-  it('router 注册 14 条路由', () => {
+  it('router 注册 15 条路由', () => {
     const names = realRouter.getRoutes().map((r) => r.name)
-    expect(names).toHaveLength(14)
-    for (const n of ['home', 'todos', 'projects', 'project-detail', 'calendar', 'checkins', 'checkin-detail', 'focus', 'tags', 'tag-detail', 'reviews', 'blueprints', 'relations', 'settings']) {
+    expect(names).toHaveLength(15)
+    for (const n of ['home', 'todos', 'projects', 'project-detail', 'calendar', 'checkins', 'checkin-detail', 'focus', 'tags', 'tag-detail', 'reviews', 'blueprints', 'relations', 'goals', 'settings']) {
       expect(names).toContain(n)
     }
   })
