@@ -47,7 +47,7 @@ const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMi
 const REVIEW_PATCH_KEYS = ['type', 'periodDate', 'fields']
 const TAG_PATCH_KEYS = ['name', 'color']
 const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBreakMin', 'dailyFocusGoalMin', 'navOrder', 'homeOrder', 'showProjectsOnHome', 'showBlueprintsOnCalendar', 'blueprintDims', 'focusChain']
-const BLUEPRINT_PATCH_KEYS = ['title', 'goalDateTs', 'goalStartTs', 'goalEndTs', 'goalText', 'dimension', 'desc', 'status', 'notes']
+const BLUEPRINT_PATCH_KEYS = ['title', 'goalDateTs', 'goalStartTs', 'goalEndTs', 'goalText', 'dimension', 'desc', 'status', 'notes', 'level']
 const RELATION_PATCH_KEYS = ['name', 'gender', 'age', 'birthYear', 'birthMonth', 'birthDay', 'place', 'affinity', 'note']
 
 function clampAffinity(v) {
@@ -613,7 +613,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     }
   }
 
-  function addBlueprint({ title, goalDateTs = null, goalStartTs = null, goalEndTs = null, goalText = '', dimension = '', desc = '', status = 'idea', notes = '' } = {}) {
+  function addBlueprint({ title, goalDateTs = null, goalStartTs = null, goalEndTs = null, goalText = '', dimension = '', desc = '', status = 'idea', notes = '', level = 'small' } = {}) {
     const b = {
       id: uid(),
       title,
@@ -625,6 +625,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
       desc: desc || '',
       status: status || 'idea',
       notes: notes || '',
+      level: level || 'small',
       related: [],
       createdAt: now(),
     }
