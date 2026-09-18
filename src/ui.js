@@ -30,6 +30,17 @@ export function settleConfirm(ok) {
   }
 }
 
+// 左侧滑出菜单（全局状态，任何页面都能呼出）
+export const sideMenuState = reactive({ open: false })
+
+export function openSideMenu() {
+  sideMenuState.open = true
+}
+
+export function closeSideMenu() {
+  sideMenuState.open = false
+}
+
 export const toastState = reactive({
   visible: false,
   message: '',
