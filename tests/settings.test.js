@@ -47,15 +47,19 @@ describe('设置页', () => {
     w.unmount()
   })
 
-  it('修改专注参数并保存到 settings', async () => {
+  it('修改休息时长与每日目标并保存（番茄时长已移到专注页）', async () => {
     const w = mountView()
+    // 设置页不再有「番茄专注时长」输入
+    expect(w.text()).not.toContain('番茄专注时长（分钟）')
+    expect(w.text()).toContain('已移到「专注」页')
     const inputs = w.findAll('input[type="number"]')
-    await inputs[0].setValue('40')
+    await inputs[0].setValue('10') // 短休息
     await inputs[0].trigger('change')
-    await inputs[1].setValue('10')
+    await inputs[1].setValue('150') // 每日目标
     await inputs[1].trigger('change')
-    expect(store.state.settings.pomodoroFocusMin).toBe(40)
     expect(store.state.settings.pomodoroBreakMin).toBe(10)
+    expect(store.state.settings.dailyFocusGoalMin).toBe(150)
+    expect(store.state.settings.pomodoroFocusMin).toBe(25) // 保持不变
     w.unmount()
   })
 
