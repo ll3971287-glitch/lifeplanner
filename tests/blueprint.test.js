@@ -171,6 +171,24 @@ describe('蓝图等级与尺寸渲染', () => {
     expect(store.state.blueprints[0].level).toBe('large')
   })
 
+  it('进度条颜色按人生维度着色（状态不改色相）', async () => {
+    const now = Date.now()
+    store.addBlueprint({ title: '学习的事', dimension: 'study', status: 'doing', goalEndTs: now + 3600000 })
+    store.addBlueprint({ title: '健康的事', dimension: 'health', status: 'doing', goalEndTs: now + 3600000 })
+    store.addBlueprint({ title: '学习第二件', dimension: 'study', status: 'done', goalEndTs: now + 3600000 })
+    const w = mount(BlueprintTimeline, { props: { items: store.state.blueprints } })
+    await nextTick()
+    const bars = w.findAll('.bar')
+    const styleOf = (t) => bars.find((b) => b.text().includes(t)).attributes('style')
+    // 维度不同 → 颜色不同（jsdom 会把 hex 规范化成 rgb，这里两者都接受）
+    expect(styleOf('学习的事')).toMatch(/border-color:\s*(#5476B8|rgb\(84,\s*118,\s*184\))/i)
+    expect(styleOf('健康的事')).toMatch(/border-color:\s*(#2E9E8F|rgb\(46,\s*158,\s*143\))/i)
+    // 同维度不同状态（进行中 vs 已完成）→ 色相一致（状态只体现透明度/线型）
+    const bc = (t) => (styleOf(t).match(/border-color:[^;]+/) || [''])[0]
+    expect(bc('学习的事')).toBe(bc('学习第二件'))
+    w.unmount()
+  })
+
   it('进度条按等级渲染不同尺寸，大蓝图排在上方', async () => {
     const now = Date.now()
     store.addBlueprint({ title: '小事一桩', level: 'small', status: 'doing', goalEndTs: now + 3600000 })
