@@ -35,10 +35,6 @@
       <h2 class="s-title"><Icon name="clock" :size="16" /> 专注计时</h2>
       <div class="param-row">
         <div class="field">
-          <span class="field-label">番茄专注时长（分钟）</span>
-          <input v-model.number="focusMin" type="number" min="1" max="120" class="input" @change="applyFocusSettings" />
-        </div>
-        <div class="field">
           <span class="field-label">短休息（分钟）</span>
           <input v-model.number="breakMin" type="number" min="1" max="60" class="input" @change="applyFocusSettings" />
         </div>
@@ -47,7 +43,7 @@
           <input v-model.number="goalMin" type="number" min="0" class="input" @change="applyFocusSettings" />
         </div>
       </div>
-      <p class="muted tip-line">修改在下次开始计时时生效</p>
+      <p class="muted tip-line">番茄专注时长已移到「专注」页顶部右上角，可直接调整；修改在下次开始计时时生效。</p>
     </section>
 
     <section class="card s-card">
@@ -147,7 +143,7 @@
     <section class="card s-card">
       <h2 class="s-title"><Icon name="checkCircle" :size="16" /> 关于</h2>
       <p class="muted desc">
-        Ultimate Life System v2.8.1 · 本地任务与项目管理<br />
+        Ultimate Life System v2.8.2 · 本地任务与项目管理<br />
         数据存放于本机 IndexedDB，无需账号，离线可用。
       </p>
     </section>
@@ -221,7 +217,6 @@ const sizeText = computed(() => {
 })
 
 function applyFocusSettings() {
-  store.setSetting('pomodoroFocusMin', Math.max(1, Math.min(180, Math.round(focusMin.value) || 25)))
   store.setSetting('pomodoroBreakMin', Math.max(1, Math.min(60, Math.round(breakMin.value) || 5)))
   store.setSetting('dailyFocusGoalMin', Math.max(0, Math.round(goalMin.value) || 0))
   showToast('计时设置已保存')
