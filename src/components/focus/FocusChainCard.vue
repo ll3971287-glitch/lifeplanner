@@ -73,6 +73,7 @@ import BaseModal from '../ui/BaseModal.vue'
 import Icon from '../ui/Icon.vue'
 import { store } from '../../store.js'
 import { showToast } from '../../ui.js'
+import { playChime, unlockAudio } from '../../sound.js'
 
 const emit = defineEmits(['start'])
 
@@ -126,10 +127,13 @@ function tick() {
   if (remainSec.value > 0) return
   stopTimer()
   // 倒计时结束：已完成触发信号 → 解锁专注标志；否则本轮重置
+  const soundOn = store.state.settings.soundOn !== false
   if (triggerDone.value) {
     phase.value = 'awaitMark'
+    if (soundOn) playChime('chainUnlock')
     showToast('预约倒计时结束，专注标志已解锁')
   } else {
+    if (soundOn) playChime('chainTimeout')
     resetChain('预约超时未完成触发信号，本轮专注链已重置')
   }
 }
@@ -148,6 +152,7 @@ function stopTimer() {
 
 function reserveStart() {
   if (phase.value !== 'idle') return
+  unlockAudio()
   triggerDone.value = false
   markDone.value = false
   notice.value = ''
@@ -179,6 +184,7 @@ function resetChain(message) {
 
 function startFocus() {
   if (phase.value !== 'ready') return
+  unlockAudio()
   emit('start')
   resetChain('专注已开始（链式流程已完成）')
 }
