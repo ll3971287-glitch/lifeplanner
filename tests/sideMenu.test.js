@@ -27,6 +27,7 @@ async function mountMenu(path = '/') {
       { path: '/relations', name: 'relations', component: { template: '<div/>' } },
       { path: '/reviews', name: 'reviews', component: { template: '<div/>' } },
       { path: '/tags', name: 'tags', component: { template: '<div/>' } },
+      { path: '/goals', name: 'goals', component: { template: '<div/>' } },
       { path: '/settings', name: 'settings', component: { template: '<div/>' } },
     ],
   })
@@ -45,11 +46,15 @@ describe('左侧滑出菜单', () => {
     await nextTick()
     expect(document.body.textContent).toContain('规划')
     expect(document.body.textContent).toContain('回顾')
-    for (const label of ['未来蓝图', '人情', '书影音', '复盘', '标签', '设置']) {
+    for (const label of ['未来蓝图', '人情', '书影音', '目标', '复盘', '标签', '设置']) {
       expect(itemByText(label), label).toBeTruthy()
     }
     // 书影音标记为即将上线
     expect(itemByText('书影音').textContent).toContain('即将上线')
+    // 回顾组里「目标」排在最前
+    const labels = [...document.querySelectorAll('.sm-item .sm-label')].map((n) => n.textContent)
+    expect(labels.indexOf('目标')).toBeLessThan(labels.indexOf('复盘'))
+    expect(labels.indexOf('复盘')).toBeLessThan(labels.indexOf('标签'))
     w.unmount()
   })
 
@@ -71,6 +76,15 @@ describe('左侧滑出菜单', () => {
     expect(router.currentRoute.value.path).toBe('/todos')
     expect(sideMenuState.open).toBe(true)
     expect(toastState.message).toContain('书影音')
+    w.unmount()
+  })
+
+  it('点击「目标」进入独立目标页', async () => {
+    const { w, router } = await mountMenu()
+    await nextTick()
+    itemByText('目标').click()
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/goals')
     w.unmount()
   })
 
