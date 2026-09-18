@@ -8,6 +8,10 @@ import MediaView from '../src/views/MediaView.vue'
 import MediaCard from '../src/components/media/MediaCard.vue'
 import MediaDrawer from '../src/components/media/MediaDrawer.vue'
 import MediaFormModal from '../src/components/media/MediaFormModal.vue'
+import MediaTimeline from '../src/components/media/MediaTimeline.vue'
+import ReviewFormModal from '../src/components/review/ReviewFormModal.vue'
+import { mediaOverview, mediaTopRated, mediaTimeline } from '../src/selectors.js'
+import { DAY_MS } from '../src/utils/date.js'
 
 beforeEach(() => {
   store._replace(defaultState())
@@ -86,12 +90,13 @@ describe('书影音页面', () => {
     expect(w.text()).toContain('一本好书')
     expect(w.text()).not.toContain('一部电影')
     expect(w.text()).not.toContain('一个游戏')
+    // seg 顺序：视图(卡片/时间线) 2 项 → 品类 5 项 → 状态 6 项
     const cats = w.findAll('.seg-item')
-    await cats[1].trigger('click') // 电影
+    await cats[3].trigger('click') // 电影（品类第 2 项）
     await nextTick()
     expect(w.text()).toContain('一部电影')
     expect(w.text()).not.toContain('一本好书')
-    await cats[4].trigger('click') // 游戏
+    await cats[6].trigger('click') // 游戏（品类第 5 项）
     await nextTick()
     expect(w.text()).toContain('一个游戏')
     w.unmount()
@@ -104,7 +109,7 @@ describe('书影音页面', () => {
     await nextTick()
     expect(w.text()).toContain('完成率 50%')
     const segs = w.findAll('.seg-item')
-    await segs[8].trigger('click') // 前 5 项是品类，之后是 全部/未开始/进行中/已完成/已搁置；索引 8 = 已完成
+    await segs[10].trigger('click') // 视图2 + 品类5 之后是 全部/未开始/进行中/已完成/已搁置；索引 10 = 已完成
     await nextTick()
     expect(w.text()).toContain('完读')
     expect(w.text()).not.toContain('在读')
@@ -205,5 +210,76 @@ describe('书影音：表单与详情', () => {
     await nextTick()
     expect(store.state.mediaItems.find((m) => m.id === g.id).achievements).toEqual(['初见通关'])
     w2.unmount()
+  })
+})
+
+describe('书影音：第二阶段（总览 / TOP / 时间线 / 复盘联动）', () => {
+  it('数据总览：各品类数量与完成率', () => {
+    store.addMedia({ category: 'book', title: 'A', status: 'done' })
+    store.addMedia({ category: 'book', title: 'B' })
+    store.addMedia({ category: 'game', title: 'C', status: 'done' })
+    const ov = mediaOverview(store.state)
+    expect(ov.total).toBe(3)
+    expect(ov.done).toBe(2)
+    expect(ov.rate).toBe(67)
+    const book = ov.byCat.find((c) => c.key === 'book')
+    expect(book).toMatchObject({ total: 2, done: 1, rate: 50 })
+  })
+
+  it('年度 TOP：按评分排序，当年无则回退全部时间', () => {
+    const y = new Date().getFullYear()
+    store.addMedia({ category: 'book', title: '高分书', status: 'done', rating: 5, endDate: new Date(y, 5, 1).getTime() })
+    store.addMedia({ category: 'movie', title: '普通片', status: 'done', rating: 3, endDate: new Date(y, 5, 2).getTime() })
+    store.addMedia({ category: 'game', title: '去年的神作', status: 'done', rating: 5, endDate: new Date(y - 1, 3, 1).getTime() })
+    const top = mediaTopRated(store.state, y)
+    expect(top.map((m) => m.title)).toEqual(['高分书', '普通片'])
+    // 全部时间含去年的
+    expect(mediaTopRated(store.state, null)).toHaveLength(3)
+  })
+
+  it('时间线按时间倒序并分组', () => {
+    const now = Date.now()
+    store.addMedia({ category: 'book', title: '上个月', status: 'done', endDate: now - 40 * DAY_MS })
+    store.addMedia({ category: 'movie', title: '今天', status: 'done', endDate: now })
+    const list = mediaTimeline(store.state)
+    expect(list[0].title).toBe('今天')
+    expect(list[1].title).toBe('上个月')
+  })
+
+  it('页面：总览卡与时间线视图切换', async () => {
+    const now = Date.now()
+    store.addMedia({ category: 'book', title: '带评分的书', status: 'done', rating: 4, endDate: now })
+    const w = mount(MediaView)
+    await nextTick()
+    expect(w.text()).toContain('书影音总览')
+    expect(w.text()).toContain('完成率')
+    expect(w.text()).toContain('TOP')
+    // 切换到时间线视图
+    const segs = w.findAll('.seg-item')
+    await segs[1].trigger('click')
+    await nextTick()
+    expect(w.text()).toContain('按时间倒序展示全部品类')
+    expect(w.text()).toContain('带评分的书')
+    expect(w.findComponent(MediaTimeline).exists()).toBe(true)
+    w.unmount()
+  })
+
+  it('复盘表单可插入本周期书影音记录（且不修改原始数据）', async () => {
+    const now = Date.now()
+    const m = store.addMedia({ category: 'book', title: '本周读完的书', creator: '某作者', status: 'done', rating: 5, endDate: now, oneLine: '非常推荐' })
+    const w = mount(ReviewFormModal, { props: { defaultType: 'week' } })
+    await nextTick()
+    const btn = w.findAll('button').find((b) => b.text().includes('插入书影音记录'))
+    await btn.trigger('click')
+    await nextTick()
+    const events = w.vm.form.fields.events
+    expect(events).toContain('读完《本周读完的书》')
+    expect(events).toContain('某作者')
+    expect(events).toContain('非常推荐')
+    // 原始记录未被修改
+    const after = store.state.mediaItems.find((x) => x.id === m.id)
+    expect(after.title).toBe('本周读完的书')
+    expect(after.oneLine).toBe('非常推荐')
+    w.unmount()
   })
 })
