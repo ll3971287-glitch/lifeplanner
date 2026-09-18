@@ -43,6 +43,7 @@ export function defaultState() {
     relations: [],
     goals: [],
     goalNotes: {},
+    mediaItems: [],
   }
 }
 
@@ -55,6 +56,12 @@ const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBr
 const BLUEPRINT_PATCH_KEYS = ['title', 'goalDateTs', 'goalStartTs', 'goalEndTs', 'goalText', 'dimension', 'desc', 'status', 'notes', 'level']
 const RELATION_PATCH_KEYS = ['name', 'gender', 'age', 'birthYear', 'birthMonth', 'birthDay', 'place', 'affinity', 'note']
 const GOAL_PATCH_KEYS = ['name', 'desc', 'done', 'year', 'scope', 'index', 'order']
+const MEDIA_PATCH_KEYS = [
+  'category', 'status', 'title', 'creator', 'coverUrl', 'startDate', 'endDate', 'rating', 'tags',
+  'oneLine', 'review', 'memo', 'favorite',
+  'totalPages', 'currentPage', 'totalEpisodes', 'watchedEpisodes', 'episodeNotes',
+  'playHours', 'levels', 'achievements',
+]
 
 function clampAffinity(v) {
   const n = Number(v)
@@ -73,7 +80,7 @@ export function normalizeData(raw) {
   const out = { ...def }
   if (raw && typeof raw === 'object') {
     if (typeof raw.version === 'number') out.version = raw.version
-    for (const arr of ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals']) {
+    for (const arr of ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals', 'mediaItems']) {
       if (Array.isArray(raw[arr])) out[arr] = raw[arr]
     }
     // 专注链预设：旧版单条文案自动迁移为预设列表
@@ -749,6 +756,96 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     scheduleSave()
   }
 
+  // ---------- 书影音 ----------
+  function addMedia({
+    category = 'book',
+    status = 'todo',
+    title,
+    creator = '',
+    coverUrl = '',
+    startDate = null,
+    endDate = null,
+    rating = 0,
+    tags = [],
+    oneLine = '',
+    review = '',
+    memo = '',
+    favorite = false,
+    totalPages = 0,
+    currentPage = 0,
+    totalEpisodes = 0,
+    watchedEpisodes = 0,
+    episodeNotes = [],
+    playHours = 0,
+    levels = '',
+    achievements = [],
+  } = {}) {
+    const m = {
+      id: uid(),
+      category,
+      status,
+      title,
+      creator,
+      coverUrl,
+      startDate,
+      endDate,
+      rating: Math.max(0, Math.min(5, Number(rating) || 0)),
+      tags: Array.isArray(tags) ? [...tags] : [],
+      oneLine,
+      review,
+      memo,
+      favorite: !!favorite,
+      totalPages: Number(totalPages) || 0,
+      currentPage: Number(currentPage) || 0,
+      totalEpisodes: Number(totalEpisodes) || 0,
+      watchedEpisodes: Number(watchedEpisodes) || 0,
+      episodeNotes: Array.isArray(episodeNotes) ? episodeNotes.map((n) => ({ ...n })) : [],
+      playHours: Number(playHours) || 0,
+      levels: levels || '',
+      achievements: Array.isArray(achievements) ? [...achievements] : [],
+      createdAt: now(),
+      updatedAt: now(),
+    }
+    state.mediaItems.push(m)
+    scheduleSave()
+    return m
+  }
+
+  function updateMedia(id, p) {
+    const m = state.mediaItems.find((x) => x.id === id)
+    if (!m) return null
+    patch(m, p, MEDIA_PATCH_KEYS)
+    if ('rating' in p) m.rating = Math.max(0, Math.min(5, Number(p.rating) || 0))
+    m.updatedAt = now()
+    scheduleSave()
+    return m
+  }
+
+  function deleteMedia(id) {
+    state.mediaItems = state.mediaItems.filter((m) => m.id !== id)
+    scheduleSave()
+  }
+
+  function setMediaStatus(id, status) {
+    const m = state.mediaItems.find((x) => x.id === id)
+    if (!m) return null
+    m.status = status
+    if (status === 'doing' && m.startDate == null) m.startDate = now()
+    if (status === 'done' && m.endDate == null) m.endDate = now()
+    m.updatedAt = now()
+    scheduleSave()
+    return m
+  }
+
+  function toggleFavorite(id) {
+    const m = state.mediaItems.find((x) => x.id === id)
+    if (!m) return null
+    m.favorite = !m.favorite
+    m.updatedAt = now()
+    scheduleSave()
+    return m
+  }
+
   // ---------- 目标（月度 / 季度） ----------
   function sameGoalPeriod(g, year, scope, index) {
     return g.year === year && g.scope === scope && g.index === index
@@ -876,7 +973,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     return JSON.parse(JSON.stringify({ ...state, version: 1 }))
   }
 
-  const DATA_ARRS = ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals']
+  const DATA_ARRS = ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals', 'mediaItems']
 
   function assertValidData(d) {
     if (!d || typeof d !== 'object') throw new Error('文件内容不是有效的数据对象')
@@ -967,6 +1064,11 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     addRelation,
     updateRelation,
     deleteRelation,
+    addMedia,
+    updateMedia,
+    deleteMedia,
+    setMediaStatus,
+    toggleFavorite,
     addGoal,
     updateGoal,
     deleteGoal,
