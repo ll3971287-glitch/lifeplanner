@@ -510,3 +510,36 @@ export function reviewGoals(state, review) {
   const ids = (review && review.goals) || []
   return ids.map((id) => state.goals.find((g) => g.id === id)).filter(Boolean)
 }
+
+// ---------- 书影音 ----------
+
+export function mediaOf(state, category) {
+  return state.mediaItems
+    .filter((m) => m.category === category)
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+}
+
+export function mediaCounts(state) {
+  const out = {}
+  for (const m of state.mediaItems) out[m.category] = (out[m.category] || 0) + 1
+  return out
+}
+
+export function mediaFavorites(state, category) {
+  return state.mediaItems
+    .filter((m) => m.category === category && m.favorite && m.status === 'todo')
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+}
+
+export function mediaCategoryStats(state, category) {
+  const list = state.mediaItems.filter((m) => m.category === category)
+  const done = list.filter((m) => m.status === 'done').length
+  return {
+    total: list.length,
+    done,
+    doing: list.filter((m) => m.status === 'doing').length,
+    todo: list.filter((m) => m.status === 'todo').length,
+    paused: list.filter((m) => m.status === 'paused').length,
+    rate: list.length ? Math.round((done / list.length) * 100) : 0,
+  }
+}
