@@ -93,7 +93,7 @@
     </BaseModal>
 
     <BaseModal :open="form.open" :title="form.project ? '编辑项目' : '新建项目'" @close="form.open = false">
-      <ProjectFormModal v-if="form.open" :project="form.project" @close="form.open = false" @saved="form.open = false" />
+      <ProjectFormModal v-if="form.open" :open="form.open" :project="form.project" @close="form.open = false" @saved="form.open = false" />
     </BaseModal>
   </div>
 </template>
