@@ -2,9 +2,10 @@
   <div class="goals-panel">
     <div class="toolbar card">
       <div class="row-between gap8 wrap">
-        <button type="button" class="btn btn-outline btn-sm" @click="$emit('back')">
+        <button v-if="!standalone" type="button" class="btn btn-outline btn-sm" @click="$emit('back')">
           <Icon name="chevronLeft" :size="14" /> 返回复盘
         </button>
+        <span v-else class="view-title"><Icon name="pin" :size="15" /> 目标</span>
         <SegControl :model-value="scope" :options="scopeOptions" @update:model-value="scope = $event" />
         <div class="row gap6 year-nav">
           <button type="button" class="nav-btn" @click="year -= 1"><Icon name="chevronLeft" :size="14" /></button>
@@ -39,6 +40,10 @@ import Icon from '../ui/Icon.vue'
 import GoalPeriodCard from './GoalPeriodCard.vue'
 import { GOAL_SCOPES } from '../../goalMeta.js'
 
+defineProps({
+  // 作为独立页面使用时不显示"返回复盘"
+  standalone: { type: Boolean, default: false },
+})
 defineEmits(['back'])
 
 const thisYear = new Date().getFullYear()
@@ -113,6 +118,14 @@ const cardCount = computed(() => (GOAL_SCOPES.find((s) => s.key === scope.value)
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--muted);
+}
+
+.view-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .panel-hint {
