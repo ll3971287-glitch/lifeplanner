@@ -13,6 +13,7 @@ import ReviewsView from './views/ReviewsView.vue'
 import BlueprintsView from './views/BlueprintsView.vue'
 import RelationsView from './views/RelationsView.vue'
 import GoalsView from './views/GoalsView.vue'
+import MediaView from './views/MediaView.vue'
 import SettingsView from './views/SettingsView.vue'
 
 export const router = createRouter({
@@ -32,6 +33,7 @@ export const router = createRouter({
     { path: '/blueprints', name: 'blueprints', component: BlueprintsView, meta: { title: '未来蓝图' } },
     { path: '/relations', name: 'relations', component: RelationsView, meta: { title: '关系' } },
     { path: '/goals', name: 'goals', component: GoalsView, meta: { title: '目标' } },
+    { path: '/media', name: 'media', component: MediaView, meta: { title: '书影音' } },
     { path: '/settings', name: 'settings', component: SettingsView, meta: { title: '设置' } },
   ],
   scrollBehavior() {
