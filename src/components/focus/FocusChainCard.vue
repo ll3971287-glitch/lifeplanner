@@ -15,8 +15,11 @@
       <span class="step-icon"><Icon :name="triggerDone ? 'check' : 'alert'" :size="14" /></span>
       <div class="step-main">
         <span class="step-label">触发信号</span>
-        <span class="step-text">{{ cfg.triggerText }}</span>
+        <span class="step-text">{{ triggerText }}</span>
       </div>
+      <button type="button" class="swap-btn" title="切换 / 自定义预设" @click.stop="openPresets('triggers')">
+        <Icon name="refresh" :size="12" />
+      </button>
       <span class="step-state">{{ triggerStateText }}</span>
     </div>
 
@@ -25,8 +28,11 @@
       <span class="step-icon"><Icon :name="markDone ? 'check' : 'flag'" :size="14" /></span>
       <div class="step-main">
         <span class="step-label">专注标志</span>
-        <span class="step-text">{{ cfg.markText }}</span>
+        <span class="step-text">{{ markText }}</span>
       </div>
+      <button type="button" class="swap-btn" title="切换 / 自定义预设" @click.stop="openPresets('marks')">
+        <Icon name="refresh" :size="12" />
+      </button>
       <span class="step-state">{{ markStateText }}</span>
     </div>
 
@@ -43,16 +49,49 @@
     </div>
     <p class="muted mini chain-tip">{{ tip }}</p>
 
+    <BaseModal :open="presetOpen" title="预设管理" @close="presetOpen = false">
+      <div class="cf">
+        <SegControl
+          :model-value="presetTab"
+          :options="[{ label: '触发信号', value: 'triggers' }, { label: '专注标志', value: 'marks' }]"
+          @update:model-value="presetTab = $event"
+        />
+        <p class="muted mini">点选即切换当前使用的那一条；也可以编辑、删除或新增自定义。</p>
+        <div class="preset-list">
+          <div v-for="(p, i) in presetList" :key="i" class="preset-item" :class="{ on: i === currentPresetIndex }">
+            <button type="button" class="preset-pick" @click="selectPreset(i)">
+              <Icon v-if="i === currentPresetIndex" name="check" :size="12" />
+              <span class="preset-text">{{ p }}</span>
+            </button>
+            <button type="button" class="mini-btn" title="编辑" @click="startPresetEdit(i)">
+              <Icon name="edit" :size="12" />
+            </button>
+            <button type="button" class="mini-btn danger" title="删除" @click="removePreset(i)">
+              <Icon name="x" :size="12" />
+            </button>
+          </div>
+          <p v-if="!presetList.length" class="muted empty-preset">还没有预设，添加一条吧</p>
+        </div>
+        <div class="row gap6 add-preset">
+          <input v-model="newPreset" class="input" placeholder="新增预设内容…" @keyup.enter="addPreset" />
+          <button type="button" class="btn btn-primary btn-sm" @click="addPreset">添加</button>
+        </div>
+      </div>
+    </BaseModal>
+
+    <BaseModal :open="editOpen" title="编辑预设" @close="editOpen = false">
+      <div class="cf">
+        <input v-model="editText" class="input" placeholder="预设内容" @keyup.enter="savePresetEdit" />
+        <div class="row gap8" style="justify-content: flex-end">
+          <button type="button" class="btn btn-outline btn-sm" @click="editOpen = false">取消</button>
+          <button type="button" class="btn btn-primary btn-sm" @click="savePresetEdit">保存</button>
+        </div>
+      </div>
+    </BaseModal>
+
     <BaseModal :open="settingsOpen" title="专注链设置" @close="settingsOpen = false">
       <div class="cf">
-        <div class="field">
-          <span class="field-label">触发信号（进入专注前的启动动作）</span>
-          <input v-model="form.triggerText" class="input" placeholder="如：深呼吸三次，把手机放到一边" />
-        </div>
-        <div class="field">
-          <span class="field-label">专注标志（确认已进入状态的标志动作）</span>
-          <input v-model="form.markText" class="input" placeholder="如：打开文件，写下今天最重要的一件事" />
-        </div>
+        <p class="muted mini">触发信号 / 专注标志的内容请在卡片右侧「切换 / 自定义预设」里管理（可存多条随时切换）。</p>
         <div class="field">
           <span class="field-label">预约倒计时（分钟）</span>
           <input v-model="form.reserveMin" class="input narrow" type="number" min="1" max="120" />
@@ -70,6 +109,7 @@
 <script setup>
 import { ref, reactive, computed, onBeforeUnmount } from 'vue'
 import BaseModal from '../ui/BaseModal.vue'
+import SegControl from '../ui/SegControl.vue'
 import Icon from '../ui/Icon.vue'
 import { store } from '../../store.js'
 import { showToast } from '../../ui.js'
@@ -77,7 +117,75 @@ import { playChime, unlockAudio } from '../../sound.js'
 
 const emit = defineEmits(['start'])
 
-const cfg = computed(() => store.state.settings.focusChain || { triggerText: '', markText: '', reserveMin: 10 })
+const DEFAULT_FC = { triggers: [], marks: [], triggerIndex: 0, markIndex: 0, reserveMin: 10 }
+const cfg = computed(() => store.state.settings.focusChain || DEFAULT_FC)
+const presetKey = (tab) => (tab === 'marks' ? 'marks' : 'triggers')
+const idxKey = (tab) => (tab === 'marks' ? 'markIndex' : 'triggerIndex')
+const currentText = (tab) => {
+  const list = cfg.value[presetKey(tab)] || []
+  if (!list.length) return tab === 'marks' ? '（未设置专注标志，点右侧按钮添加）' : '（未设置触发信号，点右侧按钮添加）'
+  const i = Math.min(Math.max(0, Number(cfg.value[idxKey(tab)]) || 0), list.length - 1)
+  return list[i]
+}
+const triggerText = computed(() => currentText('triggers'))
+const markText = computed(() => currentText('marks'))
+
+// 预设管理
+const presetOpen = ref(false)
+const presetTab = ref('triggers')
+const newPreset = ref('')
+const editOpen = ref(false)
+const editText = ref('')
+const editingIndex = ref(-1)
+
+const presetList = computed(() => cfg.value[presetKey(presetTab.value)] || [])
+const currentPresetIndex = computed(() => Math.min(Math.max(0, Number(cfg.value[idxKey(presetTab.value)]) || 0), Math.max(0, presetList.value.length - 1)))
+
+function savePresetConfig(patch) {
+  store.setSetting('focusChain', { ...cfg.value, ...patch })
+}
+function openPresets(tab) {
+  presetTab.value = tab
+  newPreset.value = ''
+  presetOpen.value = true
+}
+function selectPreset(i) {
+  savePresetConfig({ [idxKey(presetTab.value)]: i })
+}
+function addPreset() {
+  const text = newPreset.value.trim()
+  if (!text) return
+  const key = presetKey(presetTab.value)
+  const list = [...(cfg.value[key] || []), text]
+  savePresetConfig({ [key]: list, [idxKey(presetTab.value)]: list.length - 1 })
+  newPreset.value = ''
+  showToast('已添加预设并切换使用')
+}
+function startPresetEdit(i) {
+  editingIndex.value = i
+  editText.value = presetList.value[i]
+  editOpen.value = true
+}
+function savePresetEdit() {
+  const text = editText.value.trim()
+  if (!text || editingIndex.value < 0) return
+  const key = presetKey(presetTab.value)
+  const list = [...(cfg.value[key] || [])]
+  list[editingIndex.value] = text
+  savePresetConfig({ [key]: list })
+  editOpen.value = false
+  editingIndex.value = -1
+}
+function removePreset(i) {
+  const key = presetKey(presetTab.value)
+  const list = (cfg.value[key] || []).filter((_, idx) => idx !== i)
+  const cur = Number(cfg.value[idxKey(presetTab.value)]) || 0
+  let nextIdx = cur
+  if (i < cur) nextIdx = cur - 1
+  else if (i === cur) nextIdx = Math.max(0, i - 1)
+  nextIdx = Math.min(nextIdx, Math.max(0, list.length - 1))
+  savePresetConfig({ [key]: list, [idxKey(presetTab.value)]: nextIdx })
+}
 
 // 链式状态机：idle → reserved（预约倒计时）→ awaitMark（倒计时结束且信号完成）→ ready（标志完成）→ 开始专注
 const phase = ref('idle')
@@ -200,19 +308,13 @@ onBeforeUnmount(() => {
 
 // 设置
 const settingsOpen = ref(false)
-const form = reactive({ triggerText: '', markText: '', reserveMin: 10 })
+const form = reactive({ reserveMin: 10 })
 function openSettings() {
-  form.triggerText = cfg.value.triggerText || ''
-  form.markText = cfg.value.markText || ''
   form.reserveMin = cfg.value.reserveMin || 10
   settingsOpen.value = true
 }
 function saveSettings() {
-  store.setSetting('focusChain', {
-    triggerText: form.triggerText.trim(),
-    markText: form.markText.trim(),
-    reserveMin: Math.max(1, Math.min(120, Number(form.reserveMin) || 10)),
-  })
+  savePresetConfig({ reserveMin: Math.max(1, Math.min(120, Number(form.reserveMin) || 10)) })
   settingsOpen.value = false
   showToast('专注链设置已保存')
 }
@@ -332,6 +434,91 @@ function saveSettings() {
   opacity: 0.75;
 }
 
+.swap-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.swap-btn:hover {
+  color: var(--accent-deep);
+  border-color: var(--accent);
+}
+
+.preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.preset-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 4px 6px;
+}
+
+.preset-item.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.preset-pick {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.preset-text {
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.mini-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.mini-btn:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.mini-btn.danger:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.empty-preset {
+  text-align: center;
+  font-size: 12.5px;
+  padding: 10px 0;
+}
+
+.add-preset {
+  align-items: center;
+}
+
 .step-state {
   font-size: 11.5px;
   font-weight: 700;
@@ -339,11 +526,181 @@ function saveSettings() {
   flex: none;
 }
 
-.chain-step.active .step-state {
+.chain-step.active .swap-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.swap-btn:hover {
+  color: var(--accent-deep);
+  border-color: var(--accent);
+}
+
+.preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.preset-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 4px 6px;
+}
+
+.preset-item.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.preset-pick {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.preset-text {
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.mini-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.mini-btn:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.mini-btn.danger:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.empty-preset {
+  text-align: center;
+  font-size: 12.5px;
+  padding: 10px 0;
+}
+
+.add-preset {
+  align-items: center;
+}
+
+.step-state {
   color: var(--accent-deep);
 }
 
-.chain-step.done .step-state {
+.chain-step.done .swap-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.swap-btn:hover {
+  color: var(--accent-deep);
+  border-color: var(--accent);
+}
+
+.preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.preset-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 4px 6px;
+}
+
+.preset-item.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.preset-pick {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.preset-text {
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.mini-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.mini-btn:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.mini-btn.danger:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.empty-preset {
+  text-align: center;
+  font-size: 12.5px;
+  padding: 10px 0;
+}
+
+.add-preset {
+  align-items: center;
+}
+
+.step-state {
   color: var(--success);
 }
 
