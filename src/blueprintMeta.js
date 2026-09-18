@@ -20,6 +20,29 @@ export const BLUEPRINT_STATUS = {
   done: { label: '已完成', cls: 'done' },
 }
 export const STATUS_ORDER = ['idea', 'doing', 'paused', 'done']
+
+// 蓝图等级：进度条区域按尺寸渲染，越大的蓝图优先级越高
+export const BLUEPRINT_LEVELS = {
+  small: { label: '小蓝图', weight: 1, barH: 24 },
+  medium: { label: '中蓝图', weight: 2, barH: 34 },
+  large: { label: '大蓝图', weight: 3, barH: 46 },
+}
+export const LEVEL_ORDER = ['small', 'medium', 'large']
+export const DEFAULT_LEVEL = 'small'
+
+export function levelOf(b) {
+  const k = b && b.level
+  return BLUEPRINT_LEVELS[k] ? k : DEFAULT_LEVEL
+}
+export function levelLabel(b) {
+  return BLUEPRINT_LEVELS[levelOf(b)].label
+}
+export function levelWeight(b) {
+  return BLUEPRINT_LEVELS[levelOf(b)].weight
+}
+export function levelBarH(b) {
+  return BLUEPRINT_LEVELS[levelOf(b)].barH
+}
 export const BLUEPRINT_DEFAULT_STATUS = 'idea'
 
 export const TIMELINE_SHORT_MS = 90 * 86400000 // 短期：≤3 个月
