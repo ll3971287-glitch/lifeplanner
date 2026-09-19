@@ -1,4 +1,4 @@
-import { DAY_MS, startOfDayTs, endOfDayTs, isSameDayTs, fmtDate } from './utils/date.js'
+import { DAY_MS, startOfDayTs, endOfDayTs, isSameDayTs, fmtDate, startOfWeekTs } from './utils/date.js'
 
 // ---------- 待办 ----------
 
@@ -45,13 +45,36 @@ export function todoActiveInRange(t, fromTs, toTsExclusive) {
   }
 }
 
+// 归档箱：已完成或已取消的任务
+export function isArchived(t) {
+  return !!(t.completed || t.canceled)
+}
+
 export function selectDueTodos(todos, mode, nowTs = Date.now()) {
-  if (mode === 'overdue') return todos.filter((t) => !t.completed && todoOverdue(t, nowTs))
+  const open = todos.filter((t) => !isArchived(t))
+  if (mode === 'overdue') return open.filter((t) => todoOverdue(t, nowTs))
   if (mode === 'today') {
     const d = startOfDayTs(nowTs)
-    return todos.filter((t) => todoActiveOnDay(t, d))
+    return open.filter((t) => todoActiveOnDay(t, d))
   }
-  return [...todos]
+  if (mode === 'week') {
+    const ws = startOfWeekTs(nowTs)
+    return open.filter((t) => todoActiveInRange(t, ws, ws + 7 * DAY_MS))
+  }
+  if (mode === 'month') {
+    const d = new Date(nowTs)
+    const ms = new Date(d.getFullYear(), d.getMonth(), 1).getTime()
+    const me = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()
+    return open.filter((t) => todoActiveInRange(t, ms, me))
+  }
+  return open
+}
+
+// 归档箱列表：按完成/取消时间倒序
+export function archivedTodos(state) {
+  return state.todos
+    .filter(isArchived)
+    .sort((a, b) => (b.completedAt || b.canceledAt || 0) - (a.completedAt || a.canceledAt || 0))
 }
 
 export function todoRoots(todos) {
@@ -167,7 +190,7 @@ export function projectSubTasks(state, projectId) {
 }
 
 export function projectTodos(state, projectId) {
-  return state.todos.filter((t) => t.projectId === projectId)
+  return state.todos.filter((t) => t.projectId === projectId && !t.canceled)
 }
 
 export function projectStats(state, projectId) {
@@ -383,6 +406,7 @@ export function todayMetCount(state, nowTs = Date.now()) {
 export function calendarItems(state, startTs, endTsExclusive) {
   const items = []
   for (const t of state.todos) {
+    if (t.canceled) continue
     if (t.timeType === 'date') {
       if (t.startAt != null && t.startAt >= startTs && t.startAt < endTsExclusive) {
         items.push({ kind: 'allDay', id: t.id, ts: t.startAt, ref: 'todo', todo: t })
