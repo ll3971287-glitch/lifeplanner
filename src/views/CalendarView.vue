@@ -57,7 +57,8 @@ import MonthView from '../components/calendar/MonthView.vue'
 import BlueprintDrawer from '../components/blueprint/BlueprintDrawer.vue'
 import TodoFormModal from '../components/todo/TodoFormModal.vue'
 
-const view = ref('day')
+// 默认进入月视图
+const view = ref('month')
 const anchor = ref(Date.now())
 
 const viewOptions = [
