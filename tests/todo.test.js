@@ -347,20 +347,57 @@ describe('TodosView 列表与筛选', () => {
     return { w: mount(TodosView, { global: { plugins: [router] } }), router }
   }
 
-  it('「只显示未完成」勾选后隐藏已完成任务', async () => {
+  it('已完成任务自动进入归档箱，可恢复', async () => {
     const d = dayStart()
     store.addTodo({ title: '活动项', timeType: 'date', startAt: d })
     const done = store.addTodo({ title: '完成项', timeType: 'date', startAt: d })
     store.toggleTodo(done.id, true)
     const { w } = mountView()
-    expect(w.findAll('.task-row')).toHaveLength(2)
-    const cb = w.find('.check-pill input')
-    await cb.setValue(true)
+    await nextTick()
+    // 主列表只留未完成任务
     expect(w.findAll('.task-row')).toHaveLength(1)
     expect(w.text()).toContain('活动项')
     expect(w.text()).not.toContain('完成项')
-    await cb.setValue(false)
-    expect(w.findAll('.task-row')).toHaveLength(2)
+    // 归档箱
+    const archBtn = w.findAll('button').find((b) => b.text().includes('归档箱'))
+    expect(archBtn.text()).toContain('1')
+    await archBtn.trigger('click')
+    await nextTick()
+    expect(w.text()).toContain('完成项')
+    expect(w.text()).toContain('已完成')
+    // 恢复
+    const restoreBtn = w.findAll('button').find((b) => b.text().includes('恢复'))
+    await restoreBtn.trigger('click')
+    await nextTick()
+    expect(store.state.todos.find((x) => x.id === done.id).completed).toBe(false)
+    w.unmount()
+  })
+
+  it('取消任务：确认后移入归档箱，可恢复', async () => {
+    store.addTodo({ title: '要取消的任务', timeType: 'date', startAt: dayStart() })
+    const { w } = mountView()
+    await nextTick()
+    await w.find('.cancel-btn').trigger('click')
+    await nextTick()
+    // 确认弹窗（ConfirmDialog 是全局组件，这里直接结算确认）
+    expect(confirmState.visible).toBe(true)
+    settleConfirm(true)
+    await nextTick()
+    await nextTick()
+    const t = store.state.todos[0]
+    expect(t.canceled).toBe(true)
+    expect(t.canceledAt).not.toBeNull()
+    expect(w.text()).not.toContain('要取消的任务')
+    // 归档箱中出现且可恢复
+    const archBtn = w.findAll('button').find((b) => b.text().includes('归档箱'))
+    await archBtn.trigger('click')
+    await nextTick()
+    expect(w.text()).toContain('已取消')
+    expect(w.text()).toContain('要取消的任务')
+    const restoreBtn = w.findAll('button').find((b) => b.text().includes('恢复'))
+    await restoreBtn.trigger('click')
+    await nextTick()
+    expect(store.state.todos[0].canceled).toBe(false)
     w.unmount()
   })
 
@@ -371,6 +408,9 @@ describe('TodosView 列表与筛选', () => {
     store.addTodo({ title: 'B早而高优先级', timeType: 'date', startAt: d, priority: 'high' })
     store.addTodo({ title: 'C中优先级无时间', priority: 'medium' })
     const { w } = mountView()
+    // 默认「今天」分组，这里切到「全部」以便比较全部任务
+    await w.findAll('.seg-item')[0].trigger('click')
+    await nextTick()
     const sel = w.find('select')
     const titles = () => w.findAll('.task-row').map((r) => r.text())
     // 默认自定义：按创建顺序
@@ -403,18 +443,32 @@ describe('TodosView 列表与筛选', () => {
     w.unmount()
   })
 
-  it('今天/逾期筛选只显示对应任务', async () => {
+  it('进入默认定位「今天」，分组筛选（全部/今天/逾期/本周/本月）生效', async () => {
     store.addTodo({ title: '今天任务', timeType: 'date', startAt: dayStart() })
     store.addTodo({ title: '昨天任务', timeType: 'date', startAt: dayStart() - DAY_MS })
     const { w } = mountView()
-    expect(w.findAll('.task-row').length).toBe(2)
-    const segs = w.findAll('.seg-item')
-    await segs[1].trigger('click') // 今天
+    await nextTick()
+    // 默认今天：只显示今天任务
+    expect(w.findAll('.task-row')).toHaveLength(1)
     expect(w.text()).toContain('今天任务')
     expect(w.text()).not.toContain('昨天任务')
-    await segs[2].trigger('click') // 逾期
-    expect(w.text()).not.toContain('今天任务')
+    const segs = w.findAll('.seg-item')
+    // 全部
+    await segs[0].trigger('click')
+    await nextTick()
+    expect(w.findAll('.task-row')).toHaveLength(2)
+    // 逾期
+    await segs[2].trigger('click')
+    await nextTick()
     expect(w.text()).toContain('昨天任务')
+    expect(w.text()).not.toContain('今天任务')
+    // 本周 / 本月：昨天与今天都在范围内
+    await segs[3].trigger('click')
+    await nextTick()
+    expect(w.findAll('.task-row')).toHaveLength(2)
+    await segs[4].trigger('click')
+    await nextTick()
+    expect(w.findAll('.task-row')).toHaveLength(2)
     w.unmount()
   })
 
@@ -422,6 +476,9 @@ describe('TodosView 列表与筛选', () => {
     store.addTodo({ title: '任务A', order: 0 })
     store.addTodo({ title: '任务B', order: 1 })
     const { w } = mountView()
+    // 无时间任务在「今天」分组不显示，切到「全部」
+    await w.findAll('.seg-item')[0].trigger('click')
+    await nextTick()
     const rows = w.findAll('.task-row')
     expect(w.findAll('.title')[0].text()).toBe('任务A')
     const dt = { _v: '', setData(_t, v) { this._v = v }, getData() { return this._v }, effectAllowed: '', dropEffect: '' }
@@ -432,34 +489,19 @@ describe('TodosView 列表与筛选', () => {
     w.unmount()
   })
 
-  it('待办按 我的任务/项目任务 分视图展示', async () => {
+  it('我的任务与项目任务合并为统一列表', async () => {
     const p = store.addProject({ name: '学习项目X' })
     store.addSubTask({ projectId: p.id, name: '项目里的任务', dueAt: Date.now() + 3600000 })
-    store.addTodo({ title: '普通任务' })
+    store.addTodo({ title: '普通任务', timeType: 'date', startAt: dayStart() })
     const { w } = mountView()
     await nextTick()
-    // 默认“我的任务”视图：只显示普通任务
+    // 同一个列表里同时出现两类任务，且项目任务带项目名
     expect(w.text()).toContain('普通任务')
-    expect(w.text()).not.toContain('项目里的任务')
-    // 切到“项目任务”视图：只显示项目任务
-    const segs = w.findAll('.seg-item')
-    await segs.find((b) => b.text() === '项目任务').trigger('click')
-    await nextTick()
     expect(w.text()).toContain('项目里的任务')
-    expect(w.text()).not.toContain('普通任务')
     expect(w.find('.proj-mini').text()).toBe('学习项目X')
-    w.unmount()
-  })
-
-  it('项目任务视图为空时显示引导', async () => {
-    store.addTodo({ title: '只有普通任务' })
-    const { w } = mountView()
-    await nextTick()
-    const segs = w.findAll('.seg-item')
-    await segs.find((b) => b.text() === '项目任务').trigger('click')
-    await nextTick()
-    expect(w.text()).toContain('项目任务为空')
-    expect(w.text()).not.toContain('只有普通任务')
+    // 不再有「我的任务 / 项目任务」切换
+    const labels = w.findAll('.seg-item').map((b) => b.text())
+    expect(labels).toEqual(['全部', '今天', '逾期', '本周', '本月'])
     w.unmount()
   })
 
