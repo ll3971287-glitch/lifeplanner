@@ -47,7 +47,7 @@ export function defaultState() {
   }
 }
 
-const TODO_PATCH_KEYS = ['title', 'note', 'timeType', 'startAt', 'endAt', 'tagIds', 'parentId', 'recurrence', 'priority', 'projectId', 'estimatedHours', 'onHome', 'snoozeUntil']
+const TODO_PATCH_KEYS = ['title', 'note', 'timeType', 'startAt', 'endAt', 'tagIds', 'parentId', 'recurrence', 'priority', 'projectId', 'estimatedHours', 'onHome', 'snoozeUntil', 'canceled', 'canceledAt']
 const PROJECT_PATCH_KEYS = ['name', 'type', 'desc', 'totalWorkload', 'workloadUnit', 'deadline', 'tagIds', 'completed', 'completedAt', 'progressMode', 'category']
 const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMin', 'startDate', 'endDate', 'rule', 'countUnlimited']
 const REVIEW_PATCH_KEYS = ['type', 'periodDate', 'fields', 'goals']
@@ -148,6 +148,8 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
       onHome: !!onHome,
       completed: false,
       completedAt: null,
+      canceled: false,
+      canceledAt: null,
       snoozeUntil: null,
       order: state.todos.length,
       createdAt: now(),
@@ -194,6 +196,30 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
   function deleteTodo(id) {
     const ids = new Set(subtreeIds(id))
     state.todos = state.todos.filter((t) => !ids.has(t.id))
+    scheduleSave()
+  }
+
+  // 取消任务（连同子树）：标记为已取消并移入归档箱
+  function cancelTodo(id) {
+    const ids = subtreeIds(id)
+    const at = now()
+    for (const cid of ids) {
+      const t = state.todos.find((x) => x.id === cid)
+      if (!t) continue
+      t.canceled = true
+      t.canceledAt = at
+    }
+    scheduleSave()
+  }
+
+  // 从归档箱恢复为待办
+  function restoreTodo(id) {
+    const t = state.todos.find((x) => x.id === id)
+    if (!t) return
+    t.canceled = false
+    t.canceledAt = null
+    t.completed = false
+    t.completedAt = null
     scheduleSave()
   }
 
@@ -248,7 +274,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
 
   function toggleTodo(id, done) {
     const t = state.todos.find((x) => x.id === id)
-    if (!t) return
+    if (!t || t.canceled) return
     const target = done != null ? done : !t.completed
     t.completed = target
     t.completedAt = target ? now() : null
@@ -1016,6 +1042,8 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     addTodo,
     updateTodo,
     deleteTodo,
+    cancelTodo,
+    restoreTodo,
     duplicateTodo,
     moveTodo,
     toggleTodo,
