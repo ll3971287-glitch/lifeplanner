@@ -425,7 +425,7 @@ const todayList = computed(() => {
   const isDay = dueSpan.value === 'day'
   const hitTodo = (t) => (isDay ? todoActiveOnDay(t, rs) : todoActiveInRange(t, rs, re))
   for (const t of store.state.todos) {
-    if (t.parentId || t.completed || !hitTodo(t)) continue
+    if (t.parentId || t.completed || t.canceled || !hitTodo(t)) continue
     const proj = t.projectId ? store.state.projects.find((x) => x.id === t.projectId) : null
     rows.push({
       key: 'todo' + t.id,
