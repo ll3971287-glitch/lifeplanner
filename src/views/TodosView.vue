@@ -2,59 +2,63 @@
   <div class="todos-view">
     <div class="toolbar card">
       <div class="row-between gap8 wrap">
-        <SegControl :model-value="dueMode" :options="dueOptions" @update:model-value="dueMode = $event" />
-        <template v-if="viewTab === 'mine'">
+        <SegControl :model-value="archiveView ? '' : dueMode" :options="dueOptions" @update:model-value="dueMode = $event" />
+        <div class="row gap8">
+          <button type="button" class="btn btn-outline" :class="{ on: archiveView }" @click="archiveView = !archiveView">
+            <Icon name="layers" :size="15" /> 归档箱（{{ archivedCount }}）
+          </button>
           <button type="button" class="btn btn-primary" @click="openNew">
             <Icon name="plus" :size="16" /> 新建任务
           </button>
-        </template>
-        <template v-else>
-          <button type="button" class="btn btn-primary" @click="router.push('/projects')">
-            <Icon name="briefcase" :size="16" /> 去项目添加任务
-          </button>
-        </template>
+        </div>
       </div>
       <div class="row gap8 tabs-row">
-        <SegControl :model-value="viewTab" :options="tabOptions" @update:model-value="onSwitchTab" />
         <select v-model="sortMode" class="select select-sm" title="排序方式">
           <option value="custom">自定义顺序</option>
           <option value="time">按时间</option>
           <option value="priority">按重要程度</option>
         </select>
-        <span class="muted count-text">{{ visibleCount }} 项</span>
+        <span class="muted count-text">{{ archiveView ? `${archivedList.length} 项已归档` : `${visibleCount} 项` }}</span>
       </div>
-      <div v-if="tabTodos.length" class="row gap8 filters">
+      <div v-if="!archiveView && tabTodos.length" class="row gap8 filters">
         <select v-model="tagFilter" class="select select-sm">
           <option value="">全部标签</option>
           <option v-for="tg in store.state.tags" :key="tg.id" :value="tg.id">{{ tg.name }}</option>
         </select>
-        <label class="check-pill" title="只显示未完成任务">
-          <input v-model="onlyOpen" type="checkbox" />
-          <span>只显示未完成</span>
-        </label>
       </div>
     </div>
 
-    <div class="list-wrap card">
+    <!-- 归档箱 -->
+    <div v-if="archiveView" class="list-wrap card">
+      <template v-if="archivedList.length">
+        <div v-for="t in archivedList" :key="t.id" class="arch-row">
+          <span class="arch-state" :class="{ canceled: t.canceled, done: t.completed }">
+            {{ t.canceled ? '已取消' : '已完成' }}
+          </span>
+          <span class="arch-title">{{ t.title }}</span>
+          <span class="muted mini arch-time">{{ fmtDate(t.completedAt || t.canceledAt) }}</span>
+          <button type="button" class="btn btn-outline btn-sm" @click="restore(t)">恢复</button>
+          <button type="button" class="mini del-btn" title="删除" @click="removeArchived(t)"><Icon name="trash" :size="14" /></button>
+        </div>
+      </template>
+      <EmptyState v-else icon="layers" text="归档箱是空的" hint="完成或取消的任务会收进这里，可随时恢复" />
+    </div>
+
+    <div v-else class="list-wrap card">
       <template v-if="roots.length">
-        <TaskItem v-for="r in roots" :key="r.id" :todo="r" :depth="0" :sort-mode="sortMode" :drag-enabled="sortMode === 'custom'" @open="openDrawer" @focus="startFocus" />
+        <TaskItem v-for="r in roots" :key="r.id" :todo="r" :depth="0" :sort-mode="sortMode" :drag-enabled="sortMode === 'custom'" @open="openDrawer" @focus="startFocus" @cancel="cancelTask" />
       </template>
       <EmptyState v-else-if="!store.state.todos.length" icon="todo" text="还没有任务" hint="点「新建任务」开始计划今天">
         <button type="button" class="btn btn-primary" style="margin-top: 14px" @click="openNew">
           <Icon name="plus" :size="16" /> 新建第一个任务
         </button>
       </EmptyState>
-      <EmptyState v-else-if="viewTab === 'projects' && !tabTodos.length" icon="briefcase" text="项目任务为空" hint="去项目页面里添加任务，它们会单独显示在这里">
-        <button type="button" class="btn btn-primary" style="margin-top: 14px" @click="router.push('/projects')">
-          <Icon name="briefcase" :size="16" /> 去项目添加任务
-        </button>
-      </EmptyState>
-      <EmptyState v-else-if="!tabTodos.length" icon="todo" text="我的任务为空" hint="点「新建任务」添加自己的任务">
+      <EmptyState v-else-if="!tabTodos.length" icon="todo" text="还没有任务" hint="点「新建任务」开始计划">
         <button type="button" class="btn btn-primary" style="margin-top: 14px" @click="openNew">
           <Icon name="plus" :size="16" /> 新建任务
         </button>
       </EmptyState>
-      <EmptyState v-else icon="search" text="没有匹配的任务" hint="试试调整筛选条件" />
+      <EmptyState v-else icon="search" :text="`${dueLabel}没有任务`" hint="试试切换其它分组（全部 / 今天 / 逾期 / 本周 / 本月）" />
     </div>
 
     <BaseModal :open="form.open" :title="form.todo ? '编辑任务' : '新建任务'" @close="form.open = false">
@@ -83,8 +87,8 @@
 import { ref, computed, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { store } from '../store.js'
-import { selectDueTodos, todoRoots, visibleTreeSet, compareTasksByMode } from '../selectors.js'
-import { startOfDayTs } from '../utils/date.js'
+import { selectDueTodos, todoRoots, visibleTreeSet, compareTasksByMode, isArchived, archivedTodos } from '../selectors.js'
+import { fmtDate } from '../utils/date.js'
 import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -92,26 +96,16 @@ import BaseModal from '../components/ui/BaseModal.vue'
 import TodoFormModal from '../components/todo/TodoFormModal.vue'
 import TaskItem from '../components/todo/TaskItem.vue'
 import TaskDrawer from '../components/todo/TaskDrawer.vue'
+import { askConfirm, showToast } from '../ui.js'
 
 const router = useRouter()
 
-const viewTab = ref('mine')
 const sortMode = ref('custom')
-const tabOptions = [
-  { label: '我的任务', value: 'mine' },
-  { label: '项目任务', value: 'projects' },
-]
+const archiveView = ref(false)
 
-const dueMode = ref('all')
+// 进入待办页默认定位到「今天」
+const dueMode = ref('today')
 const tagFilter = ref('')
-const statusFilter = ref('all')
-// 「只显示未完成」勾选 = 状态筛选开；取消勾选 = 全部
-const onlyOpen = computed({
-  get: () => statusFilter.value === 'open',
-  set: (v) => {
-    statusFilter.value = v ? 'open' : 'all'
-  },
-})
 const drawerId = ref(null)
 const nowTs = ref(Date.now())
 
@@ -124,49 +118,20 @@ const dueOptions = [
   { label: '全部', value: 'all' },
   { label: '今天', value: 'today' },
   { label: '逾期', value: 'overdue' },
+  { label: '本周', value: 'week' },
+  { label: '本月', value: 'month' },
 ]
+const dueLabel = computed(() => (dueOptions.find((o) => o.value === dueMode.value) || dueOptions[0]).label)
 
-function onSwitchTab(v) {
-  viewTab.value = v
-  tagFilter.value = ''
-  statusFilter.value = 'all'
-}
-
-// 按“所属树根”拆分：项目任务的整棵子树归入“项目任务”视图
-const todosById = computed(() => {
-  const m = new Map()
-  for (const t of store.state.todos) m.set(t.id, t)
-  return m
-})
-
-function rootOf(t) {
-  let cur = t
-  const seen = new Set()
-  while (cur && !seen.has(cur.id)) {
-    seen.add(cur.id)
-    if (!cur.parentId) return cur
-    cur = todosById.value.get(cur.parentId) || null
-  }
-  return null
-}
-
-const tabTodos = computed(() => {
-  const wantProject = viewTab.value === 'projects'
-  return store.state.todos.filter((t) => {
-    const root = rootOf(t)
-    return wantProject ? !!(root && root.projectId) : !(root && root.projectId)
-  })
-})
+// 「我的任务」与「项目任务」合并：统一展示所有任务（项目任务行内已显示项目名）
+const tabTodos = computed(() => store.state.todos)
 
 const hits = computed(() => {
   const now = nowTs.value
-  const dayStart = startOfDayTs(now)
   const modeList = selectDueTodos(tabTodos.value, dueMode.value, now)
   const set = new Set()
   for (const t of modeList) {
     if (tagFilter.value && !(t.tagIds || []).includes(tagFilter.value)) continue
-    if (statusFilter.value === 'open' && t.completed) continue
-    if (statusFilter.value === 'done' && !t.completed) continue
     set.add(t.id)
   }
   return set
@@ -174,7 +139,40 @@ const hits = computed(() => {
 
 const visible = computed(() => visibleTreeSet(tabTodos.value, hits.value))
 
-const roots = computed(() => todoRoots(tabTodos.value).filter((r) => visible.value.has(r.id)).sort((a, b) => compareTasksByMode(a, b, sortMode.value)))
+const roots = computed(() =>
+  todoRoots(tabTodos.value)
+    .filter((r) => visible.value.has(r.id) && !isArchived(r))
+    .sort((a, b) => compareTasksByMode(a, b, sortMode.value))
+)
+
+// 归档箱
+const archivedList = computed(() => (archiveView.value ? archivedTodos(store.state) : []))
+const archivedCount = computed(() => archivedTodos(store.state).length)
+
+async function cancelTask(todo) {
+  const ok = await askConfirm({
+    title: '取消任务',
+    message: `取消「${todo.title}」并移入归档箱？`,
+    detail: '已取消的任务不再出现在待办列表，可在归档箱里随时恢复。',
+    danger: true,
+    okText: '取消任务',
+  })
+  if (!ok) return
+  store.cancelTodo(todo.id)
+  showToast('已移入归档箱')
+}
+
+function restore(t) {
+  store.restoreTodo(t.id)
+  showToast('已恢复到待办')
+}
+
+async function removeArchived(t) {
+  const ok = await askConfirm({ title: '删除任务', message: `彻底删除「${t.title}」？`, danger: true, okText: '删除' })
+  if (!ok) return
+  store.deleteTodo(t.id)
+  showToast('已删除')
+}
 
 const visibleCount = computed(() => roots.value.length)
 
