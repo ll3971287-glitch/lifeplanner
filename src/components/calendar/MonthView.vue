@@ -291,7 +291,6 @@ defineExpose({ weekBars, laneCount })
   font-weight: 700;
   color: var(--text-dim);
   padding: 5px 0;
-  border-bottom: 1px solid var(--line);
 }
 
 .weeks {
@@ -302,7 +301,6 @@ defineExpose({ weekBars, laneCount })
 
 .week-row {
   position: relative;
-  border-bottom: 1px solid var(--line);
 }
 
 .cells {
@@ -312,27 +310,21 @@ defineExpose({ weekBars, laneCount })
 
 .cell {
   min-height: 76px;
-  border-right: 1px solid var(--line);
   padding: 4px;
   cursor: pointer;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: var(--card);
 }
 
+/* 取消格子线，仅保留日期数字与内容 */
 .cell.out {
-  background: color-mix(in srgb, var(--bg) 60%, transparent);
-  opacity: 0.55;
-}
-
-.cell.today {
-  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  opacity: 0.45;
 }
 
 .day-num {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--text-dim);
   align-self: flex-end;
