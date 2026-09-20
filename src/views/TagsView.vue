@@ -102,11 +102,50 @@ function onCardDown(tg, idx, e) {
   }, 420)
 }
 
+// 命中检测：指针落在哪张卡片上 → 插到该卡片「后方」（返回剔除被拖卡片后的插入索引）
+// 布局不可用（如无头环境 rect 全 0）时返回 null，调用方回退为位移估算
+function hitIndex(clientX, clientY) {
+  const grid = gridRef.value
+  if (!grid) return null
+  const cards = [...grid.querySelectorAll('.tag-card:not(.is-drag)')]
+  if (!cards.length) return null
+  const rects = cards.map((c) => c.getBoundingClientRect())
+  if (!rects.some((r) => r.width > 0 && r.height > 0)) return null
+  // 1) 指针正在某张卡片内 → 插到它之后
+  for (let i = 0; i < rects.length; i += 1) {
+    const r = rects[i]
+    if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return i + 1
+  }
+  // 2) 指针在空白处 → 就近卡片，按其上下半区决定「之前 / 之后」
+  let best = -1
+  let bestD = Infinity
+  for (let i = 0; i < rects.length; i += 1) {
+    const r = rects[i]
+    const cx = r.left + r.width / 2
+    const cy = r.top + r.height / 2
+    const d = (clientX - cx) * (clientX - cx) + (clientY - cy) * (clientY - cy)
+    if (d < bestD) {
+      bestD = d
+      best = i
+    }
+  }
+  if (best < 0) return null
+  const r = rects[best]
+  return clientY > r.top + r.height / 2 ? best + 1 : best
+}
+
 function onMove(e) {
   if (!reorderMode.value || draggingId.value == null) return
   e.preventDefault()
   dragX.value = e.clientX - downX
   dragY.value = e.clientY - downY
+  const total = visibleIds.value.length
+  // 优先用命中检测（插到任意目标卡片后方），不可用时回退为位移估算
+  const hit = hitIndex(e.clientX, e.clientY)
+  if (hit != null) {
+    dropIdx.value = Math.max(0, Math.min(total, hit))
+    return
+  }
   const grid = gridRef.value
   const card = grid && grid.querySelector('.tag-card')
   const cardW = (card && card.offsetWidth) || CARD_W
@@ -114,7 +153,7 @@ function onMove(e) {
   const perRow = Math.max(1, Math.floor(((grid && grid.offsetWidth) || cardW * 3) / cardW))
   const stepX = Math.round(dragX.value / cardW)
   const stepY = Math.round(dragY.value / cardH) * perRow
-  dropIdx.value = Math.max(0, Math.min(visibleIds.value.length, downIdx + stepX + stepY))
+  dropIdx.value = Math.max(0, Math.min(total, downIdx + stepX + stepY))
 }
 
 function onUp() {
