@@ -16,10 +16,11 @@
     <div ref="gridRef" class="tag-grid" :class="{ sorting: reorderMode }">
       <template v-for="(tg, idx) in store.state.tags" :key="tg.id">
         <span v-if="slotBefore(tg.id)" class="drop-slot" />
+        <span v-if="reorderMode && draggingId === tg.id" class="ghost-slot" :style="ghostStyle" />
         <button
           type="button"
           class="tag-card card"
-          :class="{ 'is-drag': reorderMode && draggingId === tg.id }"
+          :class="[{ 'is-drag': reorderMode && draggingId === tg.id }, landedClass(tg)]"
           :style="cardStyle(tg)"
           @click="openTag(tg)"
           @pointerdown="onCardDown(tg, idx, $event)"
@@ -70,17 +71,33 @@ const CARD_H = 56
 let downX = 0
 let downY = 0
 let downIdx = -1
+let dragRect = { left: 0, top: 0, width: 240, height: 56 }
+let landedId = null
 let timer = null
 let ignoreClick = false
 
 const visibleIds = computed(() => store.state.tags.map((t) => t.id).filter((id) => id !== draggingId.value))
 
+// 拖动中的卡片：真正“悬浮”起来（fixed 脱离列表 + 跟手位移 + 抬高层级）
 function cardStyle(tg) {
   if (reorderMode.value && draggingId.value === tg.id) {
-    return { transform: `translate(${dragX.value}px, ${dragY.value}px)`, transition: 'none', zIndex: 3, position: 'relative' }
+    const r = dragRect
+    return {
+      position: 'fixed',
+      left: `${r.left}px`,
+      top: `${r.top}px`,
+      width: `${r.width || 240}px`,
+      transform: `translate(${dragX.value}px, ${dragY.value}px) scale(1.02)`,
+      transition: 'none',
+      zIndex: 30,
+      pointerEvents: 'none',
+    }
   }
   return undefined
 }
+
+// 原位置占位（保持列表高度，避免其它标签跳动）
+const ghostStyle = computed(() => ({ height: `${dragRect.height || CARD_H}px` }))
 function slotBefore(id) {
   if (!reorderMode.value) return false
   const i = visibleIds.value.indexOf(id)
@@ -91,6 +108,11 @@ function onCardDown(tg, idx, e) {
   downIdx = idx
   downX = e.clientX
   downY = e.clientY
+  const el = e.currentTarget || e.target
+  if (el && typeof el.getBoundingClientRect === 'function') {
+    const r = el.getBoundingClientRect()
+    dragRect = { left: r.left, top: r.top, width: r.width, height: r.height }
+  }
   draggingId.value = tg.id
   dragX.value = 0
   dragY.value = 0
@@ -159,6 +181,7 @@ function onMove(e) {
 function onUp() {
   clearTimeout(timer)
   if (reorderMode.value && draggingId.value != null) {
+    landedId = draggingId.value
     const ids = [...visibleIds.value]
     const insertAt = Math.max(0, Math.min(ids.length, dropIdx.value))
     ids.splice(insertAt, 0, draggingId.value)
@@ -172,8 +195,12 @@ function onUp() {
   downIdx = -1
   setTimeout(() => {
     ignoreClick = false
-  }, 0)
+    landedId = null
+  }, 220)
 }
+
+// 落地动画标记
+const landedClass = (tg) => (landedId === tg.id ? 'just-landed' : '')
 
 function openTag(tg) {
   if (ignoreClick || reorderMode.value) return
@@ -256,6 +283,38 @@ function openCreate() {
   transition: transform 0.15s ease;
 }
 
+/* 悬浮中的卡片：抬起阴影与层级 */
+.tag-card.is-drag {
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--accent);
+  cursor: grabbing;
+  opacity: 0.98;
+}
+
+/* 原位置占位 */
+.ghost-slot {
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px dashed var(--line);
+  background: color-mix(in srgb, var(--line) 30%, transparent);
+}
+
+/* 松手落地动画 */
+.tag-card.just-landed {
+  animation: drop-in 0.22s ease;
+}
+
+@keyframes drop-in {
+  0% {
+    transform: scale(1.02);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .tag-grid {
   display: flex;
   flex-direction: column;
@@ -270,6 +329,8 @@ function openCreate() {
   width: 100%;
   padding: 12px 14px;
   cursor: pointer;
+  touch-action: pan-y;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
   text-align: left;
   transition: transform 0.1s ease;
 }
