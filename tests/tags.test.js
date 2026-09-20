@@ -181,6 +181,84 @@ describe('标签页拖拽排序', () => {
     }
   })
 
+  it('命中目标卡片时插到该卡片后方，并实时预览落位', async () => {
+    vi.useFakeTimers()
+    try {
+      store.addTag({ name: '甲', color: '#111111' })
+      store.addTag({ name: '乙', color: '#222222' })
+      store.addTag({ name: '丙', color: '#333333' })
+      const w = mount(TagsView)
+      await nextTick()
+      const cards = w.findAll('.tag-card')
+      // 模拟真实布局：三张卡片横向排布
+      const rects = [
+        { left: 0, right: 150, top: 0, bottom: 78, width: 150, height: 78 },
+        { left: 160, right: 310, top: 0, bottom: 78, width: 150, height: 78 },
+        { left: 320, right: 470, top: 0, bottom: 78, width: 150, height: 78 },
+      ]
+      cards.forEach((c, i) => {
+        c.element.getBoundingClientRect = () => rects[i]
+      })
+      // 拖住「甲」
+      cards[0].element.dispatchEvent(new MouseEvent('pointerdown', { clientX: 20, clientY: 20, bubbles: true }))
+      vi.advanceTimersByTime(500)
+      await nextTick()
+      expect(w.find('.sort-hint').exists()).toBe(true)
+      // 移到「乙」卡片上 → 应插到乙之后（预览落位槽出现在「丙」之前）
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 200, clientY: 30 }))
+      await nextTick()
+      const slots = w.findAll('.drop-slot')
+      expect(slots.length).toBe(1)
+      // 松手保存：甲乙丙 → 乙甲丙
+      window.dispatchEvent(new MouseEvent('pointerup'))
+      await nextTick()
+      expect(store.state.tags.map((t) => t.name)).toEqual(['乙', '甲', '丙'])
+      w.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('拖到「丙」上则插到末尾；顺序持久化（刷新后保持）', async () => {
+    vi.useFakeTimers()
+    try {
+      store.addTag({ name: '甲', color: '#111111' })
+      store.addTag({ name: '乙', color: '#222222' })
+      store.addTag({ name: '丙', color: '#333333' })
+      const w = mount(TagsView)
+      await nextTick()
+      const cards = w.findAll('.tag-card')
+      const rects = [
+        { left: 0, right: 150, top: 0, bottom: 78, width: 150, height: 78 },
+        { left: 160, right: 310, top: 0, bottom: 78, width: 150, height: 78 },
+        { left: 320, right: 470, top: 0, bottom: 78, width: 150, height: 78 },
+      ]
+      cards.forEach((c, i) => {
+        c.element.getBoundingClientRect = () => rects[i]
+      })
+      cards[0].element.dispatchEvent(new MouseEvent('pointerdown', { clientX: 20, clientY: 20, bubbles: true }))
+      vi.advanceTimersByTime(500)
+      await nextTick()
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 400, clientY: 30 })) // 落在「丙」上
+      await nextTick()
+      window.dispatchEvent(new MouseEvent('pointerup'))
+      await nextTick()
+      expect(store.state.tags.map((t) => t.name)).toEqual(['乙', '丙', '甲'])
+      // 顺序即持久化数据：重新挂载（等价刷新页面）后顺序保持
+      w.unmount()
+      const w2 = mount(TagsView)
+      await nextTick()
+      expect(w2.findAll('.tag-card').map((c) => c.text())).toEqual([
+        expect.stringContaining('乙'),
+        expect.stringContaining('丙'),
+        expect.stringContaining('甲'),
+      ])
+      w2.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('待办页标签栏不再提供排序（顺序只在标签页调整）', async () => {
     vi.useFakeTimers()
     try {
