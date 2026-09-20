@@ -31,6 +31,9 @@
         </div>
       </div>
 
+      <button type="button" class="mini sched-btn" title="安排时间" @click.stop="$emit('schedule', todo)">
+        <Icon name="calendar" :size="15" />
+      </button>
       <button type="button" class="mini focus-btn" title="开始专注" @click.stop="$emit('focus', todo)">
         <Icon name="clock" :size="15" />
       </button>
@@ -40,7 +43,7 @@
     </div>
 
     <div v-if="expanded && hasChildren" class="children">
-      <TaskItem v-for="c in children" :key="c.id" :todo="c" :depth="depth + 1" :sort-mode="sortMode" :drag-enabled="dragEnabled" @open="$emit('open', $event)" @focus="$emit('focus', $event)" @cancel="$emit('cancel', $event)" />
+      <TaskItem v-for="c in children" :key="c.id" :todo="c" :depth="depth + 1" :sort-mode="sortMode" :drag-enabled="dragEnabled" @open="$emit('open', $event)" @focus="$emit('focus', $event)" @cancel="$emit('cancel', $event)" @schedule="$emit('schedule', $event)" />
     </div>
   </div>
 </template>
@@ -62,7 +65,7 @@ const props = defineProps({
   dragEnabled: { type: Boolean, default: true },
 })
 
-defineEmits(['open', 'focus', 'cancel'])
+defineEmits(['open', 'focus', 'cancel', 'schedule'])
 
 const expanded = ref(true)
 
@@ -244,6 +247,21 @@ function onDrop(e) {
   border-radius: 999px;
   padding: 1px 9px;
   flex: none;
+}
+
+.sched-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: var(--text-dim);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.sched-btn:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-deep);
 }
 
 .cancel-btn {
