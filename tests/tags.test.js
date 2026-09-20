@@ -209,6 +209,11 @@ describe('标签页拖拽排序', () => {
       await nextTick()
       const slots = w.findAll('.drop-slot')
       expect(slots.length).toBe(1)
+      // 悬浮效果：被拖卡片脱离列表（fixed）、有 is-drag 类，原位置留占位槽
+      const dragging = w.findAll('.tag-card').find((c) => c.classes().includes('is-drag'))
+      expect(dragging).toBeTruthy()
+      expect(dragging.attributes('style')).toContain('position: fixed')
+      expect(w.find('.ghost-slot').exists()).toBe(true)
       // 松手保存：甲乙丙 → 乙甲丙
       window.dispatchEvent(new MouseEvent('pointerup'))
       await nextTick()
