@@ -190,11 +190,11 @@ describe('标签页拖拽排序', () => {
       const w = mount(TagsView)
       await nextTick()
       const cards = w.findAll('.tag-card')
-      // 模拟真实布局：三张卡片横向排布
+      // 模拟真实布局：单列条状，三张卡片纵向排列
       const rects = [
-        { left: 0, right: 150, top: 0, bottom: 78, width: 150, height: 78 },
-        { left: 160, right: 310, top: 0, bottom: 78, width: 150, height: 78 },
-        { left: 320, right: 470, top: 0, bottom: 78, width: 150, height: 78 },
+        { left: 0, right: 400, top: 0, bottom: 56, width: 400, height: 56 },
+        { left: 0, right: 400, top: 64, bottom: 120, width: 400, height: 56 },
+        { left: 0, right: 400, top: 128, bottom: 184, width: 400, height: 56 },
       ]
       cards.forEach((c, i) => {
         c.element.getBoundingClientRect = () => rects[i]
@@ -204,8 +204,8 @@ describe('标签页拖拽排序', () => {
       vi.advanceTimersByTime(500)
       await nextTick()
       expect(w.find('.sort-hint').exists()).toBe(true)
-      // 移到「乙」卡片上 → 应插到乙之后（预览落位槽出现在「丙」之前）
-      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 200, clientY: 30 }))
+      // 向下移到「乙」卡片上 → 应插到乙之后（预览落位槽出现在「丙」之前）
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 200, clientY: 90 }))
       await nextTick()
       const slots = w.findAll('.drop-slot')
       expect(slots.length).toBe(1)
@@ -229,9 +229,9 @@ describe('标签页拖拽排序', () => {
       await nextTick()
       const cards = w.findAll('.tag-card')
       const rects = [
-        { left: 0, right: 150, top: 0, bottom: 78, width: 150, height: 78 },
-        { left: 160, right: 310, top: 0, bottom: 78, width: 150, height: 78 },
-        { left: 320, right: 470, top: 0, bottom: 78, width: 150, height: 78 },
+        { left: 0, right: 400, top: 0, bottom: 56, width: 400, height: 56 },
+        { left: 0, right: 400, top: 64, bottom: 120, width: 400, height: 56 },
+        { left: 0, right: 400, top: 128, bottom: 184, width: 400, height: 56 },
       ]
       cards.forEach((c, i) => {
         c.element.getBoundingClientRect = () => rects[i]
@@ -239,7 +239,7 @@ describe('标签页拖拽排序', () => {
       cards[0].element.dispatchEvent(new MouseEvent('pointerdown', { clientX: 20, clientY: 20, bubbles: true }))
       vi.advanceTimersByTime(500)
       await nextTick()
-      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 400, clientY: 30 })) // 落在「丙」上
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 200, clientY: 150 })) // 落在「丙」上
       await nextTick()
       window.dispatchEvent(new MouseEvent('pointerup'))
       await nextTick()
