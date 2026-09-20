@@ -100,6 +100,57 @@ describe('食物：store 与查询', () => {
   })
 })
 
+describe('食物：剩余百分比', () => {
+  it('新增默认 100%，扣减到 0 自动转为已消耗，恢复后回到 100%', () => {
+    const f = store.addFood({ name: '酸奶', place: 'fridge', expireAt: today0() + 5 * DAY_MS })
+    expect(f.percent).toBe(100)
+    store.setFoodPercent(f.id, 75)
+    expect(store.state.foodItems[0].percent).toBe(75)
+    expect(store.state.foodItems[0].status).toBe('stored')
+    store.setFoodPercent(f.id, 0)
+    const after = store.state.foodItems[0]
+    expect(after.percent).toBe(0)
+    expect(after.status).toBe('consumed')
+    expect(after.consumedAt).not.toBeNull()
+    // 恢复入库 → 百分比回到 100%
+    store.restoreFood(f.id)
+    expect(store.state.foodItems[0].status).toBe('stored')
+    expect(store.state.foodItems[0].percent).toBe(100)
+  })
+
+  it('表单把百分比设为 0 保存后等同已消耗', () => {
+    const f = store.addFood({ name: '酸奶', place: 'fridge', expireAt: today0() + 5 * DAY_MS })
+    store.updateFood(f.id, { percent: 0 })
+    expect(store.state.foodItems[0].status).toBe('consumed')
+    // 普通编辑（非 0）不影响状态
+    store.restoreFood(f.id)
+    store.updateFood(f.id, { percent: 40 })
+    expect(store.state.foodItems[0].status).toBe('stored')
+    expect(store.state.foodItems[0].percent).toBe(40)
+  })
+
+  it('卡片显示剩余百分比，点 −25% 逐次扣减，到 0 移出列表', async () => {
+    store.addFood({ name: '牛奶', place: 'fridge', expireAt: today0() + 8 * DAY_MS })
+    const w = mount(FoodView)
+    await nextTick()
+    expect(w.find('.pct-text').text()).toBe('剩余 100%')
+    const minus = () => w.findAll('.op').find((b) => b.attributes('title') === '消耗 25%')
+    await minus().trigger('click')
+    await nextTick()
+    expect(w.find('.pct-text').text()).toBe('剩余 75%')
+    await minus().trigger('click')
+    await nextTick()
+    expect(w.find('.pct-text').text()).toBe('剩余 50%')
+    await minus().trigger('click')
+    await minus().trigger('click')
+    await nextTick()
+    // 0% → 自动已消耗，从在库列表消失
+    expect(store.state.foodItems[0].status).toBe('consumed')
+    expect(w.text()).not.toContain('牛奶')
+    w.unmount()
+  })
+})
+
 describe('食物：页面与表单', () => {
   it('页面按颜色标识展示，提醒条与统计正确', async () => {
     const d = today0()
