@@ -57,7 +57,7 @@ const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBr
 const BLUEPRINT_PATCH_KEYS = ['title', 'goalDateTs', 'goalStartTs', 'goalEndTs', 'goalText', 'dimension', 'desc', 'status', 'notes', 'level']
 const RELATION_PATCH_KEYS = ['name', 'gender', 'age', 'birthYear', 'birthMonth', 'birthDay', 'place', 'affinity', 'note']
 const GOAL_PATCH_KEYS = ['name', 'desc', 'done', 'year', 'scope', 'index', 'order']
-const FOOD_PATCH_KEYS = ['name', 'category', 'place', 'opened', 'storedAt', 'expireAt', 'imageUrl', 'note', 'status', 'consumedAt', 'discardedAt']
+const FOOD_PATCH_KEYS = ['name', 'category', 'place', 'opened', 'storedAt', 'expireAt', 'imageUrl', 'note', 'status', 'consumedAt', 'discardedAt', 'percent']
 const MEDIA_PATCH_KEYS = [
   'category', 'status', 'title', 'creator', 'coverUrl', 'startDate', 'endDate', 'rating', 'tags',
   'oneLine', 'review', 'memo', 'favorite',
@@ -805,6 +805,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
       expireAt,
       imageUrl,
       note: note || '',
+      percent: 100,
       status: 'stored',
       consumedAt: null,
       discardedAt: null,
@@ -820,6 +821,31 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     const f = state.foodItems.find((x) => x.id === id)
     if (!f) return null
     patch(f, p, FOOD_PATCH_KEYS)
+    if ('percent' in p) {
+      f.percent = Math.max(0, Math.min(100, Math.round(Number(f.percent) || 0)))
+      // 剩余百分比为 0 → 等同已消耗
+      if (f.percent === 0 && f.status === 'stored') {
+        f.status = 'consumed'
+        if (f.consumedAt == null) f.consumedAt = now()
+      }
+    }
+    f.updatedAt = now()
+    scheduleSave()
+    return f
+  }
+
+  // 直接设定/扣减剩余百分比（0 等同已消耗）
+  function setFoodPercent(id, percent) {
+    const f = state.foodItems.find((x) => x.id === id)
+    if (!f) return null
+    const v = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)))
+    f.percent = v
+    if (v === 0) {
+      if (f.status === 'stored') {
+        f.status = 'consumed'
+        f.consumedAt = f.consumedAt == null ? now() : f.consumedAt
+      }
+    }
     f.updatedAt = now()
     scheduleSave()
     return f
@@ -835,6 +861,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     if (!f) return null
     f.status = 'consumed'
     f.consumedAt = now()
+    f.percent = 0
     f.updatedAt = now()
     scheduleSave()
     return f
@@ -856,6 +883,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     f.status = 'stored'
     f.consumedAt = null
     f.discardedAt = null
+    f.percent = 100
     f.updatedAt = now()
     scheduleSave()
     return f
@@ -1173,6 +1201,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     deleteRelation,
     addFood,
     updateFood,
+    setFoodPercent,
     deleteFood,
     markFoodConsumed,
     markFoodDiscarded,
