@@ -67,6 +67,7 @@
         @discard="discard"
         @restore="restore"
         @remove="remove"
+        @minus25="minus25"
       />
     </div>
     <EmptyState
@@ -149,6 +150,10 @@ function openCreate() {
 }
 function openEdit(item) {
   form.value = { open: true, item }
+}
+
+function minus25(f) {
+  store.setFoodPercent(f.id, (Number(f.percent) || 0) - 25)
 }
 
 function consume(f) {
