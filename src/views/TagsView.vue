@@ -12,7 +12,7 @@
       </div>
     </div>
 
-    <p v-if="store.state.tags.length > 1" class="muted reorder-tip">长按标签卡片可拖动调整顺序</p>
+    <p v-if="store.state.tags.length > 1" class="muted reorder-tip">长按标签可上下拖动调整顺序</p>
     <div ref="gridRef" class="tag-grid" :class="{ sorting: reorderMode }">
       <template v-for="(tg, idx) in store.state.tags" :key="tg.id">
         <span v-if="slotBefore(tg.id)" class="drop-slot" />
@@ -31,7 +31,7 @@
       </template>
       <span v-if="reorderMode && dropIdx === visibleIds.length" class="drop-slot" />
     </div>
-    <p v-if="reorderMode" class="muted sort-hint">松开落位 · 其它标签不移动</p>
+    <p v-if="reorderMode" class="muted sort-hint">松开落位 · 其余标签不移动</p>
     <EmptyState v-else icon="tag" text="还没有标签" hint="标签可以把不同模块的内容串起来">
       <button type="button" class="btn btn-primary" style="margin-top: 14px" @click="openCreate">
         <Icon name="plus" :size="16" /> 创建第一个标签
@@ -66,7 +66,7 @@ const dragX = ref(0)
 const dragY = ref(0)
 const dropIdx = ref(-1)
 const CARD_W = 150
-const CARD_H = 78
+const CARD_H = 56
 let downX = 0
 let downY = 0
 let downIdx = -1
@@ -235,8 +235,9 @@ function openCreate() {
 }
 
 .drop-slot {
-  width: 12px;
-  border-radius: 10px;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
   background: var(--accent);
   animation: pulse 0.9s ease-in-out infinite;
 }
@@ -256,17 +257,18 @@ function openCreate() {
 }
 
 .tag-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .tag-card {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 16px 14px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
   cursor: pointer;
   text-align: left;
   transition: transform 0.1s ease;
@@ -274,6 +276,23 @@ function openCreate() {
 
 .tag-card:active {
   transform: scale(0.97);
+}
+
+.tag-card .tag-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.tag-card .tag-count {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.tag-card .tag-dot {
+  width: 10px;
+  height: 10px;
 }
 
 .tag-dot {
