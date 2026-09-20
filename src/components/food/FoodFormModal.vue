@@ -73,6 +73,14 @@
       </div>
 
       <div class="field">
+        <span class="field-label">剩余百分比（0% 等同已消耗）</span>
+        <div class="row gap8 pct-row">
+          <input v-model.number="form.percent" type="number" min="0" max="100" step="5" class="input pct-input" />
+          <span class="muted mini">%</span>
+        </div>
+      </div>
+
+      <div class="field">
         <span class="field-label">备注</span>
         <textarea v-model="form.note" class="input ta" rows="3" placeholder="如：买了 2 斤、放在上层、给宝宝的…" />
       </div>
@@ -120,6 +128,7 @@ const empty = () => ({
   expireAt: suggestExpireAt(Date.now(), '其他', 'fridge', false),
   imageUrl: '',
   note: '',
+  percent: 100,
 })
 
 const form = reactive(empty())
@@ -143,6 +152,7 @@ function apply(f) {
   form.expireAt = f.expireAt
   form.imageUrl = f.imageUrl || ''
   form.note = f.note || ''
+  form.percent = f.percent == null ? 100 : f.percent
   // 编辑已有记录时尊重已保存的过期时间
   autoSuggest.value = false
 }
@@ -233,6 +243,7 @@ function save() {
     expireAt: form.expireAt,
     imageUrl: form.imageUrl,
     note: form.note,
+    percent: Math.max(0, Math.min(100, Math.round(Number(form.percent) || 0))),
   }
   if (props.item) store.updateFood(props.item.id, payload)
   else store.addFood(payload)
@@ -323,5 +334,13 @@ function save() {
 
 .hidden {
   display: none;
+}
+
+.pct-row {
+  align-items: center;
+}
+
+.pct-input {
+  width: 110px;
 }
 </style>
