@@ -44,6 +44,7 @@ export function defaultState() {
     goals: [],
     goalNotes: {},
     mediaItems: [],
+    foodItems: [],
   }
 }
 
@@ -56,6 +57,7 @@ const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBr
 const BLUEPRINT_PATCH_KEYS = ['title', 'goalDateTs', 'goalStartTs', 'goalEndTs', 'goalText', 'dimension', 'desc', 'status', 'notes', 'level']
 const RELATION_PATCH_KEYS = ['name', 'gender', 'age', 'birthYear', 'birthMonth', 'birthDay', 'place', 'affinity', 'note']
 const GOAL_PATCH_KEYS = ['name', 'desc', 'done', 'year', 'scope', 'index', 'order']
+const FOOD_PATCH_KEYS = ['name', 'category', 'place', 'opened', 'storedAt', 'expireAt', 'imageUrl', 'note', 'status', 'consumedAt', 'discardedAt']
 const MEDIA_PATCH_KEYS = [
   'category', 'status', 'title', 'creator', 'coverUrl', 'startDate', 'endDate', 'rating', 'tags',
   'oneLine', 'review', 'memo', 'favorite',
@@ -80,7 +82,7 @@ export function normalizeData(raw) {
   const out = { ...def }
   if (raw && typeof raw === 'object') {
     if (typeof raw.version === 'number') out.version = raw.version
-    for (const arr of ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals', 'mediaItems']) {
+    for (const arr of ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals', 'mediaItems', 'foodItems']) {
       if (Array.isArray(raw[arr])) out[arr] = raw[arr]
     }
     // 专注链预设：旧版单条文案自动迁移为预设列表
@@ -782,6 +784,83 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     scheduleSave()
   }
 
+  // ---------- 食物储存 ----------
+  function addFood({
+    name,
+    category = '其他',
+    place = 'fridge',
+    opened = false,
+    storedAt = null,
+    expireAt = null,
+    imageUrl = '',
+    note = '',
+  } = {}) {
+    const f = {
+      id: uid(),
+      name,
+      category,
+      place,
+      opened: !!opened,
+      storedAt: storedAt == null ? now() : storedAt,
+      expireAt,
+      imageUrl,
+      note: note || '',
+      status: 'stored',
+      consumedAt: null,
+      discardedAt: null,
+      createdAt: now(),
+      updatedAt: now(),
+    }
+    state.foodItems.push(f)
+    scheduleSave()
+    return f
+  }
+
+  function updateFood(id, p) {
+    const f = state.foodItems.find((x) => x.id === id)
+    if (!f) return null
+    patch(f, p, FOOD_PATCH_KEYS)
+    f.updatedAt = now()
+    scheduleSave()
+    return f
+  }
+
+  function deleteFood(id) {
+    state.foodItems = state.foodItems.filter((f) => f.id !== id)
+    scheduleSave()
+  }
+
+  function markFoodConsumed(id) {
+    const f = state.foodItems.find((x) => x.id === id)
+    if (!f) return null
+    f.status = 'consumed'
+    f.consumedAt = now()
+    f.updatedAt = now()
+    scheduleSave()
+    return f
+  }
+
+  function markFoodDiscarded(id) {
+    const f = state.foodItems.find((x) => x.id === id)
+    if (!f) return null
+    f.status = 'discarded'
+    f.discardedAt = now()
+    f.updatedAt = now()
+    scheduleSave()
+    return f
+  }
+
+  function restoreFood(id) {
+    const f = state.foodItems.find((x) => x.id === id)
+    if (!f) return null
+    f.status = 'stored'
+    f.consumedAt = null
+    f.discardedAt = null
+    f.updatedAt = now()
+    scheduleSave()
+    return f
+  }
+
   // ---------- 书影音 ----------
   function addMedia({
     category = 'book',
@@ -999,7 +1078,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     return JSON.parse(JSON.stringify({ ...state, version: 1 }))
   }
 
-  const DATA_ARRS = ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals', 'mediaItems']
+  const DATA_ARRS = ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals', 'mediaItems', 'foodItems']
 
   function assertValidData(d) {
     if (!d || typeof d !== 'object') throw new Error('文件内容不是有效的数据对象')
@@ -1092,6 +1171,12 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     addRelation,
     updateRelation,
     deleteRelation,
+    addFood,
+    updateFood,
+    deleteFood,
+    markFoodConsumed,
+    markFoodDiscarded,
+    restoreFood,
     addMedia,
     updateMedia,
     deleteMedia,
