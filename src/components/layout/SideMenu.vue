@@ -74,6 +74,10 @@ const groups = [
     ],
   },
   {
+    label: '生活',
+    items: [{ label: '食物储存', to: '/food', icon: 'box' }],
+  },
+  {
     label: '回顾',
     items: [
       { label: '目标', to: '/goals', icon: 'pin' },
