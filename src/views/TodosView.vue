@@ -20,12 +20,12 @@
         </select>
         <span class="muted count-text">{{ archiveView ? `${archivedList.length} 项已归档` : `${visibleCount} 项` }}</span>
       </div>
-      <div v-if="!archiveView && tabTodos.length" class="row gap8 filters">
-        <select v-model="tagFilter" class="select select-sm">
-          <option value="">全部标签</option>
-          <option v-for="tg in store.state.tags" :key="tg.id" :value="tg.id">{{ tg.name }}</option>
-        </select>
-      </div>
+      <TagFilterBar
+        v-if="!archiveView"
+        v-model="tagFilter"
+        :counts="tagCountMap"
+        :no-tag-count="noTagCount"
+      />
     </div>
 
     <!-- 归档箱 -->
@@ -99,6 +99,7 @@ import TodoFormModal from '../components/todo/TodoFormModal.vue'
 import TaskItem from '../components/todo/TaskItem.vue'
 import TaskDrawer from '../components/todo/TaskDrawer.vue'
 import ScheduleModal from '../components/todo/ScheduleModal.vue'
+import TagFilterBar from '../components/tag/TagFilterBar.vue'
 import { askConfirm, showToast } from '../ui.js'
 
 const router = useRouter()
@@ -135,7 +136,12 @@ const hits = computed(() => {
   const modeList = selectDueTodos(tabTodos.value, dueMode.value, now)
   const set = new Set()
   for (const t of modeList) {
-    if (tagFilter.value && !(t.tagIds || []).includes(tagFilter.value)) continue
+    // 标签筛选：__none 表示收集箱（无标签任务）
+    if (tagFilter.value === '__none') {
+      if ((t.tagIds || []).length) continue
+    } else if (tagFilter.value && !(t.tagIds || []).includes(tagFilter.value)) {
+      continue
+    }
     set.add(t.id)
   }
   return set
@@ -183,6 +189,20 @@ async function removeArchived(t) {
 }
 
 const visibleCount = computed(() => roots.value.length)
+
+// 标签栏计数：当前分组内（未归档）各标签的任务数 + 收集箱（无标签）数量
+const tagCountMap = computed(() => {
+  const modeList = selectDueTodos(tabTodos.value, dueMode.value, nowTs.value)
+  const map = {}
+  for (const t of modeList) {
+    for (const id of t.tagIds || []) map[id] = (map[id] || 0) + 1
+  }
+  return map
+})
+const noTagCount = computed(() => {
+  const modeList = selectDueTodos(tabTodos.value, dueMode.value, nowTs.value)
+  return modeList.filter((t) => !(t.tagIds || []).length).length
+})
 
 const form = ref({ open: false, todo: null, parentId: null, preset: null })
 
