@@ -95,6 +95,27 @@
         </div>
       </section>
 
+      <!-- 食物临期提醒 -->
+      <section v-if="homeFoodAlert.length" class="card h-card" :style="cardStyle('food')">
+        <div class="h-head">
+          <div class="row gap4 head-left">
+            <button type="button" class="drag-handle" aria-label="拖动调整顺序" @pointerdown.stop="dragStart('food', $event)">
+              <Icon name="grip" :size="14" />
+            </button>
+            <h2 class="h-title"><Icon name="box" :size="15" /> 食物临期</h2>
+          </div>
+          <button type="button" class="more-btn muted" @click="router.push('/food')">全部 ›</button>
+        </div>
+        <div class="h-list">
+          <button v-for="f in homeFoodAlert" :key="f.id" type="button" class="h-row bp-home-row" @click="router.push('/food')">
+            <i class="bp-dot" :style="{ background: f.color }" />
+            <span class="h-row-title">{{ f.name }}</span>
+            <span v-if="f.meta" class="time-mini muted">{{ f.meta }}</span>
+            <span class="st-pill" :class="f.level">{{ f.text }}</span>
+          </button>
+        </div>
+      </section>
+
       <!-- 最近在看（书影音） -->
       <section v-if="recentMediaList.length" class="card h-card" :style="cardStyle('media')">
         <div class="h-head">
@@ -269,13 +290,15 @@ import {
   checkinTodayProgressText,
   dueSoonItems,
   recentMedia,
+  foodAlerts as collectFoodAlerts,
   reviewsFor,
 } from '../selectors.js'
 import { BLUEPRINT_STATUS, dimColor } from '../blueprintMeta.js'
 import { daysUntilBirthday, genderColor } from '../relationMeta.js'
 import { catColor as mediaCatColor, statusLabel as mediaStatusLabel, progressInfo as mediaProgressInfo } from '../mediaMeta.js'
+import { foodLevel, leftText as foodLeftText, placeLabel as foodPlaceLabel } from '../foodMeta.js'
 import MediaDrawer from '../components/media/MediaDrawer.vue'
-import { startOfDayTs, startOfWeekTs, fmtTime, DAY_MS } from '../utils/date.js'
+import { startOfDayTs, startOfWeekTs, fmtTime, fmtDate, DAY_MS } from '../utils/date.js'
 import { fmtFullDate, todoTimeText, fmtFocusMinute, deadlineText } from '../format.js'
 import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
@@ -294,7 +317,7 @@ const timer = setInterval(() => {
   nowTs.value = Date.now()
 }, 60000)
 
-const DEFAULT_CARD_ORDER = ['todayTodos', 'blueprints', 'relations', 'projects', 'focus', 'checkins', 'media', 'dueSoon', 'reviews']
+const DEFAULT_CARD_ORDER = ['todayTodos', 'blueprints', 'relations', 'projects', 'focus', 'checkins', 'food', 'media', 'dueSoon', 'reviews']
 const homeGridRef = ref(null)
 const cardOrder = ref([...DEFAULT_CARD_ORDER])
 
@@ -530,6 +553,20 @@ function openBlueprint(id) {
   bpDrawerOpen.value = true
 }
 
+// 首页「食物临期」：过期 + 临期（各按过期时间近到远，取前 5 条）
+const homeFoodAlert = computed(() => {
+  const { over, near } = collectFoodAlerts(store.state, nowTs.value)
+  const LEVEL_COLORS = { over: '#D16B58', near: '#C29B26', ok: '#2E9E8F' }
+  return [...over, ...near].slice(0, 5).map((f) => ({
+    id: f.id,
+    name: f.name,
+    meta: `${foodPlaceLabel(f.place)} · ${f.expireAt ? fmtDate(f.expireAt) : '未设过期'}`,
+    text: foodLeftText(f, nowTs.value),
+    level: foodLevel(f, nowTs.value),
+    color: LEVEL_COLORS[foodLevel(f, nowTs.value)] || '#9CA3AF',
+  }))
+})
+
 // 首页「最近在看」：进行中的书影音（没有则最近更新的）
 const mediaDrawer = ref({ open: false, id: null })
 const recentMediaList = computed(() => recentMedia(store.state, 5))
@@ -618,6 +655,21 @@ const todayReviewDone = computed(() => reviewsFor(store.state, 'day').some((r) =
 .st-pill.paused {
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+
+.st-pill.near {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+
+.st-pill.over {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.st-pill.ok {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
 }
 .home {
   display: flex;
