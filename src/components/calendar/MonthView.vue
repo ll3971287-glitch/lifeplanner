@@ -66,7 +66,7 @@
 <script setup>
 import { ref, computed, onBeforeUnmount } from 'vue'
 import { store } from '../../store.js'
-import { calendarItems } from '../../selectors.js'
+import { calendarItems, todoOverdue } from '../../selectors.js'
 import { monthGridTs, DAY_MS, startOfDayTs, fmtDate, fmtTime } from '../../utils/date.js'
 import { todoTimeText } from '../../format.js'
 import Icon from '../ui/Icon.vue'
@@ -156,7 +156,7 @@ function barOf(it) {
     border: tg ? tg.color : 'color-mix(in srgb, var(--primary) 60%, transparent)',
     title: t.title,
     timeText: todoTimeText(t),
-    status: t.completed ? '已完成' : t.canceled ? '已取消' : '未完成',
+    status: t.completed ? '已完成' : t.canceled ? '已取消' : todoOverdue(t) ? '已逾期' : '未完成',
     project: proj ? proj.name : '',
     tags: tagNames,
     priority: { high: '高', medium: '中', low: '低' }[t.priority] || '',
