@@ -9,6 +9,7 @@ import TodoFormModal from '../src/components/todo/TodoFormModal.vue'
 import TaskItem from '../src/components/todo/TaskItem.vue'
 import TaskDrawer from '../src/components/todo/TaskDrawer.vue'
 import TodosView from '../src/views/TodosView.vue'
+import ProjectDetailView from '../src/views/ProjectDetailView.vue'
 import TagPicker from '../src/components/form/TagPicker.vue'
 import ConfirmDialog from '../src/components/ui/ConfirmDialog.vue'
 import { settleConfirm, confirmState } from '../src/ui.js'
@@ -523,6 +524,118 @@ describe('TodosView 列表与筛选', () => {
     const drawer = document.body.querySelector('.drawer-panel')
     expect(drawer).toBeTruthy()
     expect(drawer.textContent).toContain('可点任务')
+    w.unmount()
+  })
+})
+
+describe('快捷安排时间', () => {
+  function mountTodos() {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/todos', component: { template: '<div/>' } },
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/focus', component: { template: '<div/>' } },
+        { path: '/projects', component: { template: '<div/>' } },
+      ],
+    })
+    router.push('/todos')
+    return mount(TodosView, { global: { plugins: [router] } })
+  }
+
+  it('任务行有安排时间按钮，点击打开弹窗并可设置时间段', async () => {
+    const d = startOfDayTs(Date.now())
+    const t = store.addTodo({ title: '要安排的任务', timeType: 'none' })
+    const w = mountTodos()
+    await nextTick()
+    // 默认「今天」分组下无时间任务不显示，切到全部
+    await w.findAll('.seg-item')[0].trigger('click')
+    await nextTick()
+    const schedBtn = w.findAll('.sched-btn')
+    expect(schedBtn.length).toBe(1)
+    await schedBtn[0].trigger('click')
+    await nextTick()
+    const panel = document.body.querySelector('.modal-panel')
+    expect(panel).toBeTruthy()
+    expect(panel.textContent).toContain('安排时间')
+    // 选择「时间段」
+    const segs = [...panel.querySelectorAll('.seg-item')]
+    segs.find((b) => b.textContent === '时间段').click()
+    await nextTick()
+    const dates = [...panel.querySelectorAll('input[type="date"]')]
+    const times = [...panel.querySelectorAll('input[type="time"]')]
+    expect(dates).toHaveLength(2)
+    expect(times).toHaveLength(2)
+    dates[0].value = fmtDate(d)
+    dates[0].dispatchEvent(new Event('input'))
+    dates[1].value = fmtDate(addDaysTs(d, 1))
+    dates[1].dispatchEvent(new Event('input'))
+    await nextTick()
+    const save = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('保存'))
+    save.click()
+    await nextTick()
+    const after = store.state.todos.find((x) => x.id === t.id)
+    expect(after.timeType).toBe('range')
+    expect(fmtDate(after.startAt)).toBe(fmtDate(d))
+    expect(fmtDate(after.endAt)).toBe(fmtDate(addDaysTs(d, 1)))
+    w.unmount()
+  })
+
+  it('可设为全天/时间点，也可清除时间', async () => {
+    const d = startOfDayTs(Date.now())
+    const t = store.addTodo({ title: '安排多种', timeType: 'datetime', startAt: d + 10 * 3600000 })
+    const w = mountTodos()
+    await nextTick()
+    await w.findAll('.sched-btn')[0].trigger('click')
+    await nextTick()
+    const panel = () => document.body.querySelector('.modal-panel')
+    // 全天
+    ;[...panel().querySelectorAll('.seg-item')].find((b) => b.textContent === '全天').click()
+    await nextTick()
+    ;[...panel().querySelectorAll('button')].find((b) => b.textContent.includes('保存')).click()
+    await nextTick()
+    expect(store.state.todos.find((x) => x.id === t.id).timeType).toBe('date')
+    // 清除时间
+    await w.findAll('.sched-btn')[0].trigger('click')
+    await nextTick()
+    ;[...panel().querySelectorAll('.seg-item')].find((b) => b.textContent === '无时间').click()
+    await nextTick()
+    ;[...panel().querySelectorAll('button')].find((b) => b.textContent.includes('保存')).click()
+    await nextTick()
+    const after = store.state.todos.find((x) => x.id === t.id)
+    expect(after.timeType).toBe('none')
+    expect(after.startAt).toBeNull()
+    w.unmount()
+  })
+
+  it('项目内子任务同样有安排时间按钮（网格与列表）', async () => {
+    const p = store.addProject({ name: '项目X' })
+    store.addSubTask({ projectId: p.id, name: '项目任务A' })
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/projects/:id', component: { template: '<div/>' } },
+        { path: '/projects', component: { template: '<div/>' } },
+        { path: '/todos', component: { template: '<div/>' } },
+        { path: '/focus', component: { template: '<div/>' } },
+      ],
+    })
+    await router.push(`/projects/${p.id}`)
+    await router.isReady()
+    const w = mount(ProjectDetailView, { global: { plugins: [router] } })
+    await nextTick()
+    // 网格视图：专注按钮旁有安排时间按钮
+    const schedBtns = w.findAll('.focus-mini').filter((b) => b.attributes('title') === '安排时间')
+    expect(schedBtns.length).toBeGreaterThanOrEqual(1)
+    await schedBtns[0].trigger('click')
+    await nextTick()
+    const panel = document.body.querySelector('.modal-panel')
+    expect(panel.textContent).toContain('安排时间')
+    const save = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('保存'))
+    save.click()
+    await nextTick()
+    const task = store.state.todos.find((x) => x.title === '项目任务A')
+    expect(task.timeType).not.toBe('none')
     w.unmount()
   })
 })
