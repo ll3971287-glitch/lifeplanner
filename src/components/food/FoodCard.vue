@@ -22,11 +22,16 @@
         <span class="muted mini">过期 {{ item.expireAt ? fmtDate(item.expireAt) : '未设置' }}</span>
         <span v-if="item.status === 'stored'" class="left-text" :class="level">{{ leftText(item) }}</span>
       </div>
+      <div v-if="item.status === 'stored'" class="pct-line">
+        <ProgressBar :value="item.percent" />
+        <span class="pct-text">剩余 {{ item.percent }}%</span>
+      </div>
       <p v-if="item.note" class="note muted">{{ item.note }}</p>
     </div>
 
     <div class="ops">
       <template v-if="item.status === 'stored'">
+        <button type="button" class="op" title="消耗 25%" @click="$emit('minus25', item)">−25%</button>
         <button type="button" class="op" title="标记已消耗" @click="$emit('consume', item)">
           <Icon name="check" :size="14" />
         </button>
@@ -50,11 +55,12 @@
 <script setup>
 import { computed } from 'vue'
 import Icon from '../ui/Icon.vue'
+import ProgressBar from '../ui/ProgressBar.vue'
 import { fmtDate } from '../../utils/date.js'
 import { foodLevel, levelLabel, leftText, placeColor, placeLabel, statusLabel } from '../../foodMeta.js'
 
 const props = defineProps({ item: { type: Object, required: true } })
-defineEmits(['edit', 'consume', 'discard', 'restore', 'remove'])
+defineEmits(['edit', 'consume', 'discard', 'restore', 'remove', 'minus25'])
 
 const level = computed(() => foodLevel(props.item))
 const LEVEL_COLORS = { ok: '#2E9E8F', near: '#C29B26', over: '#D16B58', off: '#9CA3AF' }
@@ -179,6 +185,30 @@ const levelColor = computed(() => LEVEL_COLORS[level.value] || '#9CA3AF')
 
 .left-text.over {
   color: var(--danger);
+}
+
+.pct-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.pct-line :deep(.progress-bar),
+.pct-line :deep(.bar) {
+  flex: 1;
+}
+
+.pct-text {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--accent-deep);
+  flex: none;
+}
+
+.op {
+  font-size: 10.5px;
+  font-weight: 800;
 }
 
 .note {
