@@ -50,6 +50,18 @@ describe('待办派生', () => {
     expect(sel.todoOverdue(rgRunning, NOW)).toBe(false)
   })
 
+  it('todoOverdue：跨天任务在结束日当天不算逾期（即使已过结束时刻）', () => {
+    // 结束日=今天 09:00，当前 12:00：仍在结束日当天 → 正常
+    const todayEnded = seedTodo({ timeType: 'range', startAt: parseDateTimeStr('2026-09-02 08:00:00'), endAt: parseDateTimeStr('2026-09-02 09:00:00') })
+    // 结束日=昨天 18:00 → 超过结束日 → 逾期
+    const yesterdayEnded = seedTodo({ timeType: 'range', startAt: parseDateTimeStr('2026-09-01 09:00:00'), endAt: parseDateTimeStr('2026-09-01 18:00:00') })
+    // 覆盖到明天 → 正常
+    const spanning = seedTodo({ timeType: 'range', startAt: parseDateTimeStr('2026-09-01 09:00:00'), endAt: parseDateTimeStr('2026-09-03 18:00:00') })
+    expect(sel.todoOverdue(todayEnded, NOW)).toBe(false)
+    expect(sel.todoOverdue(yesterdayEnded, NOW)).toBe(true)
+    expect(sel.todoOverdue(spanning, NOW)).toBe(false)
+  })
+
   it('todoActiveOnDay：date/datetime 命中当天；range 跨天命中', () => {
     const d = startOfDayTs(NOW)
     const dateTodo = seedTodo({ timeType: 'date', startAt: d })
