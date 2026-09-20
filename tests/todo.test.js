@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
@@ -637,5 +637,100 @@ describe('快捷安排时间', () => {
     const task = store.state.todos.find((x) => x.title === '项目任务A')
     expect(task.timeType).not.toBe('none')
     w.unmount()
+  })
+})
+
+describe('待办页标签栏与收集箱', () => {
+  function mountTodos() {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/todos', component: { template: '<div/>' } },
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/focus', component: { template: '<div/>' } },
+        { path: '/projects', component: { template: '<div/>' } },
+      ],
+    })
+    router.push('/todos')
+    return mount(TodosView, { global: { plugins: [router] } })
+  }
+
+  it('顶部横向标签栏：全部 / 收集箱 / 各标签（带数量），点击筛选任务', async () => {
+    const d = startOfDayTs(Date.now())
+    const tg = store.addTag({ name: '工作', color: '#E11D48' })
+    store.addTodo({ title: '带标签任务', timeType: 'date', startAt: d, tagIds: [tg.id] })
+    store.addTodo({ title: '无标签任务', timeType: 'date', startAt: d })
+    const w = mountTodos()
+    await nextTick()
+    const chips = w.findAll('.tag-chip').map((c) => c.text())
+    expect(chips[0]).toContain('全部')
+    expect(chips[1]).toContain('收集箱')
+    expect(chips.some((c) => c.includes('工作'))).toBe(true)
+    // 默认今天分组：两个任务都显示
+    expect(w.text()).toContain('带标签任务')
+    expect(w.text()).toContain('无标签任务')
+    // 点标签 → 只看该标签任务
+    const tagChip = w.findAll('.tag-chip').find((c) => c.text().includes('工作'))
+    await tagChip.trigger('click')
+    await nextTick()
+    expect(w.text()).toContain('带标签任务')
+    expect(w.text()).not.toContain('无标签任务')
+    // 点收集箱 → 只看无标签任务
+    const inbox = w.findAll('.tag-chip').find((c) => c.text().includes('收集箱'))
+    await inbox.trigger('click')
+    await nextTick()
+    expect(w.text()).toContain('无标签任务')
+    expect(w.text()).not.toContain('带标签任务')
+    // 再点一次取消筛选
+    await inbox.trigger('click')
+    await nextTick()
+    expect(w.text()).toContain('带标签任务')
+    w.unmount()
+  })
+
+  it('标签数量按当前分组统计，收集箱数量正确', async () => {
+    const d = startOfDayTs(Date.now())
+    const tg = store.addTag({ name: '学习', color: '#5476B8' })
+    store.addTodo({ title: 'A', timeType: 'date', startAt: d, tagIds: [tg.id] })
+    store.addTodo({ title: 'B', timeType: 'date', startAt: d, tagIds: [tg.id] })
+    store.addTodo({ title: 'C', timeType: 'date', startAt: d })
+    const w = mountTodos()
+    await nextTick()
+    const tagChip = w.findAll('.tag-chip').find((c) => c.text().includes('学习'))
+    expect(tagChip.text()).toContain('2')
+    const inbox = w.findAll('.tag-chip').find((c) => c.text().includes('收集箱'))
+    expect(inbox.text()).toContain('1')
+    w.unmount()
+  })
+
+  it('长按标签拖动可自定义排序并持久化到 store', async () => {
+    vi.useFakeTimers()
+    try {
+      const a = store.addTag({ name: '甲', color: '#111111' })
+      const b = store.addTag({ name: '乙', color: '#222222' })
+      expect(store.state.tags.map((t) => t.name)).toEqual(['甲', '乙'])
+      const w = mountTodos()
+      await nextTick()
+      const chips = w.findAll('.tag-chip')
+      const firstTagChip = chips.find((c) => c.text().includes('甲'))
+      // 长按进入排序模式
+      firstTagChip.element.dispatchEvent(new MouseEvent('pointerdown', { clientX: 10, clientY: 10, bubbles: true }))
+      vi.advanceTimersByTime(500)
+      await nextTick()
+      expect(w.find('.sort-hint').exists()).toBe(true)
+      // 向右拖两个标签宽
+      const chipW = firstTagChip.element.offsetWidth || 80
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 10 + chipW * 2, clientY: 10 }))
+      await nextTick()
+      expect(w.findAll('.drop-slot').length).toBeGreaterThan(0)
+      window.dispatchEvent(new MouseEvent('pointerup'))
+      await nextTick()
+      expect(store.state.tags.map((t) => t.name)).toEqual(['乙', '甲'])
+      w.unmount()
+      expect(a.id).toBeTruthy()
+      expect(b.id).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
