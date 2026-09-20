@@ -12,7 +12,8 @@ export function todoOverdue(t, nowTs = Date.now()) {
     case 'datetime':
       return t.startAt != null && t.startAt < nowTs
     case 'range':
-      return t.endAt != null && t.endAt < nowTs
+      // 跨天任务：结束日期当天（含）都算正常，超过结束日才逾期
+      return t.endAt != null && endOfDayTs(t.endAt) < nowTs
     default:
       return false
   }
