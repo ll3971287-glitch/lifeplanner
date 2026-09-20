@@ -121,7 +121,9 @@ function onCardDown(tg, idx, e) {
   timer = setTimeout(() => {
     reorderMode.value = true
     ignoreClick = true
-  }, 420)
+    // 排序期间锁定页面滚动，避免拖动被滚动打断
+    document.body.style.overflow = 'hidden'
+  }, 280)
 }
 
 // 命中检测：指针落在哪张卡片上 → 插到该卡片「后方」（返回剔除被拖卡片后的插入索引）
@@ -180,6 +182,7 @@ function onMove(e) {
 
 function onUp() {
   clearTimeout(timer)
+  document.body.style.overflow = ''
   if (reorderMode.value && draggingId.value != null) {
     landedId = draggingId.value
     const ids = [...visibleIds.value]
@@ -214,6 +217,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   clearTimeout(timer)
+  document.body.style.overflow = ''
   window.removeEventListener('pointermove', onMove)
   window.removeEventListener('pointerup', onUp)
   window.removeEventListener('pointercancel', onUp)
@@ -329,7 +333,7 @@ function openCreate() {
   width: 100%;
   padding: 12px 14px;
   cursor: pointer;
-  touch-action: pan-y;
+  touch-action: none;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
   text-align: left;
   transition: transform 0.1s ease;
