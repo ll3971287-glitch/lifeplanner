@@ -108,6 +108,9 @@
           <span class="focus-mini" title="开始专注" @click.stop="startFocus(t)">
             <Icon name="clock" :size="13" />
           </span>
+          <span class="focus-mini" title="安排时间" @click.stop="openSchedule(t)">
+            <Icon name="calendar" :size="13" />
+          </span>
         </div>
       </button>
     </div>
@@ -123,6 +126,9 @@
           <span v-if="tText(t)" class="due-mini">{{ tText(t) }}</span>
           <TagChips :tag-ids="t.tagIds" />
         </div>
+        <span class="focus-mini" title="安排时间" @click.stop="openSchedule(t)">
+          <Icon name="calendar" :size="13" />
+        </span>
         <span class="focus-mini" title="开始专注" @click.stop="startFocus(t)">
           <Icon name="clock" :size="14" />
         </span>
@@ -148,6 +154,7 @@
 
     <TaskDrawer :open="taskDrawerId != null" :todo-id="taskDrawerId" @close="taskDrawerId = null" @edit="openEditTask" @focus="startFocus" @add-sub="openAddSub" />
     <BlueprintLinkModal :open="linkBpOpen" mode="project" target-type="project" :target-id="route.params.id" @close="linkBpOpen = false" />
+    <ScheduleModal :open="scheduleId != null" :todo-id="scheduleId" @close="scheduleId = null" />
   </div>
 
   <EmptyState v-else icon="briefcase" text="项目不存在或已删除" hint="返回项目列表看看">
@@ -178,6 +185,7 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import TagChips from '../components/ui/TagChips.vue'
 import BlueprintLinkModal from '../components/blueprint/BlueprintLinkModal.vue'
+import ScheduleModal from '../components/todo/ScheduleModal.vue'
 import ProjectFormModal from '../components/project/ProjectFormModal.vue'
 import TodoFormModal from '../components/todo/TodoFormModal.vue'
 import TaskDrawer from '../components/todo/TaskDrawer.vue'
@@ -193,6 +201,11 @@ const bpChips = computed(() => {
 })
 const hasBlueprints = computed(() => store.state.blueprints.length > 0)
 const linkBpOpen = ref(false)
+const scheduleId = ref(null)
+
+function openSchedule(t) {
+  scheduleId.value = t.id
+}
 const stats = computed(() => (project.value ? projectStats(store.state, project.value.id) : { done: 0, total: 0, pct: 0, allDone: false }))
 const progressText = computed(() => (project.value ? projectProgressText(store.state, project.value.id) : ''))
 const isOverdue = computed(() => (project.value ? projectOverdue(project.value, Date.now()) : false))
