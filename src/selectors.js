@@ -1,4 +1,5 @@
 import { DAY_MS, startOfDayTs, endOfDayTs, isSameDayTs, fmtDate, startOfWeekTs } from './utils/date.js'
+import { daysLeft as foodDaysLeft, NEAR_DAYS as FOOD_NEAR_DAYS } from './foodMeta.js'
 
 // ---------- 待办 ----------
 
@@ -622,4 +623,50 @@ export function recentMedia(state, limit = 5) {
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
   if (doing.length) return doing.slice(0, limit)
   return [...state.mediaItems].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, limit)
+}
+
+// ---------- 食物储存 ----------
+
+// 默认按过期时间由近到远（无过期时间的排最后）
+export function foodList(state, { place = '', opened = '', status = 'stored' } = {}) {
+  return state.foodItems
+    .filter((f) => {
+      if (status && f.status !== status) return false
+      if (place && f.place !== place) return false
+      if (opened !== '' && opened !== null && !!f.opened !== !!opened) return false
+      return true
+    })
+    .sort((a, b) => {
+      if (a.expireAt == null && b.expireAt == null) return (b.updatedAt || 0) - (a.updatedAt || 0)
+      if (a.expireAt == null) return 1
+      if (b.expireAt == null) return -1
+      return a.expireAt - b.expireAt
+    })
+}
+
+// 临期 / 过期提醒（仅在库条目）
+export function foodAlerts(state, nowTs = Date.now()) {
+  const stored = state.foodItems.filter((f) => f.status === 'stored')
+  const over = []
+  const near = []
+  for (const f of stored) {
+    const left = foodDaysLeft(f.expireAt, nowTs)
+    if (left == null) continue
+    if (left < 0) over.push(f)
+    else if (left <= FOOD_NEAR_DAYS) near.push(f)
+  }
+  over.sort((a, b) => a.expireAt - b.expireAt)
+  near.sort((a, b) => a.expireAt - b.expireAt)
+  return { over, near }
+}
+
+// 周期内消耗 / 丢弃数量
+export function foodStats(state, fromTs, toTsExclusive) {
+  let consumed = 0
+  let discarded = 0
+  for (const f of state.foodItems) {
+    if (f.consumedAt != null && f.consumedAt >= fromTs && f.consumedAt < toTsExclusive) consumed += 1
+    if (f.discardedAt != null && f.discardedAt >= fromTs && f.discardedAt < toTsExclusive) discarded += 1
+  }
+  return { consumed, discarded }
 }
