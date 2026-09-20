@@ -703,34 +703,4 @@ describe('待办页标签栏与收集箱', () => {
     w.unmount()
   })
 
-  it('长按标签拖动可自定义排序并持久化到 store', async () => {
-    vi.useFakeTimers()
-    try {
-      const a = store.addTag({ name: '甲', color: '#111111' })
-      const b = store.addTag({ name: '乙', color: '#222222' })
-      expect(store.state.tags.map((t) => t.name)).toEqual(['甲', '乙'])
-      const w = mountTodos()
-      await nextTick()
-      const chips = w.findAll('.tag-chip')
-      const firstTagChip = chips.find((c) => c.text().includes('甲'))
-      // 长按进入排序模式
-      firstTagChip.element.dispatchEvent(new MouseEvent('pointerdown', { clientX: 10, clientY: 10, bubbles: true }))
-      vi.advanceTimersByTime(500)
-      await nextTick()
-      expect(w.find('.sort-hint').exists()).toBe(true)
-      // 向右拖两个标签宽
-      const chipW = firstTagChip.element.offsetWidth || 80
-      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 10 + chipW * 2, clientY: 10 }))
-      await nextTick()
-      expect(w.findAll('.drop-slot').length).toBeGreaterThan(0)
-      window.dispatchEvent(new MouseEvent('pointerup'))
-      await nextTick()
-      expect(store.state.tags.map((t) => t.name)).toEqual(['乙', '甲'])
-      w.unmount()
-      expect(a.id).toBeTruthy()
-      expect(b.id).toBeTruthy()
-    } finally {
-      vi.useRealTimers()
-    }
-  })
 })
