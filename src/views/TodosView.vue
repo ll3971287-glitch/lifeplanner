@@ -46,7 +46,7 @@
 
     <div v-else class="list-wrap card">
       <template v-if="roots.length">
-        <TaskItem v-for="r in roots" :key="r.id" :todo="r" :depth="0" :sort-mode="sortMode" :drag-enabled="sortMode === 'custom'" @open="openDrawer" @focus="startFocus" @cancel="cancelTask" />
+        <TaskItem v-for="r in roots" :key="r.id" :todo="r" :depth="0" :sort-mode="sortMode" :drag-enabled="sortMode === 'custom'" @open="openDrawer" @focus="startFocus" @cancel="cancelTask" @schedule="openSchedule" />
       </template>
       <EmptyState v-else-if="!store.state.todos.length" icon="todo" text="还没有任务" hint="点「新建任务」开始计划今天">
         <button type="button" class="btn btn-primary" style="margin-top: 14px" @click="openNew">
@@ -72,6 +72,8 @@
       />
     </BaseModal>
 
+    <ScheduleModal :open="scheduleId != null" :todo-id="scheduleId" @close="scheduleId = null" />
+
     <TaskDrawer
       :open="drawerId != null"
       :todo-id="drawerId"
@@ -96,6 +98,7 @@ import BaseModal from '../components/ui/BaseModal.vue'
 import TodoFormModal from '../components/todo/TodoFormModal.vue'
 import TaskItem from '../components/todo/TaskItem.vue'
 import TaskDrawer from '../components/todo/TaskDrawer.vue'
+import ScheduleModal from '../components/todo/ScheduleModal.vue'
 import { askConfirm, showToast } from '../ui.js'
 
 const router = useRouter()
@@ -107,6 +110,7 @@ const archiveView = ref(false)
 const dueMode = ref('today')
 const tagFilter = ref('')
 const drawerId = ref(null)
+const scheduleId = ref(null)
 const nowTs = ref(Date.now())
 
 const timer = setInterval(() => {
@@ -160,6 +164,10 @@ async function cancelTask(todo) {
   if (!ok) return
   store.cancelTodo(todo.id)
   showToast('已移入归档箱')
+}
+
+function openSchedule(todo) {
+  scheduleId.value = todo.id
 }
 
 function restore(t) {
