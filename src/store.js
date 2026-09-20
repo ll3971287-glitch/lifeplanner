@@ -504,6 +504,22 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     return tag
   }
 
+  // 自定义标签顺序（拖拽排序）
+  function reorderTags(ids) {
+    const map = new Map(state.tags.map((t) => [t.id, t]))
+    const out = []
+    for (const id of ids) {
+      const t = map.get(id)
+      if (t) {
+        out.push(t)
+        map.delete(id)
+      }
+    }
+    for (const t of map.values()) out.push(t)
+    state.tags = out
+    scheduleSave()
+  }
+
   function deleteTag(id) {
     state.tags = state.tags.filter((t) => t.id !== id)
     const drop = (arr) => {
@@ -1172,6 +1188,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     addTag,
     updateTag,
     deleteTag,
+    reorderTags,
     openFocus,
     closeFocus,
     setFocusTarget,
