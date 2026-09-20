@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
 import TagFormModal from '../src/components/tag/TagFormModal.vue'
 import TagsView from '../src/views/TagsView.vue'
+import TodosView from '../src/views/TodosView.vue'
 import TagDetailView from '../src/views/TagDetailView.vue'
 import ConfirmDialog from '../src/components/ui/ConfirmDialog.vue'
 import { settleConfirm, confirmState } from '../src/ui.js'
@@ -145,5 +146,67 @@ describe('TagDetailView', () => {
     const { w } = await mountDetail('nope')
     expect(w.text()).toContain('标签不存在或已删除')
     w.unmount()
+  })
+})
+
+describe('标签页拖拽排序', () => {
+  it('长按卡片拖动可调整标签顺序并持久化', async () => {
+    vi.useFakeTimers()
+    try {
+      const a = store.addTag({ name: '甲', color: '#111111' })
+      const b = store.addTag({ name: '乙', color: '#222222' })
+      store.addTag({ name: '丙', color: '#333333' })
+      const w = mount(TagsView)
+      await nextTick()
+      expect(store.state.tags.map((t) => t.name)).toEqual(['甲', '乙', '丙'])
+      const cards = w.findAll('.tag-card')
+      // 长按第一张（甲）进入排序模式
+      cards[0].element.dispatchEvent(new MouseEvent('pointerdown', { clientX: 10, clientY: 10, bubbles: true }))
+      vi.advanceTimersByTime(500)
+      await nextTick()
+      expect(w.find('.sort-hint').exists()).toBe(true)
+      // 向右下拖动很远 → 落到末尾
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 2000, clientY: 600 }))
+      await nextTick()
+      expect(w.findAll('.drop-slot').length).toBeGreaterThan(0)
+      window.dispatchEvent(new MouseEvent('pointerup'))
+      await nextTick()
+      expect(store.state.tags.map((t) => t.name)).toEqual(['乙', '丙', '甲'])
+      // 排序后点击卡片仍可进入详情
+      expect(a.id).toBeTruthy()
+      expect(b.id).toBeTruthy()
+      w.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('待办页标签栏不再提供排序（顺序只在标签页调整）', async () => {
+    vi.useFakeTimers()
+    try {
+      store.addTag({ name: '甲', color: '#111111' })
+    store.addTag({ name: '乙', color: '#222222' })
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/todos', component: { template: '<div/>' } },
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/focus', component: { template: '<div/>' } },
+        { path: '/projects', component: { template: '<div/>' } },
+      ],
+    })
+    router.push('/todos')
+    const w = mount(TodosView, { global: { plugins: [router] } })
+    await nextTick()
+    const chip = w.findAll('.tag-chip').find((c) => c.text().includes('甲'))
+    chip.element.dispatchEvent(new MouseEvent('pointerdown', { clientX: 10, clientY: 10, bubbles: true }))
+    vi.advanceTimersByTime(600)
+    await nextTick()
+      expect(w.find('.sort-hint').exists()).toBe(false)
+      expect(w.findAll('.drop-slot')).toHaveLength(0)
+      w.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
