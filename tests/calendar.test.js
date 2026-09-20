@@ -161,6 +161,20 @@ describe('月视图跨期长条', () => {
     w.unmount()
   })
 
+  it('月视图提示卡：跨天任务超过结束日才显示「已逾期」', async () => {
+    const d = today0()
+    store.addTodo({ title: '昨天结束的跨天任务', timeType: 'range', startAt: addDaysTs(d, -3) + 9 * 3600000, endAt: addDaysTs(d, -1) + 18 * 3600000 })
+    const w = mount(CalendarView)
+    await nextTick()
+    const bar = w.findAll('.span-bar.todo').find((b) => b.text().includes('昨天结束的跨天任务'))
+    await bar.trigger('mouseenter', { clientX: 100, clientY: 120 })
+    await nextTick()
+    const tip = document.querySelector('.cal-tip')
+    expect(tip).toBeTruthy()
+    expect(tip.textContent).toContain('已逾期')
+    w.unmount()
+  })
+
   it('单日任务各自一条，跨周任务按周分两段（日历固有分段）', async () => {
     const d = today0()
     const ws = startOfWeekTs(d)
