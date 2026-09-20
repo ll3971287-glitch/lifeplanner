@@ -29,6 +29,7 @@ async function mountMenu(path = '/') {
       { path: '/tags', name: 'tags', component: { template: '<div/>' } },
       { path: '/goals', name: 'goals', component: { template: '<div/>' } },
       { path: '/media', name: 'media', component: { template: '<div/>' } },
+      { path: '/food', name: 'food', component: { template: '<div/>' } },
       { path: '/settings', name: 'settings', component: { template: '<div/>' } },
     ],
   })
@@ -47,7 +48,8 @@ describe('左侧滑出菜单', () => {
     await nextTick()
     expect(document.body.textContent).toContain('规划')
     expect(document.body.textContent).toContain('回顾')
-    for (const label of ['未来蓝图', '人情', '书影音', '目标', '复盘', '标签', '设置']) {
+    expect(document.body.textContent).toContain('生活')
+    for (const label of ['未来蓝图', '人情', '书影音', '食物储存', '目标', '复盘', '标签', '设置']) {
       expect(itemByText(label), label).toBeTruthy()
     }
     // 书影音已是真实入口
@@ -76,6 +78,15 @@ describe('左侧滑出菜单', () => {
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/media')
     expect(sideMenuState.open).toBe(false)
+    w.unmount()
+  })
+
+  it('点击「食物储存」进入食物页', async () => {
+    const { w, router } = await mountMenu('/todos')
+    await nextTick()
+    itemByText('食物储存').click()
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/food')
     w.unmount()
   })
 
