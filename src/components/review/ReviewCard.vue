@@ -55,7 +55,8 @@ const props = defineProps({
 
 defineEmits(['edit', 'remove'])
 
-const open = ref(true)
+// 默认折叠，点击展开
+const open = ref(false)
 const linkedGoals = computed(() => reviewGoals(store.state, props.review))
 
 // 日复盘采用日记体模块；其它周期保持原有五个模块
