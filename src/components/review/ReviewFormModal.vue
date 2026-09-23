@@ -18,33 +18,67 @@
       </div>
     </div>
 
-    <div class="field">
-      <span class="field-label">计划内容</span>
-      <textarea v-model="form.fields.plan" class="textarea" rows="3" placeholder="这个周期计划了什么？" />
-    </div>
-
-    <div class="field">
-      <div class="row-between" style="margin-bottom: 6px">
-        <span class="field-label" style="margin: 0">当日 / 周期事件</span>
-        <button type="button" class="btn btn-sm btn-outline" @click="insertCompleted">
-          <Icon name="check" :size="13" /> 插入本周期完成情况
-        </button>
-        <button type="button" class="btn btn-sm btn-outline" @click="insertMedia">
-          <Icon name="film" :size="13" /> 插入书影音记录
-        </button>
+    <!-- 日复盘：日记体（今天的计划？→ 今天的事件 → 今天的感受 → 关联目标） -->
+    <template v-if="isDay">
+      <div class="field">
+        <div class="row-between" style="margin-bottom: 6px">
+          <span class="field-label" style="margin: 0">今天的计划？</span>
+          <button type="button" class="btn btn-sm btn-outline" @click="insertCompleted">
+            <Icon name="check" :size="13" /> 插入本周期完成情况
+          </button>
+          <button type="button" class="btn btn-sm btn-outline" @click="insertMedia">
+            <Icon name="film" :size="13" /> 插入书影音记录
+          </button>
+        </div>
+        <textarea v-model="form.fields.events" class="textarea" rows="4" placeholder="今天打算做什么？" />
       </div>
-      <textarea v-model="form.fields.events" class="textarea" rows="4" placeholder="发生了什么、完成了什么、遇到了什么" />
-    </div>
 
-    <div class="field">
-      <span class="field-label">新旧问题反思</span>
-      <textarea v-model="form.fields.problems" class="textarea" rows="3" placeholder="哪些问题依然存在？哪些是新出现的？" />
-    </div>
+      <div class="field">
+        <span class="field-label">今天的事件</span>
+        <textarea v-model="form.fields.problems" class="textarea" rows="4" placeholder="今天发生了什么、遇到了什么" />
+      </div>
 
-    <div class="field">
-      <span class="field-label">优化改善方案</span>
-      <textarea v-model="form.fields.improvement" class="textarea" rows="3" placeholder="下一步怎么改进？" />
-    </div>
+      <div class="field">
+        <span class="field-label">今天的感受</span>
+        <textarea v-model="form.fields.summary" class="textarea" rows="3" placeholder="今天的心情与感受…" />
+      </div>
+    </template>
+
+    <!-- 其他周期复盘：保持原有模块 -->
+    <template v-else>
+      <div class="field">
+        <span class="field-label">计划内容</span>
+        <textarea v-model="form.fields.plan" class="textarea" rows="3" placeholder="这个周期计划了什么？" />
+      </div>
+
+      <div class="field">
+        <div class="row-between" style="margin-bottom: 6px">
+          <span class="field-label" style="margin: 0">当日 / 周期事件</span>
+          <button type="button" class="btn btn-sm btn-outline" @click="insertCompleted">
+            <Icon name="check" :size="13" /> 插入本周期完成情况
+          </button>
+          <button type="button" class="btn btn-sm btn-outline" @click="insertMedia">
+            <Icon name="film" :size="13" /> 插入书影音记录
+          </button>
+        </div>
+        <textarea v-model="form.fields.events" class="textarea" rows="4" placeholder="发生了什么、完成了什么、遇到了什么" />
+      </div>
+
+      <div class="field">
+        <span class="field-label">新旧问题反思</span>
+        <textarea v-model="form.fields.problems" class="textarea" rows="3" placeholder="哪些问题依然存在？哪些是新出现的？" />
+      </div>
+
+      <div class="field">
+        <span class="field-label">优化改善方案</span>
+        <textarea v-model="form.fields.improvement" class="textarea" rows="3" placeholder="下一步怎么改进？" />
+      </div>
+
+      <div class="field">
+        <span class="field-label">整体总结</span>
+        <textarea v-model="form.fields.summary" class="textarea" rows="3" placeholder="一句话总结这个周期" />
+      </div>
+    </template>
 
     <div class="field">
       <span class="field-label">关联目标（只读引用，改复盘不会改动目标数据）</span>
@@ -63,11 +97,6 @@
         </button>
       </div>
       <p v-else class="muted rule-tip">这个周期还没有目标，可先到「目标」板块添加。</p>
-    </div>
-
-    <div class="field">
-      <span class="field-label">整体总结</span>
-      <textarea v-model="form.fields.summary" class="textarea" rows="3" placeholder="一句话总结这个周期" />
     </div>
 
     <div class="form-actions">
@@ -140,6 +169,9 @@ function toggleGoal(id) {
 const UNIT = { day: '日', week: '周', month: '月', year: '年', five: '五年' }
 
 const unitName = computed(() => UNIT[form.value.type] || '周期')
+
+// 日复盘采用日记体（模块名与字段映射不同），其它周期保持原有模块
+const isDay = computed(() => form.value.type === 'day')
 
 const anchor = computed(() => periodAnchorTs(form.value.type, form.value.anchorBase))
 
