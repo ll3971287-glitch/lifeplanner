@@ -32,7 +32,7 @@
     </div>
 
     <div v-if="open" class="fields">
-      <div v-for="f in FIELDS" :key="f.key" class="field-block">
+      <div v-for="f in fieldList" :key="f.key" class="field-block">
         <h4 class="f-name"><i class="f-dot" :style="{ background: theme.fg }" />{{ f.label }}</h4>
         <p v-if="review.fields[f.key]" class="f-body">{{ review.fields[f.key] }}</p>
         <p v-else class="muted f-empty">（未填写）</p>
@@ -58,13 +58,21 @@ defineEmits(['edit', 'remove'])
 const open = ref(true)
 const linkedGoals = computed(() => reviewGoals(store.state, props.review))
 
-const FIELDS = [
+// 日复盘采用日记体模块；其它周期保持原有五个模块
+const DAY_FIELDS = [
+  { key: 'events', label: '今天的计划？' },
+  { key: 'problems', label: '今天的事件' },
+  { key: 'summary', label: '今天的感受' },
+  { key: 'improvement', label: '总结与改善' },
+]
+const PERIOD_FIELDS = [
   { key: 'plan', label: '计划内容' },
   { key: 'events', label: '当日 / 周期事件' },
   { key: 'problems', label: '新旧问题反思' },
   { key: 'improvement', label: '优化改善方案' },
   { key: 'summary', label: '整体总结' },
 ]
+const fieldList = computed(() => (props.review.type === 'day' ? DAY_FIELDS : PERIOD_FIELDS))
 
 const TYPE_THEME = {
   day: { bg: '#E3F5EE', fg: '#0F766E', char: '日' },
