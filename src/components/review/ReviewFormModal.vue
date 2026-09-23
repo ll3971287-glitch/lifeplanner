@@ -42,6 +42,11 @@
         <span class="field-label">今天的感受</span>
         <textarea v-model="form.fields.summary" class="textarea" rows="3" placeholder="今天的心情与感受…" />
       </div>
+
+      <div class="field">
+        <span class="field-label">总结与改善</span>
+        <textarea v-model="form.fields.improvement" class="textarea" rows="3" placeholder="今天学到了什么？下一步怎么改进？" />
+      </div>
     </template>
 
     <!-- 其他周期复盘：保持原有模块 -->
