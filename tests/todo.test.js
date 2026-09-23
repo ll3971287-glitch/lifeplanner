@@ -704,3 +704,63 @@ describe('待办页标签栏与收集箱', () => {
   })
 
 })
+
+describe('延期任务的展示', () => {
+  it('延期宽限期内：显示「已延期」并展示延期后的实际截止时间', async () => {
+    const now = Date.now()
+    const t = store.addTodo({ title: '延期的任务', timeType: 'datetime', startAt: now - 7200000 })
+    const until = now + 5400000 // 1.5 小时后
+    store.updateTodo(t.id, { snoozeUntil: until })
+    const item = store.state.todos.find((x) => x.id === t.id)
+    const w = mount(TaskItem, { props: { todo: item, depth: 0 } })
+    await nextTick()
+    expect(w.text()).toContain('已延期')
+    expect(w.text()).toContain('延期至')
+    // 显示的是延期后的截止时间（含时分）
+    const d = new Date(until)
+    const expectText = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+    expect(w.text()).toContain(expectText)
+    // 原定时间已过（晚了 2 小时）但延期期内不算逾期
+    expect(w.text()).not.toContain('已逾期')
+    w.unmount()
+  })
+
+  it('延期时间已过仍显示已逾期（延期失效）', async () => {
+    const now = Date.now()
+    const t = store.addTodo({ title: '延期过期的任务', timeType: 'datetime', startAt: now - 7200000 })
+    store.updateTodo(t.id, { snoozeUntil: now - 3600000 })
+    const item = store.state.todos.find((x) => x.id === t.id)
+    const w = mount(TaskItem, { props: { todo: item, depth: 0 } })
+    await nextTick()
+    expect(w.text()).toContain('已逾期')
+    expect(w.text()).not.toContain('延期至')
+    w.unmount()
+  })
+
+  it('首页今日计划：延期任务标注已延期并显示延期截止时间', async () => {
+    const now = Date.now()
+    const d = startOfDayTs(now)
+    const t = store.addTodo({ title: '首页延期任务', timeType: 'datetime', startAt: d + 9 * 3600000 })
+    const until = now + 3600000
+    store.updateTodo(t.id, { snoozeUntil: until })
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/todos', component: { template: '<div/>' } },
+        { path: '/blueprints', component: { template: '<div/>' } },
+        { path: '/relations', component: { template: '<div/>' } },
+        { path: '/projects/:id', component: { template: '<div/>' } },
+        { path: '/media', component: { template: '<div/>' } },
+        { path: '/food', component: { template: '<div/>' } },
+      ],
+    })
+    router.push('/')
+    const HomeView = (await import('../src/views/HomeView.vue')).default
+    const w = mount(HomeView, { global: { plugins: [router] } })
+    await nextTick()
+    expect(w.text()).toContain('首页延期任务')
+    expect(w.text()).toContain('已延期 · 延期至')
+    w.unmount()
+  })
+})
