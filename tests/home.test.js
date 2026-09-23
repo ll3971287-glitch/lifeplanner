@@ -115,19 +115,48 @@ describe('首页摘要', () => {
     }
   })
 
-  it('项目任务以独立待办行显示并标注归属项目，可跳转项目', async () => {
+  it('项目任务以独立待办行显示并标注归属项目', async () => {
     const p = store.addProject({ name: '暑期课程' })
     store.addSubTask({ projectId: p.id, name: '写作业', dueAt: startOfDayTs(Date.now()) + 12 * 3600000 })
-    const { w, router } = mountHome()
+    const { w } = mountHome()
     await nextTick()
     const tag = w.find('.proj-tag')
     expect(tag.exists()).toBe(true)
     expect(tag.text()).toBe('暑期课程')
-    const rowMain = w.findAll('.h-row-main').find((el) => el.text().includes('写作业'))
-    await rowMain.trigger('click')
-    await new Promise((r) => setTimeout(r, 10))
-    expect(router.currentRoute.value.path).toBe(`/projects/${p.id}`)
     w.unmount()
+  })
+
+  it('点击今日计划任务：在首页展开详情抽屉，不跳转到待办 / 项目页', async () => {
+    const p = store.addProject({ name: '暑期课程' })
+    store.addSubTask({ projectId: p.id, name: '写作业', dueAt: startOfDayTs(Date.now()) + 12 * 3600000 })
+    const t = store.addTodo({ title: '首页任务', timeType: 'datetime', startAt: startOfDayTs(Date.now()) + 8 * 3600000 })
+    const { w, router } = mountHome()
+    await nextTick()
+    // 项目任务行
+    const projRow = w.findAll('.h-row-main').find((el) => el.text().includes('写作业'))
+    await projRow.trigger('click')
+    await nextTick()
+    expect(router.currentRoute.value.path).toBe('/')
+    let panel = document.body.querySelector('.drawer-panel')
+    expect(panel).toBeTruthy()
+    expect(panel.textContent).toContain('写作业')
+    // 关闭抽屉后点击普通任务行
+    document.body.querySelector('.drawer-panel .icon-btn').click()
+    await nextTick()
+    const normalRow = w.findAll('.h-row-main').find((el) => el.text().includes('首页任务'))
+    await normalRow.trigger('click')
+    await nextTick()
+    expect(router.currentRoute.value.path).toBe('/')
+    panel = document.body.querySelector('.drawer-panel')
+    expect(panel).toBeTruthy()
+    expect(panel.textContent).toContain('首页任务')
+    // 抽屉里可编辑：打开编辑表单
+    const editBtn = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('编辑'))
+    editBtn.click()
+    await nextTick()
+    expect(document.body.querySelector('.modal-panel')).toBeTruthy()
+    w.unmount()
+    void t
   })
 
   it('今日计划板块可按 本周/本月 切换展示范围任务', async () => {
