@@ -129,6 +129,9 @@ describe('ReviewCard', () => {
   it('日复盘卡片按日记体展示四个模块（与表单一致），不含旧模块名', async () => {
     const r = { id: 'r1', type: 'day', periodDate: startOfDayTs(Date.now()), fields: { plan: '旧计划P', events: 'E', problems: 'Q', improvement: 'I', summary: 'S感受' }, createdAt: 1, updatedAt: 2 }
     const w = mount(ReviewCard, { props: { review: r } })
+    // 默认折叠 → 先展开
+    await w.findAll('.mini-btn')[2].trigger('click')
+    await nextTick()
     const text = w.text()
     expect(text).toContain('今天的计划？')
     expect(text).toContain('今天的事件')
@@ -149,6 +152,8 @@ describe('ReviewCard', () => {
   it('其它周期卡片仍展示原有五字段', async () => {
     const r = { id: 'r2', type: 'week', periodDate: startOfDayTs(Date.now()), fields: { plan: 'P', events: 'E', problems: 'Q', improvement: 'I', summary: 'S' }, createdAt: 1, updatedAt: 2 }
     const w = mount(ReviewCard, { props: { review: r } })
+    await w.findAll('.mini-btn')[2].trigger('click')
+    await nextTick()
     const text = w.text()
     expect(text).toContain('计划内容')
     expect(text).toContain('当日 / 周期事件')
