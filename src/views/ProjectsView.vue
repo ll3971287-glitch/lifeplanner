@@ -118,7 +118,7 @@ import { PROJECT_CATS, catOf, catMeta, catColor, catLabelOfKey } from '../projec
 const router = useRouter()
 
 const filter = ref('active')
-const catTab = ref('project')
+const catTab = ref('study')
 const archOpen = ref(false)
 const catPick = ref({ open: false, project: null })
 
