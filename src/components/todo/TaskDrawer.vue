@@ -5,7 +5,7 @@
         <span class="status-chip" :class="statusClass">{{ statusText }}</span>
         <span v-if="todo.priority" class="pri-badge" :class="'pri-' + todo.priority">{{ priorityLabelText }}</span>
         <span v-if="isOverdue" class="status-chip danger">已逾期</span>
-        <span v-if="delayActive" class="status-chip warn">已推迟至 {{ snoozeText }}</span>
+        <span v-if="delayActive" class="status-chip warn">已延期 · 延期至 {{ snoozeText }}</span>
       </div>
 
       <dl class="meta">
