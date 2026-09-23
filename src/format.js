@@ -1,4 +1,4 @@
-import { fmtTime, fmtDate, startOfDayTs, endOfDayTs, DAY_MS } from './utils/date.js'
+import { fmtTime, fmtDate, fmtDateTime, startOfDayTs, endOfDayTs, DAY_MS } from './utils/date.js'
 
 export function shortDate(ts) {
   const d = new Date(ts)
@@ -88,4 +88,15 @@ export function recurText(recurrence) {
 
 export function fmtFullDate(ts) {
   return `${fmtDate(ts)} ${weekdayOf(ts)}`
+}
+
+// 延期（推迟）状态：宽限期内返回延期后的截止时间文案，否则为空
+export function snoozeText(t, nowTs = Date.now()) {
+  if (!t || t.snoozeUntil == null || t.completed || t.canceled) return ''
+  if (nowTs >= t.snoozeUntil) return ''
+  return fmtDateTime(t.snoozeUntil)
+}
+
+export function delayActive(t, nowTs = Date.now()) {
+  return !!snoozeText(t, nowTs)
 }
