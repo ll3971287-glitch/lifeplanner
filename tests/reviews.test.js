@@ -20,13 +20,14 @@ afterEach(() => {
 })
 
 describe('ReviewFormModal', () => {
-  it('日复盘为日记体：三个模块分别写入 events / problems / summary', async () => {
+  it('日复盘为日记体：四个模块分别写入 events / problems / summary / improvement', async () => {
     const w = mount(ReviewFormModal, { props: { defaultType: 'day' } })
     const textareas = w.findAll('textarea')
-    expect(textareas).toHaveLength(3) // 今天的计划？/ 今天的事件 / 今天的感受
+    expect(textareas).toHaveLength(4) // 今天的计划？/ 今天的事件 / 今天的感受 / 总结与改善
     await textareas[0].setValue('今天想做的事')
     await textareas[1].setValue('今天发生的事')
     await textareas[2].setValue('今天的感受')
+    await textareas[3].setValue('总结与改进')
     await w.find('.btn-primary').trigger('click')
     expect(store.state.reviews).toHaveLength(1)
     const r = store.state.reviews[0]
@@ -35,6 +36,7 @@ describe('ReviewFormModal', () => {
     expect(r.fields.events).toBe('今天想做的事')
     expect(r.fields.problems).toBe('今天发生的事')
     expect(r.fields.summary).toBe('今天的感受')
+    expect(r.fields.improvement).toBe('总结与改进')
   })
 
   it('日复盘模块名与顺序：今天的计划？→ 今天的事件 → 今天的感受 → 关联目标（最末尾），无旧模块', async () => {
@@ -51,6 +53,7 @@ describe('ReviewFormModal', () => {
     expect(text).toContain('今天的计划？')
     expect(text).toContain('今天的事件')
     expect(text).toContain('今天的感受')
+    expect(text).toContain('总结与改善')
     expect(text).toContain('关联目标')
     // 所属周期字段保留
     expect(text).toContain('所属周期')
@@ -123,15 +126,36 @@ describe('ReviewFormModal', () => {
 })
 
 describe('ReviewCard', () => {
-  it('展开显示五字段，收起显示总结', async () => {
-    const r = { id: 'r1', type: 'day', periodDate: startOfDayTs(Date.now()), fields: { plan: 'P', events: 'E', problems: 'Q', improvement: 'I', summary: 'S总结' }, createdAt: 1, updatedAt: 2 }
+  it('日复盘卡片按日记体展示四个模块（与表单一致），不含旧模块名', async () => {
+    const r = { id: 'r1', type: 'day', periodDate: startOfDayTs(Date.now()), fields: { plan: '旧计划P', events: 'E', problems: 'Q', improvement: 'I', summary: 'S感受' }, createdAt: 1, updatedAt: 2 }
     const w = mount(ReviewCard, { props: { review: r } })
-    expect(w.text()).toContain('P')
-    expect(w.text()).toContain('S总结')
+    const text = w.text()
+    expect(text).toContain('今天的计划？')
+    expect(text).toContain('今天的事件')
+    expect(text).toContain('今天的感受')
+    expect(text).toContain('总结与改善')
+    expect(text).not.toContain('计划内容')
+    expect(text).not.toContain('新旧问题反思')
+    expect(text).not.toContain('优化改善方案')
+    expect(text).not.toContain('整体总结')
+    expect(text).toContain('E')
+    expect(text).toContain('S感受')
     const btns = w.findAll('.mini-btn')
     await btns[2].trigger('click') // 收起
-    expect(w.text()).toContain('总结：S总结')
-    expect(w.text()).not.toContain('事件：E')
+    expect(w.text()).toContain('总结：S感受')
+    w.unmount()
+  })
+
+  it('其它周期卡片仍展示原有五字段', async () => {
+    const r = { id: 'r2', type: 'week', periodDate: startOfDayTs(Date.now()), fields: { plan: 'P', events: 'E', problems: 'Q', improvement: 'I', summary: 'S' }, createdAt: 1, updatedAt: 2 }
+    const w = mount(ReviewCard, { props: { review: r } })
+    const text = w.text()
+    expect(text).toContain('计划内容')
+    expect(text).toContain('当日 / 周期事件')
+    expect(text).toContain('新旧问题反思')
+    expect(text).toContain('优化改善方案')
+    expect(text).toContain('整体总结')
+    expect(text).not.toContain('今天的计划？')
     w.unmount()
   })
 
