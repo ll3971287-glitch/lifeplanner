@@ -33,7 +33,8 @@
             <div class="h-row-main" @click="gotoRow(row)">
               <span class="h-row-title" :class="{ done: row.done }">{{ row.title }}</span>
               <span class="row gap6 wrap row-meta">
-                <span v-if="row.timeText" class="time-mini muted">{{ row.timeText }}</span>
+                <span v-if="snoozeTextOf(row)" class="delay-mini">已延期 · 延期至 {{ snoozeTextOf(row) }}</span>
+                <span v-else-if="row.timeText" class="time-mini muted">{{ row.timeText }}</span>
                 <span v-if="row.projectName" class="proj-tag">{{ row.projectName }}</span>
                 <TagChips v-if="row.tagIds && row.tagIds.length" :tag-ids="row.tagIds" />
               </span>
@@ -299,7 +300,7 @@ import { catColor as mediaCatColor, statusLabel as mediaStatusLabel, progressInf
 import { foodLevel, leftText as foodLeftText, placeLabel as foodPlaceLabel } from '../foodMeta.js'
 import MediaDrawer from '../components/media/MediaDrawer.vue'
 import { startOfDayTs, startOfWeekTs, fmtTime, fmtDate, DAY_MS } from '../utils/date.js'
-import { fmtFullDate, todoTimeText, fmtFocusMinute, deadlineText } from '../format.js'
+import { fmtFullDate, todoTimeText, fmtFocusMinute, deadlineText, snoozeText as snoozeTextOf } from '../format.js'
 import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
 import ProgressBar from '../components/ui/ProgressBar.vue'
@@ -457,6 +458,7 @@ const todayList = computed(() => {
       projectId: t.projectId || null,
       projectName: proj ? proj.name : '',
       tagIds: t.tagIds || [],
+      snoozeUntil: t.snoozeUntil || null,
       title: t.title,
       done: t.completed,
       timeText: todoTimeText(t),
@@ -601,6 +603,15 @@ const todayReviewDone = computed(() => reviewsFor(store.state, 'day').some((r) =
 </script>
 
 <style scoped>
+.delay-mini {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 13%, transparent);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
 .bp-home-row {
   display: flex;
   align-items: center;
