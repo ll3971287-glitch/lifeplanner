@@ -30,7 +30,7 @@
             >
               <Icon v-if="row.done" name="check" :size="12" />
             </button>
-            <div class="h-row-main" @click="gotoRow(row)">
+            <div class="h-row-main" @click="openRow(row)">
               <span class="h-row-title" :class="{ done: row.done }">{{ row.title }}</span>
               <span class="row gap6 wrap row-meta">
                 <span v-if="snoozeTextOf(row)" class="delay-mini">已延期 · 延期至 {{ snoozeTextOf(row) }}</span>
@@ -273,6 +273,23 @@
     <CheckinRecordModal :open="recordOpen" :checkin-id="recordCheckinId" @close="recordOpen = false" @recorded="onRecorded" />
     <BlueprintDrawer :open="bpDrawerOpen" :bp-id="bpActiveId" @close="bpDrawerOpen = false" />
     <MediaDrawer :open="mediaDrawer.open" :item-id="mediaDrawer.id" @close="mediaDrawer.open = false" />
+    <TaskDrawer
+      :open="drawerId != null"
+      :todo-id="drawerId"
+      @close="drawerId = null"
+      @edit="openEdit"
+      @focus="startFocus"
+      @add-sub="openAddSub"
+    />
+    <BaseModal :open="form.open" :title="form.todo ? '编辑任务' : '新建任务'" @close="form.open = false">
+      <TodoFormModal
+        v-if="form.open"
+        :todo="form.todo"
+        :default-parent-id="form.parentId"
+        :preset-time="form.preset"
+        @close="form.open = false"
+      />
+    </BaseModal>
   </div>
 </template>
 
@@ -307,9 +324,14 @@ import ProgressBar from '../components/ui/ProgressBar.vue'
 import TagChips from '../components/ui/TagChips.vue'
 import CheckinRecordModal from '../components/checkin/CheckinRecordModal.vue'
 import BlueprintDrawer from '../components/blueprint/BlueprintDrawer.vue'
+import BaseModal from '../components/ui/BaseModal.vue'
+import TaskDrawer from '../components/todo/TaskDrawer.vue'
+import TodoFormModal from '../components/todo/TodoFormModal.vue'
 import { showToast, randomMotivation, fireConfetti } from '../ui.js'
 
 const router = useRouter()
+const drawerId = ref(null)
+const form = ref({ open: false, todo: null, parentId: null, preset: null })
 const nowTs = ref(Date.now())
 const recordOpen = ref(false)
 const recordCheckinId = ref(null)
@@ -472,12 +494,23 @@ function toggleRow(row) {
   store.toggleTodo(row.id)
 }
 
-function gotoRow(row) {
-  if (row.projectId) {
-    router.push(`/projects/${row.projectId}`)
-  } else {
-    router.push('/todos')
-  }
+// 首页内直接展开任务详情，不跳转到待办 / 项目页
+function openRow(row) {
+  drawerId.value = row.id
+}
+
+function openEdit(todo) {
+  drawerId.value = null
+  form.value = { open: true, todo, parentId: null, preset: null }
+}
+
+function openAddSub(parent) {
+  drawerId.value = null
+  form.value = { open: true, todo: null, parentId: parent.id, preset: null }
+}
+
+function startFocus(todo) {
+  store.openFocus({ mode: 'pomodoro', targetType: 'todo', targetId: todo.id })
 }
 
 const projList = computed(() => activeProjects(store.state).slice(0, 3))
