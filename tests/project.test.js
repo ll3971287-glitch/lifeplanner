@@ -178,16 +178,16 @@ describe('ProjectsView', () => {
     store.addProject({ name: '规划的事', category: 'plan' })
     const { w } = mountView()
     await nextTick()
-    // 默认项目分类：只看到项目分类的项目
-    expect(w.text()).toContain('项目的事')
-    expect(w.text()).not.toContain('学习的事')
-    expect(w.text()).not.toContain('规划的事')
-    // 切到学习分类
-    const segs = w.findAll('.seg-item')
-    await segs[0].trigger('click')
-    await nextTick()
+    // 默认进入「学习分类」：只看到学习分类的项目
     expect(w.text()).toContain('学习的事')
     expect(w.text()).not.toContain('项目的事')
+    expect(w.text()).not.toContain('规划的事')
+    // 切到项目分类
+    const segs = w.findAll('.seg-item')
+    await segs[1].trigger('click')
+    await nextTick()
+    expect(w.text()).toContain('项目的事')
+    expect(w.text()).not.toContain('学习的事')
     // 切到规划分类
     await segs[2].trigger('click')
     await nextTick()
@@ -199,6 +199,8 @@ describe('ProjectsView', () => {
   it('点卡片上的分类徽章可把项目改到其它分类', async () => {
     store.addProject({ name: '要挪的项目', category: 'project' })
     const { w } = mountView()
+    await nextTick()
+    await w.findAll('.seg-item')[1].trigger('click') // 默认学习分类，切到项目分类
     await nextTick()
     expect(w.text()).toContain('要挪的项目')
     await w.find('.cat-badge').trigger('click')
@@ -213,24 +215,28 @@ describe('ProjectsView', () => {
     w.unmount()
   })
 
-  it('卡片展示项目进度（项目任务=普通待办）', () => {
+  it('卡片展示项目进度（项目任务=普通待办）', async () => {
     const p = store.addProject({ name: '进行中项目' })
     store.addSubTask({ projectId: p.id, name: 'a' })
     store.addSubTask({ projectId: p.id, name: 'b' })
     store.cycleSubTaskStatus(store.state.todos.find((t) => t.title === 'a').id)
     const { w } = mountView()
+    await w.findAll('.seg-item')[1].trigger('click') // 切到项目分类
+    await nextTick()
     expect(w.text()).toContain('进行中项目')
     expect(w.text()).toContain('1/2 子任务')
     expect(w.text()).toContain('50%')
     w.unmount()
   })
 
-  it('缩略卡片：超长标题/描述截断（省略容器），进度条完整渲染', () => {
+  it('缩略卡片：超长标题/描述截断（省略容器），进度条完整渲染', async () => {
     const longName = '超'.repeat(80)
     const longDesc = '很长的项目描述内容。'.repeat(60)
     const p = store.addProject({ name: longName, desc: longDesc })
     store.addSubTask({ projectId: p.id, name: 'a' })
     const { w } = mountView()
+    await w.findAll('.seg-item')[1].trigger('click') // 切到项目分类
+    await nextTick()
     const nameEl = w.find('.p-name')
     const descEl = w.find('.p-desc')
     expect(nameEl.attributes('title')).toBe(longName)
@@ -243,6 +249,8 @@ describe('ProjectsView', () => {
   it('点击卡片跳转详情路由', async () => {
     const p = store.addProject({ name: '点我' })
     const { w, router } = mountView()
+    await w.findAll('.seg-item')[1].trigger('click') // 切到项目分类
+    await nextTick()
     await w.find('.p-card').trigger('click')
     await new Promise((r) => setTimeout(r, 10))
     expect(router.currentRoute.value.path).toBe(`/projects/${p.id}`)
@@ -253,6 +261,8 @@ describe('ProjectsView', () => {
     const p = store.addProject({ name: '将归档' })
     store.archiveProject(p.id)
     const { w } = mountView()
+    await w.findAll('.seg-item')[1].trigger('click') // 切到项目分类
+    await nextTick()
     expect(w.find('.arch-head').exists()).toBe(true)
     expect(w.text()).toContain('已完成（1）')
     w.unmount()
