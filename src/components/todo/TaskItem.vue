@@ -22,9 +22,12 @@
           <span class="title" :class="{ done: todo.completed }">{{ todo.title }}</span>
           <button v-if="canOneKeyDone" type="button" class="onekey" @click.stop="oneKeyDone">一键完成</button>
         </div>
-        <div v-if="timeText || isOverdue || subInfo || todo.tagIds.length || projName" class="meta-line">
+        <div v-if="timeText || isOverdue || subInfo || todo.tagIds.length || projName || delayText" class="meta-line">
+          <span v-if="delayText" class="delay-badge">已延期</span>
           <span v-if="isOverdue" class="late-text">已逾期</span>
-          <span v-else-if="timeText" class="time-badge">{{ timeText }}</span>
+          <!-- 延期任务：时间跟随实际截止（延期后）日期展示 -->
+          <span v-if="delayText" class="time-badge delay">延期至 {{ delayText }}</span>
+          <span v-else-if="timeText && !isOverdue" class="time-badge">{{ timeText }}</span>
           <span v-if="subInfo" class="sub-count">{{ subInfo }}</span>
           <span v-if="projName" class="proj-mini" title="所属项目">{{ projName }}</span>
           <TagChips :tag-ids="todo.tagIds" />
@@ -52,7 +55,7 @@
 import { ref, computed } from 'vue'
 import { store } from '../../store.js'
 import { todoChildren, subtreeStats, todoOverdue, compareTasksByMode } from '../../selectors.js'
-import { todoTimeText } from '../../format.js'
+import { todoTimeText, snoozeText as snoozeTextOf } from '../../format.js'
 import Icon from '../ui/Icon.vue'
 import TagChips from '../ui/TagChips.vue'
 
@@ -80,6 +83,8 @@ const canOneKeyDone = computed(() => stats.value.allDone && !props.todo.complete
 const subInfo = computed(() => (stats.value.total ? `${stats.value.done}/${stats.value.total}` : ''))
 const timeText = computed(() => todoTimeText(props.todo))
 const isOverdue = computed(() => todoOverdue(props.todo, Date.now()))
+// 延期宽限期内：显示延期后的实际截止时间并标注「已延期」
+const delayText = computed(() => (props.todo ? snoozeTextOf(props.todo, Date.now()) : ''))
 const projName = computed(() => {
   if (!props.todo.projectId) return ''
   const p = store.state.projects.find((x) => x.id === props.todo.projectId)
@@ -214,6 +219,20 @@ function onDrop(e) {
   background: rgba(0, 0, 0, 0.04);
   border-radius: 6px;
   padding: 1px 7px;
+}
+
+.delay-badge {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.time-badge.delay {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
 }
 
 .late-text {
