@@ -19,8 +19,8 @@
 
     <div class="rc-info">
       <span class="info-chip budget">预估预算：{{ moneyText(reward.budget) }}</span>
+      <span v-if="timeHint" class="info-chip">大致时间：{{ timeHint }}</span>
       <span v-if="reward.priceTier" class="info-chip">预估价位：{{ reward.priceTier }}</span>
-      <span v-if="reward.buyTime" class="info-chip">预估购买时间：{{ reward.buyTime }}</span>
     </div>
 
     <div class="rc-cond">
@@ -67,7 +67,7 @@ import ProgressBar from '../ui/ProgressBar.vue'
 import Icon from '../ui/Icon.vue'
 import { store } from '../../store.js'
 import { rewardStatus } from '../../selectors.js'
-import { rarityMeta, moneyText } from '../../rewardMeta.js'
+import { rarityMeta, moneyText, timeHintLabel } from '../../rewardMeta.js'
 
 const props = defineProps({
   reward: { type: Object, required: true },
@@ -76,6 +76,7 @@ defineEmits(['redeem', 'edit', 'remove', 'toggle-met'])
 
 const status = computed(() => rewardStatus(store.state, props.reward, Date.now()))
 const rarity = computed(() => rarityMeta(props.reward.rarity))
+const timeHint = computed(() => timeHintLabel(props.reward.timeHint))
 const progress = computed(() => status.value.progress)
 const pct = computed(() => {
   const { current, target } = progress.value
