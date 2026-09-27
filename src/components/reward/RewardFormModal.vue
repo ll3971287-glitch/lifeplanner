@@ -29,9 +29,14 @@
           <input v-model.number="form.cost" type="number" min="0" step="5" class="input" />
         </div>
         <div class="field">
-          <span class="field-label">稀有度</span>
-          <SegControl v-model="form.rarity" :options="rarityOptions" />
+          <span class="field-label">预估预算（元）</span>
+          <input v-model.number="form.budget" type="number" min="0" step="10" class="input" placeholder="如：120" />
         </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">稀有度</span>
+        <SegControl v-model="form.rarity" :options="rarityOptions" />
       </div>
 
       <div class="field">
@@ -63,7 +68,7 @@
 
       <div class="field">
         <span class="field-label">解锁条件</span>
-        <p class="muted mini">金币攒够即可兑换（在下方「花费」里设置需要的金币数）。</p>
+        <p class="muted mini">金币攒够即可兑换（在下方「花费」里设置需要的金币数）；预估预算仅记录金额，不参与解锁判定。</p>
       </div>
 
       <div class="two-col">
@@ -130,6 +135,7 @@ const empty = () => ({
   icon: ICON_CHOICES[0],
   desc: '',
   cost: 50,
+  budget: 0,
   rarity: 'common',
   priceTier: '',
   buyTime: '',
@@ -151,6 +157,7 @@ function apply(r) {
   form.icon = r.icon || ICON_CHOICES[0]
   form.desc = r.desc || ''
   form.cost = r.cost || 0
+  form.budget = r.budget || 0
   form.rarity = r.rarity || 'common'
   form.priceTier = r.priceTier || ''
   form.buyTime = r.buyTime || ''
@@ -228,6 +235,7 @@ function save() {
     icon: form.icon || ICON_CHOICES[0],
     desc: form.desc,
     cost: Math.max(0, Math.round(Number(form.cost) || 0)),
+    budget: Math.max(0, Number(form.budget) || 0),
     rarity: form.rarity,
     priceTier: form.priceTier,
     buyTime: form.buyTime,
