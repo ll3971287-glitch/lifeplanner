@@ -442,7 +442,7 @@ describe('设置与持久化', () => {
 
     const exported = src.exportData()
     // 结构检查：所有核心数组都在
-    for (const k of ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'rewards', 'rewardRedemptions']) {
+    for (const k of ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'rewards', 'rewardRedemptions', 'otherBudgets']) {
       expect(Array.isArray(exported[k]), k).toBe(true)
     }
     // 新设备导入同一份数据
