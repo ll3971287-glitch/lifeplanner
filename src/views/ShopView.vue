@@ -42,7 +42,10 @@
         <div v-for="o in otherBudgets" :key="o.id" class="ob-row">
           <div class="ob-main">
             <span class="ob-name">{{ o.name }}</span>
-            <span v-if="o.note" class="ob-note muted">{{ o.note }}</span>
+            <span class="ob-sub muted">
+              <template v-if="timeHintLabel(o.timeHint)">大致时间：{{ timeHintLabel(o.timeHint) }}</template>
+              <template v-if="o.note">{{ timeHintLabel(o.timeHint) ? ' · ' : '' }}{{ o.note }}</template>
+            </span>
           </div>
           <span class="ob-amount">{{ moneyText(o.amount) }}</span>
           <button type="button" class="mini-btn" title="编辑" @click="openOtherEdit(o)">
@@ -92,7 +95,7 @@ import {
   shopBudgetTotal,
   rewardStatus,
 } from '../selectors.js'
-import { moneyText } from '../rewardMeta.js'
+import { moneyText, timeHintLabel } from '../rewardMeta.js'
 import { askConfirm, showToast, fireConfetti } from '../ui.js'
 
 const tab = ref('all')
@@ -331,7 +334,7 @@ async function onRemove(r) {
   white-space: nowrap;
 }
 
-.ob-note {
+.ob-sub {
   font-size: 11.5px;
   overflow: hidden;
   text-overflow: ellipsis;
