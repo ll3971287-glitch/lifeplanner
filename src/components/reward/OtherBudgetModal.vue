@@ -12,6 +12,12 @@
       </div>
 
       <div class="field">
+        <span class="field-label">大致时间预估</span>
+        <SegControl v-model="form.timeHint" :options="timeHintOptions" />
+        <p class="muted mini">只需模糊估算：一季度后 / 半年后 / 1 年后 / 若干年后。</p>
+      </div>
+
+      <div class="field">
         <span class="field-label">备注（可选）</span>
         <textarea v-model="form.note" class="input ta" rows="2" placeholder="补充说明，如：每月固定支出" />
       </div>
@@ -29,7 +35,9 @@
 <script setup>
 import { reactive, watch } from 'vue'
 import BaseModal from '../ui/BaseModal.vue'
+import SegControl from '../ui/SegControl.vue'
 import { store } from '../../store.js'
+import { TIME_HINT_OPTIONS } from '../../rewardMeta.js'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -37,7 +45,8 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'saved'])
 
-const form = reactive({ name: '', amount: 0, note: '' })
+const form = reactive({ name: '', amount: 0, note: '', timeHint: '' })
+const timeHintOptions = TIME_HINT_OPTIONS
 
 watch(
   () => [props.open, props.item],
@@ -46,6 +55,7 @@ watch(
     form.name = props.item ? props.item.name : ''
     form.amount = props.item ? props.item.amount : 0
     form.note = props.item ? props.item.note || '' : ''
+    form.timeHint = props.item ? props.item.timeHint || '' : ''
   },
   { immediate: true }
 )
@@ -56,6 +66,7 @@ function save() {
     name: form.name.trim(),
     amount: Math.max(0, Number(form.amount) || 0),
     note: form.note,
+    timeHint: form.timeHint,
   }
   if (props.item) store.updateOtherBudget(props.item.id, payload)
   else store.addOtherBudget(payload)
