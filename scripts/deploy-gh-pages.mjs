@@ -44,6 +44,8 @@ function walk(dir, rel = '') {
 }
 
 const files = walk(DIST)
+// index.html 最后上传：上传中断时线上仍指向上一版已有资源，避免页面短暂 404
+files.sort((a, b) => (a.rel === 'index.html' ? 1 : 0) - (b.rel === 'index.html' ? 1 : 0))
 console.log(`待上传 ${files.length} 个文件 → ${BRANCH} 分支`)
 
 for (const f of files) {
