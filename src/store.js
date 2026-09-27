@@ -66,10 +66,9 @@ const RELATION_PATCH_KEYS = ['name', 'gender', 'age', 'birthYear', 'birthMonth',
 const GOAL_PATCH_KEYS = ['name', 'desc', 'done', 'year', 'scope', 'index', 'order']
 const FOOD_PATCH_KEYS = ['name', 'category', 'place', 'opened', 'storedAt', 'expireAt', 'imageUrl', 'note', 'status', 'consumedAt', 'discardedAt', 'percent']
 const REWARD_PATCH_KEYS = [
-  'name', 'icon', 'desc', 'cost', 'rarity', 'previewImage', 'previewNote',
-  'conditionType', 'conditionValue', 'conditionText', 'unlockFrom', 'unlockUntil', 'order',
+  'name', 'icon', 'desc', 'cost', 'rarity', 'priceTier', 'buyTime', 'previewImage', 'previewNote',
+  'conditionText', 'unlockFrom', 'unlockUntil', 'order',
 ]
-const REWARD_CONDITION_TYPES = ['focus', 'todos', 'custom']
 const MEDIA_PATCH_KEYS = [
   'category', 'status', 'title', 'creator', 'coverUrl', 'startDate', 'endDate', 'rating', 'tags',
   'oneLine', 'review', 'memo', 'favorite',
@@ -1067,10 +1066,10 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     desc = '',
     cost = 0,
     rarity = 'common',
+    priceTier = '',
+    buyTime = '',
     previewImage = '',
     previewNote = '',
-    conditionType = 'focus',
-    conditionValue = 0,
     conditionText = '',
     unlockFrom = null,
     unlockUntil = null,
@@ -1082,10 +1081,10 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
       desc: desc || '',
       cost: Math.max(0, Math.round(Number(cost) || 0)),
       rarity: RARITIES_KEYS.includes(rarity) ? rarity : 'common',
+      priceTier: priceTier || '',
+      buyTime: buyTime || '',
       previewImage: previewImage || '',
       previewNote: previewNote || '',
-      conditionType: REWARD_CONDITION_TYPES.includes(conditionType) ? conditionType : 'focus',
-      conditionValue: Math.max(0, Math.round(Number(conditionValue) || 0)),
       conditionText: conditionText || '',
       unlockFrom: unlockFrom == null ? null : Number(unlockFrom),
       unlockUntil: unlockUntil == null ? null : Number(unlockUntil),
@@ -1105,8 +1104,6 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     if (!r) return null
     patch(r, p, REWARD_PATCH_KEYS)
     if ('cost' in p) r.cost = Math.max(0, Math.round(Number(p.cost) || 0))
-    if ('conditionValue' in p) r.conditionValue = Math.max(0, Math.round(Number(p.conditionValue) || 0))
-    if ('conditionType' in p) r.conditionType = REWARD_CONDITION_TYPES.includes(p.conditionType) ? p.conditionType : 'focus'
     if ('rarity' in p) r.rarity = RARITIES_KEYS.includes(p.rarity) ? p.rarity : 'common'
     if ('unlockFrom' in p) r.unlockFrom = p.unlockFrom == null ? null : Number(p.unlockFrom)
     if ('unlockUntil' in p) r.unlockUntil = p.unlockUntil == null ? null : Number(p.unlockUntil)
@@ -1135,8 +1132,8 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     const st = rewardStatus(state, r, now())
     if (st.redeemed) return { ok: false, reason: 'redeemed', text: '该奖励已兑换过' }
     if (!st.period.ok) return { ok: false, reason: 'period', text: st.period.text }
-    if (!st.progress.met) return { ok: false, reason: 'condition', text: '解锁条件未达成' }
     if (!st.affordable) return { ok: false, reason: 'coins', text: `金币不足，还差 ${Math.max(0, r.cost - st.balance)}` }
+    if (!st.condMet) return { ok: false, reason: 'condition', text: '额外解锁条件未达成' }
     const at = now()
     state.rewardRedemptions.push({ id: uid(), rewardId: r.id, name: r.name, cost: r.cost, at })
     r.redeemed = true
