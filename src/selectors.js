@@ -1,5 +1,6 @@
 import { DAY_MS, startOfDayTs, endOfDayTs, isSameDayTs, fmtDate, startOfWeekTs } from './utils/date.js'
 import { daysLeft as foodDaysLeft, NEAR_DAYS as FOOD_NEAR_DAYS } from './foodMeta.js'
+import { conditionLabel, conditionUnit, shopRate } from './rewardMeta.js'
 
 // ---------- 待办 ----------
 
@@ -669,4 +670,75 @@ export function foodStats(state, fromTs, toTsExclusive) {
     if (f.discardedAt != null && f.discardedAt >= fromTs && f.discardedAt < toTsExclusive) discarded += 1
   }
   return { consumed, discarded }
+}
+
+// ---------- 兑换商店 ----------
+
+// 历史累计产出：专注分钟 → 金币、已完成任务 → 金币
+export function shopIncome(state, nowTs = Date.now()) {
+  const focusMin = state.sessions.reduce((a, s) => a + (s.durationMin || 0), 0)
+  const todoCount = state.todos.filter((t) => t.completed && !t.canceled).length
+  const rate = shopRate(state.settings)
+  const coins = Math.round(focusMin * rate.coinPerFocusMin + todoCount * rate.coinPerTodo)
+  return { focusMin, todoCount, coins, rate, nowTs }
+}
+
+export function shopSpent(state) {
+  return (state.rewardRedemptions || []).reduce((a, r) => a + (r.cost || 0), 0)
+}
+
+// 当前可用金币余额 = 累计产出 − 已兑换消耗
+export function shopBalance(state, nowTs = Date.now()) {
+  return Math.max(0, shopIncome(state, nowTs).coins - shopSpent(state))
+}
+
+// 解锁条件的完成进度：{ current, target, met, unit }
+export function rewardConditionProgress(state, reward) {
+  if (!reward) return { current: 0, target: 0, met: false, unit: '' }
+  const target = Number(reward.conditionValue) || 0
+  const unit = conditionUnit(reward)
+  if (reward.conditionType === 'custom') {
+    return { current: reward.customMet ? 1 : 0, target: 1, met: !!reward.customMet, unit: '' }
+  }
+  const income = shopIncome(state)
+  const current = reward.conditionType === 'todos' ? income.todoCount : income.focusMin
+  return { current, target, met: current >= target, unit }
+}
+
+// 时间窗口（某日之后 / 某日之前），两端可留空表示不限
+export function rewardPeriodOk(reward, nowTs = Date.now()) {
+  if (!reward) return { ok: true, text: '' }
+  const from = reward.unlockFrom == null ? null : startOfDayTs(reward.unlockFrom)
+  const until = reward.unlockUntil == null ? null : endOfDayTs(reward.unlockUntil)
+  if (from == null && until == null) return { ok: true, text: '' }
+  if (from != null && until != null) {
+    return { ok: nowTs >= from && nowTs <= until, text: `${fmtDate(from)} ~ ${fmtDate(until)}` }
+  }
+  if (from != null) return { ok: nowTs >= from, text: `${fmtDate(from)} 起可兑换` }
+  return { ok: nowTs <= until, text: `${fmtDate(until)} 前可兑换` }
+}
+
+// 卡片汇总状态：解锁 / 期限内 / 条件达成 / 金币够 / 是否已兑换 / 不可兑换原因
+export function rewardStatus(state, reward, nowTs = Date.now()) {
+  const period = rewardPeriodOk(reward, nowTs)
+  const progress = rewardConditionProgress(state, reward)
+  const balance = shopBalance(state, nowTs)
+  const redeemed = !!reward.redeemed
+  const affordable = balance >= (reward.cost || 0)
+  const unlocked = period.ok && progress.met && !redeemed
+  let reason = ''
+  if (redeemed) reason = '已兑换'
+  else if (!period.ok) reason = period.text
+  else if (!progress.met) reason = '解锁条件未达成'
+  else if (!affordable) reason = `金币不足，还差 ${Math.max(0, (reward.cost || 0) - balance)}`
+  return {
+    unlocked,
+    period,
+    progress,
+    affordable,
+    balance,
+    redeemed,
+    conditionText: conditionLabel(reward),
+    reason,
+  }
 }
