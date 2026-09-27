@@ -30,3 +30,12 @@ export function conditionLabel(reward) {
   if (!reward) return ''
   return reward.conditionText || ''
 }
+
+// 金额展示：千分位 + 最多两位小数
+export function moneyText(v) {
+  const n = Number(v) || 0
+  const fixed = Number.isInteger(n) ? String(n) : n.toFixed(2)
+  const [int, dec] = fixed.split('.')
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return `¥${grouped}${dec ? `.${dec}` : ''}`
+}
