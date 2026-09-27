@@ -16,6 +16,21 @@ export function rarityMeta(key) {
 // 奖励图标：预设 emoji 调色板（也可自行输入任意 emoji）
 export const ICON_CHOICES = ['🎁', '🍿', '🧋', '🍰', '🍜', '🎮', '📚', '🎬', '🎧', '🛌', '🎫', '🧸']
 
+// 大致时间预估：模糊时间段，不用具体日期
+export const TIME_HINTS = [
+  { key: 'quarter', label: '一季度后' },
+  { key: 'halfYear', label: '半年后' },
+  { key: 'year', label: '1 年后' },
+  { key: 'years', label: '若干年后' },
+]
+
+export const TIME_HINT_OPTIONS = [{ label: '不限', value: '' }, ...TIME_HINTS.map((t) => ({ label: t.label, value: t.key }))]
+
+export function timeHintLabel(key) {
+  const hit = TIME_HINTS.find((t) => t.key === key)
+  return hit ? hit.label : ''
+}
+
 export const SHOP_DEFAULT_RATE = { coinPerFocusMin: 1, coinPerTodo: 5 }
 
 export function shopRate(settings) {
