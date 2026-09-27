@@ -687,6 +687,19 @@ export function shopSpent(state) {
   return (state.rewardRedemptions || []).reduce((a, r) => a + (r.cost || 0), 0)
 }
 
+// 预估预算合计：奖励预估预算 + 其他预算，仅作展示记录
+export function shopRewardBudgetTotal(state) {
+  return (state.rewards || []).reduce((a, r) => a + (Number(r.budget) || 0), 0)
+}
+
+export function shopOtherBudgetTotal(state) {
+  return (state.otherBudgets || []).reduce((a, o) => a + (Number(o.amount) || 0), 0)
+}
+
+export function shopBudgetTotal(state) {
+  return shopRewardBudgetTotal(state) + shopOtherBudgetTotal(state)
+}
+
 // 当前可用金币余额 = 累计产出 − 已兑换消耗
 export function shopBalance(state, nowTs = Date.now()) {
   return Math.max(0, shopIncome(state, nowTs).coins - shopSpent(state))
