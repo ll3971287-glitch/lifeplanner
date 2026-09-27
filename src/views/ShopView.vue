@@ -18,7 +18,42 @@
         + 完成任务 {{ income.todoCount }} 个 × {{ income.rate.coinPerTodo }}
         <template v-if="spent">，已兑换消耗 {{ spent }} 金币</template>
       </p>
+      <p class="wallet-budget">
+        <Icon name="tag" :size="13" />
+        预估预算合计 <b>{{ moneyText(budgetTotal) }}</b>
+        <span class="muted">（奖励 {{ moneyText(rewardBudgetTotal) }} + 其他 {{ moneyText(otherBudgetTotal) }}，仅记录展示）</span>
+      </p>
       <SegControl :model-value="tab" :options="tabOptions" @update:model-value="tab = $event" />
+    </section>
+
+    <!-- 其他预算：与奖励分开单独一栏，金额计入顶部总预算 -->
+    <section class="card other-budget">
+      <div class="row-between ob-head">
+        <span class="ob-title"><Icon name="layers" :size="15" /> 其他预算</span>
+        <div class="row gap8 ob-actions">
+          <span class="ob-total muted">小计 {{ moneyText(otherBudgetTotal) }}</span>
+          <button type="button" class="btn btn-outline btn-sm" @click="openOtherCreate">
+            <Icon name="plus" :size="13" /> 新增
+          </button>
+        </div>
+      </div>
+
+      <div v-if="otherBudgets.length" class="ob-list">
+        <div v-for="o in otherBudgets" :key="o.id" class="ob-row">
+          <div class="ob-main">
+            <span class="ob-name">{{ o.name }}</span>
+            <span v-if="o.note" class="ob-note muted">{{ o.note }}</span>
+          </div>
+          <span class="ob-amount">{{ moneyText(o.amount) }}</span>
+          <button type="button" class="mini-btn" title="编辑" @click="openOtherEdit(o)">
+            <Icon name="edit" :size="13" />
+          </button>
+          <button type="button" class="mini-btn danger" title="删除" @click="onRemoveOther(o)">
+            <Icon name="trash" :size="13" />
+          </button>
+        </div>
+      </div>
+      <p v-else class="muted ob-empty">还没有其他预算，点「新增」记录房租、通勤等不绑定奖励的支出。</p>
     </section>
 
     <div v-if="visible.length" class="reward-list">
@@ -35,6 +70,7 @@
     <EmptyState v-else icon="sparkles" :text="emptyText" hint="先给自己定一个值得期待的奖励吧" />
 
     <RewardFormModal :open="formOpen" :reward="editing" @close="closeForm" />
+    <OtherBudgetModal :open="otherFormOpen" :item="editingOther" @close="closeOtherForm" />
   </div>
 </template>
 
@@ -45,20 +81,36 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import Icon from '../components/ui/Icon.vue'
 import RewardCard from '../components/reward/RewardCard.vue'
 import RewardFormModal from '../components/reward/RewardFormModal.vue'
+import OtherBudgetModal from '../components/reward/OtherBudgetModal.vue'
 import { store } from '../store.js'
-import { shopBalance, shopIncome, shopSpent, rewardStatus } from '../selectors.js'
+import {
+  shopBalance,
+  shopIncome,
+  shopSpent,
+  shopRewardBudgetTotal,
+  shopOtherBudgetTotal,
+  shopBudgetTotal,
+  rewardStatus,
+} from '../selectors.js'
+import { moneyText } from '../rewardMeta.js'
 import { askConfirm, showToast, fireConfetti } from '../ui.js'
 
 const tab = ref('all')
 const formOpen = ref(false)
 const editing = ref(null)
 const walletEl = ref(null)
+const otherFormOpen = ref(false)
+const editingOther = ref(null)
 
 const statusOf = (r) => rewardStatus(store.state, r, Date.now())
 
 const income = computed(() => shopIncome(store.state))
 const spent = computed(() => shopSpent(store.state))
 const balance = computed(() => shopBalance(store.state))
+const budgetTotal = computed(() => shopBudgetTotal(store.state))
+const rewardBudgetTotal = computed(() => shopRewardBudgetTotal(store.state))
+const otherBudgetTotal = computed(() => shopOtherBudgetTotal(store.state))
+const otherBudgets = computed(() => store.state.otherBudgets || [])
 
 const rewards = computed(() => store.state.rewards || [])
 const available = computed(() => rewards.value.filter((r) => statusOf(r).unlocked && statusOf(r).affordable))
@@ -98,6 +150,30 @@ function openEdit(r) {
 function closeForm() {
   formOpen.value = false
   editing.value = null
+}
+
+function openOtherCreate() {
+  editingOther.value = null
+  otherFormOpen.value = true
+}
+function openOtherEdit(o) {
+  editingOther.value = o
+  otherFormOpen.value = true
+}
+function closeOtherForm() {
+  otherFormOpen.value = false
+  editingOther.value = null
+}
+
+async function onRemoveOther(o) {
+  const ok = await askConfirm({
+    title: '删除其他预算',
+    message: `确定删除「${o.name}」吗？`,
+    danger: true,
+  })
+  if (!ok) return
+  store.deleteOtherBudget(o.id)
+  showToast('已删除')
 }
 
 function onRedeem(r) {
@@ -177,9 +253,115 @@ async function onRemove(r) {
   line-height: 1.5;
 }
 
+.wallet-budget {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.wallet-budget b {
+  font-size: 15px;
+  color: var(--accent-deep);
+}
+
 .reward-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.other-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ob-head {
+  align-items: center;
+  gap: 8px;
+}
+
+.ob-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ob-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ob-total {
+  font-size: 12px;
+}
+
+.ob-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ob-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--line) 28%, transparent);
+}
+
+.ob-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ob-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-note {
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-amount {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--accent-deep);
+  flex: none;
+}
+
+.mini-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  flex: none;
+}
+
+.mini-btn.danger {
+  color: var(--danger, #dc2626);
+}
+
+.ob-empty {
+  margin: 0;
+  font-size: 12px;
 }
 </style>
