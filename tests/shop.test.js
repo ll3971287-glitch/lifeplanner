@@ -14,7 +14,7 @@ import {
   rewardPeriodOk,
   rewardStatus,
 } from '../src/selectors.js'
-import { rarityMeta, conditionLabel, moneyText, ICON_CHOICES } from '../src/rewardMeta.js'
+import { rarityMeta, conditionLabel, moneyText, timeHintLabel, TIME_HINTS, ICON_CHOICES } from '../src/rewardMeta.js'
 import ShopView from '../src/views/ShopView.vue'
 import RewardCard from '../src/components/reward/RewardCard.vue'
 import RewardFormModal from '../src/components/reward/RewardFormModal.vue'
@@ -141,7 +141,7 @@ describe('兑换商店：解锁以金币为准 + 时间窗口', () => {
 })
 
 describe('兑换商店：增删改与兑换', () => {
-  it('新增保存全部字段（含图标 / 稀有度 / 预估预算 / 预估价位 / 预估购买时间 / 预览 / 日期）', () => {
+  it('新增保存全部字段（含图标 / 稀有度 / 预估预算 / 预估价位 / 大致时间 / 预览 / 日期）', () => {
     const from = Date.now()
     const r = store.addReward({
       name: '看一场电影',
@@ -151,7 +151,7 @@ describe('兑换商店：增删改与兑换', () => {
       budget: 80,
       rarity: 'epic',
       priceTier: '¥80 左右',
-      buyTime: '下个月发工资后',
+      timeHint: 'halfYear',
       previewImage: 'https://example.com/a.jpg',
       previewNote: '周六晚场',
       conditionText: '先完成本周复盘',
@@ -166,7 +166,7 @@ describe('兑换商店：增删改与兑换', () => {
       budget: 80,
       rarity: 'epic',
       priceTier: '¥80 左右',
-      buyTime: '下个月发工资后',
+      timeHint: 'halfYear',
       previewImage: 'https://example.com/a.jpg',
       previewNote: '周六晚场',
       conditionText: '先完成本周复盘',
@@ -180,13 +180,13 @@ describe('兑换商店：增删改与兑换', () => {
 
   it('编辑与删除目标', () => {
     const r = store.addReward({ name: '旧名', cost: 10 })
-    store.updateReward(r.id, { name: '新名', cost: 99, budget: 1288, rarity: 'legend', priceTier: '¥200 档', buyTime: '年底' })
+    store.updateReward(r.id, { name: '新名', cost: 99, budget: 1288, rarity: 'legend', priceTier: '¥200 档', timeHint: 'year' })
     const updated = store.state.rewards[0]
     expect(updated.name).toBe('新名')
     expect(updated.cost).toBe(99)
     expect(updated.budget).toBe(1288)
     expect(updated.priceTier).toBe('¥200 档')
-    expect(updated.buyTime).toBe('年底')
+    expect(timeHintLabel(updated.timeHint)).toBe('1 年后')
     expect(rarityMeta(updated.rarity).label).toBe('传说')
     store.deleteReward(r.id)
     expect(store.state.rewards).toHaveLength(0)
@@ -293,7 +293,7 @@ describe('兑换商店：预估预算', () => {
   })
 
   it('其他预算单独一栏：展示条目与小计，可新增、编辑、删除', async () => {
-    store.addOtherBudget({ name: '房租', amount: 1500, note: '每月固定' })
+    store.addOtherBudget({ name: '房租', amount: 1500, note: '每月固定', timeHint: 'quarter' })
     const w = mount(ShopView)
     await nextTick()
     const sec = w.find('.other-budget')
@@ -301,6 +301,7 @@ describe('兑换商店：预估预算', () => {
     expect(sec.text()).toContain('其他预算')
     expect(sec.text()).toContain('小计 ¥1,500')
     expect(sec.find('.ob-row').text()).toContain('房租')
+    expect(sec.find('.ob-row').text()).toContain('大致时间：一季度后')
     expect(sec.find('.ob-row').text()).toContain('每月固定')
 
     // 新增
@@ -341,10 +342,12 @@ describe('兑换商店：预估预算', () => {
     const amountInput = panel.querySelector('input[type="number"]')
     amountInput.value = '480'
     amountInput.dispatchEvent(new Event('input'))
+    // 大致时间预估：1 年后
+    ;[...panel.querySelectorAll('.seg-item')].find((s) => s.textContent === '1 年后').click()
     await nextTick()
     ;[...panel.querySelectorAll('button')].find((b) => b.textContent.includes('保存')).click()
     await nextTick()
-    expect(store.state.otherBudgets[0]).toMatchObject({ name: '水电燃气', amount: 480 })
+    expect(store.state.otherBudgets[0]).toMatchObject({ name: '水电燃气', amount: 480, timeHint: 'year' })
     w.unmount()
 
     document.body.innerHTML = ''
@@ -353,6 +356,7 @@ describe('兑换商店：预估预算', () => {
     const panel2 = document.body.querySelector('.modal-panel')
     expect(panel2.querySelector('input').value).toBe('水电燃气')
     expect(panel2.querySelector('input[type="number"]').value).toBe('480')
+    expect([...panel2.querySelectorAll('.seg-item')].find((s) => s.textContent === '1 年后').classList.contains('active')).toBe(true)
     w2.unmount()
   })
 })
@@ -371,6 +375,26 @@ describe('兑换商店：本地存储与导入导出', () => {
     expect(out.otherBudgets).toHaveLength(1)
     // 旧数据没有 shop 设置时使用默认费率
     expect(out.settings.shop).toEqual({ coinPerFocusMin: 1, coinPerTodo: 5 })
+  })
+
+  it('大致时间预估只接受预设模糊时间段，非法值忽略', () => {
+    expect(TIME_HINTS.map((t) => t.label)).toEqual(['一季度后', '半年后', '1 年后', '若干年后'])
+    const r = store.addReward({ name: 'A', cost: 0, timeHint: 'quarter' })
+    expect(r.timeHint).toBe('quarter')
+    expect(timeHintLabel(r.timeHint)).toBe('一季度后')
+    store.updateReward(r.id, { timeHint: '随便写的日期' })
+    expect(store.state.rewards[0].timeHint).toBe('')
+    // 不选 = 不限
+    expect(store.addReward({ name: 'B', cost: 0 }).timeHint).toBe('')
+  })
+
+  it('其他预算也可设大致时间预估', () => {
+    const o = store.addOtherBudget({ name: '换电脑', amount: 8000, timeHint: 'years' })
+    expect(o.timeHint).toBe('years')
+    store.updateOtherBudget(o.id, { timeHint: 'quarter' })
+    expect(store.state.otherBudgets[0].timeHint).toBe('quarter')
+    store.updateOtherBudget(o.id, { timeHint: 'nonsense' })
+    expect(store.state.otherBudgets[0].timeHint).toBe('')
   })
 
   it('导出导入往返不丢其他预算', async () => {
@@ -446,15 +470,15 @@ describe('兑换商店：界面', () => {
     w.unmount()
   })
 
-  it('卡片展示金币进度、预估价位与预估购买时间', async () => {
+  it('卡片展示金币进度、预估价位与大致时间', async () => {
     addSessions([40])
-    store.addReward({ name: '耳机', cost: 100, priceTier: '¥800 档', buyTime: '双十一' })
+    store.addReward({ name: '耳机', cost: 100, priceTier: '¥800 档', timeHint: 'halfYear' })
     const w = mount(RewardCard, { props: { reward: store.state.rewards[0] } })
     const text = w.text()
     expect(text).toContain('金币进度')
     expect(text).toContain('40 / 100 金币')
     expect(text).toContain('预估价位：¥800 档')
-    expect(text).toContain('预估购买时间：双十一')
+    expect(text).toContain('大致时间：半年后')
     w.unmount()
   })
 
@@ -488,19 +512,22 @@ describe('兑换商店：界面', () => {
     expect(budgetInput).toBeTruthy()
     budgetInput.value = '268'
     budgetInput.dispatchEvent(new Event('input'))
-    // 预估价位 / 预估购买时间
-    const texts = [...panel.querySelectorAll('input')].filter((i) => i.placeholder.includes('¥') || i.placeholder.includes('发工资'))
-    expect(texts).toHaveLength(2)
+    // 大致时间预估（选「半年后」）
+    const timeSeg = [...panel.querySelectorAll('.seg-item')].find((s) => s.textContent === '半年后')
+    expect(timeSeg).toBeTruthy()
+    timeSeg.click()
+    await nextTick()
+    // 预估价位（文字）
+    const texts = [...panel.querySelectorAll('input')].filter((i) => i.placeholder.includes('¥'))
+    expect(texts).toHaveLength(1)
     texts[0].value = '¥300 档'
     texts[0].dispatchEvent(new Event('input'))
-    texts[1].value = '春节前'
-    texts[1].dispatchEvent(new Event('input'))
     await nextTick()
     const saveBtn = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('保存'))
     saveBtn.click()
     await nextTick()
     expect(store.state.rewards).toHaveLength(1)
-    expect(store.state.rewards[0]).toMatchObject({ name: '自助餐', budget: 268, priceTier: '¥300 档', buyTime: '春节前' })
+    expect(store.state.rewards[0]).toMatchObject({ name: '自助餐', budget: 268, priceTier: '¥300 档', timeHint: 'halfYear' })
     expect(store.state.rewards[0].icon).toBe(ICON_CHOICES[0])
     w.unmount()
 
@@ -510,6 +537,7 @@ describe('兑换商店：界面', () => {
     const panel2 = document.body.querySelector('.modal-panel')
     expect(panel2.querySelector('input').value).toBe('自助餐')
     expect([...panel2.querySelectorAll('input')].some((i) => i.value === '¥300 档')).toBe(true)
+    expect([...panel2.querySelectorAll('.seg-item')].find((s) => s.textContent === '半年后').classList.contains('active')).toBe(true)
     w2.unmount()
   })
 })
