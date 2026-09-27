@@ -2,6 +2,10 @@ import { reactive } from 'vue'
 import { db } from './db.js'
 import { applyTheme } from './theme.js'
 import { nextRecurrenceTs } from './utils/date.js'
+import { RARITIES } from './rewardMeta.js'
+import { rewardStatus } from './selectors.js'
+
+const RARITIES_KEYS = RARITIES.map((r) => r.key)
 
 export function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
@@ -30,6 +34,7 @@ export function defaultState() {
         reserveMin: 10,
       },
       blueprintDims: [],
+      shop: { coinPerFocusMin: 1, coinPerTodo: 5 },
     },
     tags: [],
     todos: [],
@@ -45,6 +50,8 @@ export function defaultState() {
     goalNotes: {},
     mediaItems: [],
     foodItems: [],
+    rewards: [],
+    rewardRedemptions: [],
   }
 }
 
@@ -53,11 +60,16 @@ const PROJECT_PATCH_KEYS = ['name', 'type', 'desc', 'totalWorkload', 'workloadUn
 const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMin', 'startDate', 'endDate', 'rule', 'countUnlimited']
 const REVIEW_PATCH_KEYS = ['type', 'periodDate', 'fields', 'goals']
 const TAG_PATCH_KEYS = ['name', 'color']
-const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBreakMin', 'dailyFocusGoalMin', 'navOrder', 'homeOrder', 'showProjectsOnHome', 'showBlueprintsOnCalendar', 'blueprintDims', 'focusChain', 'soundOn']
+const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBreakMin', 'dailyFocusGoalMin', 'navOrder', 'homeOrder', 'showProjectsOnHome', 'showBlueprintsOnCalendar', 'blueprintDims', 'focusChain', 'soundOn', 'shop']
 const BLUEPRINT_PATCH_KEYS = ['title', 'goalDateTs', 'goalStartTs', 'goalEndTs', 'goalText', 'dimension', 'desc', 'status', 'notes', 'level']
 const RELATION_PATCH_KEYS = ['name', 'gender', 'age', 'birthYear', 'birthMonth', 'birthDay', 'place', 'affinity', 'note']
 const GOAL_PATCH_KEYS = ['name', 'desc', 'done', 'year', 'scope', 'index', 'order']
 const FOOD_PATCH_KEYS = ['name', 'category', 'place', 'opened', 'storedAt', 'expireAt', 'imageUrl', 'note', 'status', 'consumedAt', 'discardedAt', 'percent']
+const REWARD_PATCH_KEYS = [
+  'name', 'icon', 'desc', 'cost', 'rarity', 'previewImage', 'previewNote',
+  'conditionType', 'conditionValue', 'conditionText', 'unlockFrom', 'unlockUntil', 'order',
+]
+const REWARD_CONDITION_TYPES = ['focus', 'todos', 'custom']
 const MEDIA_PATCH_KEYS = [
   'category', 'status', 'title', 'creator', 'coverUrl', 'startDate', 'endDate', 'rating', 'tags',
   'oneLine', 'review', 'memo', 'favorite',
@@ -82,7 +94,7 @@ export function normalizeData(raw) {
   const out = { ...def }
   if (raw && typeof raw === 'object') {
     if (typeof raw.version === 'number') out.version = raw.version
-    for (const arr of ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals', 'mediaItems', 'foodItems']) {
+    for (const arr of ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals', 'mediaItems', 'foodItems', 'rewards', 'rewardRedemptions']) {
       if (Array.isArray(raw[arr])) out[arr] = raw[arr]
     }
     // 专注链预设：旧版单条文案自动迁移为预设列表
@@ -1048,6 +1060,91 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     scheduleSave()
   }
 
+  // ---------- 兑换商店 ----------
+  function addReward({
+    name,
+    icon = '🎁',
+    desc = '',
+    cost = 0,
+    rarity = 'common',
+    previewImage = '',
+    previewNote = '',
+    conditionType = 'focus',
+    conditionValue = 0,
+    conditionText = '',
+    unlockFrom = null,
+    unlockUntil = null,
+  } = {}) {
+    const r = {
+      id: uid(),
+      name,
+      icon: icon || '🎁',
+      desc: desc || '',
+      cost: Math.max(0, Math.round(Number(cost) || 0)),
+      rarity: RARITIES_KEYS.includes(rarity) ? rarity : 'common',
+      previewImage: previewImage || '',
+      previewNote: previewNote || '',
+      conditionType: REWARD_CONDITION_TYPES.includes(conditionType) ? conditionType : 'focus',
+      conditionValue: Math.max(0, Math.round(Number(conditionValue) || 0)),
+      conditionText: conditionText || '',
+      unlockFrom: unlockFrom == null ? null : Number(unlockFrom),
+      unlockUntil: unlockUntil == null ? null : Number(unlockUntil),
+      customMet: false,
+      redeemed: false,
+      redeemedAt: null,
+      order: state.rewards.length,
+      createdAt: now(),
+    }
+    state.rewards.push(r)
+    scheduleSave()
+    return r
+  }
+
+  function updateReward(id, p) {
+    const r = state.rewards.find((x) => x.id === id)
+    if (!r) return null
+    patch(r, p, REWARD_PATCH_KEYS)
+    if ('cost' in p) r.cost = Math.max(0, Math.round(Number(p.cost) || 0))
+    if ('conditionValue' in p) r.conditionValue = Math.max(0, Math.round(Number(p.conditionValue) || 0))
+    if ('conditionType' in p) r.conditionType = REWARD_CONDITION_TYPES.includes(p.conditionType) ? p.conditionType : 'focus'
+    if ('rarity' in p) r.rarity = RARITIES_KEYS.includes(p.rarity) ? p.rarity : 'common'
+    if ('unlockFrom' in p) r.unlockFrom = p.unlockFrom == null ? null : Number(p.unlockFrom)
+    if ('unlockUntil' in p) r.unlockUntil = p.unlockUntil == null ? null : Number(p.unlockUntil)
+    scheduleSave()
+    return r
+  }
+
+  function deleteReward(id) {
+    state.rewards = state.rewards.filter((x) => x.id !== id)
+    scheduleSave()
+  }
+
+  // 自定义文字条件：由用户手动判定是否达成
+  function setRewardCustomMet(id, met) {
+    const r = state.rewards.find((x) => x.id === id)
+    if (!r) return null
+    r.customMet = !!met
+    scheduleSave()
+    return r
+  }
+
+  // 兑换：需在期限内 + 条件达成 + 未兑换 + 金币足够；成功后扣减并记流水
+  function redeemReward(id) {
+    const r = state.rewards.find((x) => x.id === id)
+    if (!r) return { ok: false, reason: 'not-found', text: '奖励不存在' }
+    const st = rewardStatus(state, r, now())
+    if (st.redeemed) return { ok: false, reason: 'redeemed', text: '该奖励已兑换过' }
+    if (!st.period.ok) return { ok: false, reason: 'period', text: st.period.text }
+    if (!st.progress.met) return { ok: false, reason: 'condition', text: '解锁条件未达成' }
+    if (!st.affordable) return { ok: false, reason: 'coins', text: `金币不足，还差 ${Math.max(0, r.cost - st.balance)}` }
+    const at = now()
+    state.rewardRedemptions.push({ id: uid(), rewardId: r.id, name: r.name, cost: r.cost, at })
+    r.redeemed = true
+    r.redeemedAt = at
+    scheduleSave()
+    return { ok: true, reward: r, cost: r.cost }
+  }
+
   // ---------- 复盘 ----------
   function addReview({ type = 'day', periodDate = null, fields = {}, goals = [] } = {}) {
     const r = {
@@ -1122,7 +1219,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     return JSON.parse(JSON.stringify({ ...state, version: 1 }))
   }
 
-  const DATA_ARRS = ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals', 'mediaItems', 'foodItems']
+  const DATA_ARRS = ['tags', 'todos', 'projects', 'projectSubTasks', 'checkins', 'checkinRecords', 'sessions', 'reviews', 'blueprints', 'relations', 'goals', 'mediaItems', 'foodItems', 'rewards', 'rewardRedemptions']
 
   function assertValidData(d) {
     if (!d || typeof d !== 'object') throw new Error('文件内容不是有效的数据对象')
@@ -1233,6 +1330,11 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     deleteGoal,
     toggleGoalDone,
     setGoalNote,
+    addReward,
+    updateReward,
+    deleteReward,
+    setRewardCustomMet,
+    redeemReward,
     setSetting,
     init,
     reload,
