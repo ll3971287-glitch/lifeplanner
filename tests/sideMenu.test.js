@@ -30,6 +30,7 @@ async function mountMenu(path = '/') {
       { path: '/goals', name: 'goals', component: { template: '<div/>' } },
       { path: '/media', name: 'media', component: { template: '<div/>' } },
       { path: '/food', name: 'food', component: { template: '<div/>' } },
+      { path: '/shop', name: 'shop', component: { template: '<div/>' } },
       { path: '/settings', name: 'settings', component: { template: '<div/>' } },
     ],
   })
@@ -87,6 +88,17 @@ describe('左侧滑出菜单', () => {
     itemByText('食物储存').click()
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/food')
+    w.unmount()
+  })
+
+  it('点击「兑换商店」进入商店页', async () => {
+    const { w, router } = await mountMenu('/todos')
+    await nextTick()
+    expect(document.body.textContent).toContain('激励')
+    itemByText('兑换商店').click()
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/shop')
+    expect(sideMenuState.open).toBe(false)
     w.unmount()
   })
 
