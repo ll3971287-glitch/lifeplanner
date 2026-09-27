@@ -1,6 +1,6 @@
 import { DAY_MS, startOfDayTs, endOfDayTs, isSameDayTs, fmtDate, startOfWeekTs } from './utils/date.js'
 import { daysLeft as foodDaysLeft, NEAR_DAYS as FOOD_NEAR_DAYS } from './foodMeta.js'
-import { conditionLabel, conditionUnit, shopRate } from './rewardMeta.js'
+import { conditionLabel, shopRate } from './rewardMeta.js'
 
 // ---------- 待办 ----------
 
@@ -692,17 +692,19 @@ export function shopBalance(state, nowTs = Date.now()) {
   return Math.max(0, shopIncome(state, nowTs).coins - shopSpent(state))
 }
 
-// 解锁条件的完成进度：{ current, target, met, unit }
-export function rewardConditionProgress(state, reward) {
-  if (!reward) return { current: 0, target: 0, met: false, unit: '' }
-  const target = Number(reward.conditionValue) || 0
-  const unit = conditionUnit(reward)
-  if (reward.conditionType === 'custom') {
-    return { current: reward.customMet ? 1 : 0, target: 1, met: !!reward.customMet, unit: '' }
-  }
-  const income = shopIncome(state)
-  const current = reward.conditionType === 'todos' ? income.todoCount : income.focusMin
-  return { current, target, met: current >= target, unit }
+// 金币进度：距离兑换还差多少（解锁以金币为准）
+export function rewardCoinProgress(state, reward) {
+  const balance = shopBalance(state)
+  const target = Number(reward && reward.cost) || 0
+  return { current: balance, target, met: balance >= target, unit: '金币' }
+}
+
+// 额外解锁条件（可选的自定义文字条件，需手动标记达成）
+export function rewardConditionMet(reward) {
+  if (!reward) return true
+  const text = (reward.conditionText || '').trim()
+  if (!text) return true
+  return !!reward.customMet
 }
 
 // 时间窗口（某日之后 / 某日之前），两端可留空表示不限
@@ -718,22 +720,24 @@ export function rewardPeriodOk(reward, nowTs = Date.now()) {
   return { ok: nowTs <= until, text: `${fmtDate(until)} 前可兑换` }
 }
 
-// 卡片汇总状态：解锁 / 期限内 / 条件达成 / 金币够 / 是否已兑换 / 不可兑换原因
+// 卡片汇总状态：金币是否够（解锁以金币为准）/ 期限内 / 自定义条件是否达成 / 已兑换 / 原因
 export function rewardStatus(state, reward, nowTs = Date.now()) {
   const period = rewardPeriodOk(reward, nowTs)
-  const progress = rewardConditionProgress(state, reward)
+  const progress = rewardCoinProgress(state, reward)
+  const condMet = rewardConditionMet(reward)
   const balance = shopBalance(state, nowTs)
   const redeemed = !!reward.redeemed
   const affordable = balance >= (reward.cost || 0)
-  const unlocked = period.ok && progress.met && !redeemed
+  const unlocked = period.ok && condMet && affordable && !redeemed
   let reason = ''
   if (redeemed) reason = '已兑换'
   else if (!period.ok) reason = period.text
-  else if (!progress.met) reason = '解锁条件未达成'
   else if (!affordable) reason = `金币不足，还差 ${Math.max(0, (reward.cost || 0) - balance)}`
+  else if (!condMet) reason = '额外条件未达成'
   return {
     unlocked,
     period,
+    condMet,
     progress,
     affordable,
     balance,
