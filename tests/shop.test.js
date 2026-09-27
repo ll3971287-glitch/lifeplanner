@@ -6,15 +6,20 @@ import {
   shopIncome,
   shopSpent,
   shopBalance,
+  shopRewardBudgetTotal,
+  shopOtherBudgetTotal,
+  shopBudgetTotal,
   rewardCoinProgress,
   rewardConditionMet,
   rewardPeriodOk,
   rewardStatus,
 } from '../src/selectors.js'
-import { rarityMeta, conditionLabel, ICON_CHOICES } from '../src/rewardMeta.js'
+import { rarityMeta, conditionLabel, moneyText, ICON_CHOICES } from '../src/rewardMeta.js'
 import ShopView from '../src/views/ShopView.vue'
 import RewardCard from '../src/components/reward/RewardCard.vue'
 import RewardFormModal from '../src/components/reward/RewardFormModal.vue'
+import OtherBudgetModal from '../src/components/reward/OtherBudgetModal.vue'
+import { settleConfirm, confirmState } from '../src/ui.js'
 import { DAY_MS } from '../src/utils/date.js'
 
 beforeEach(() => {
@@ -22,6 +27,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  confirmState.visible = false
+  confirmState.resolve = null
   document.body.innerHTML = ''
 })
 
@@ -134,13 +141,14 @@ describe('兑换商店：解锁以金币为准 + 时间窗口', () => {
 })
 
 describe('兑换商店：增删改与兑换', () => {
-  it('新增保存全部字段（含图标 / 稀有度 / 预估价位 / 预估购买时间 / 预览 / 日期）', () => {
+  it('新增保存全部字段（含图标 / 稀有度 / 预估预算 / 预估价位 / 预估购买时间 / 预览 / 日期）', () => {
     const from = Date.now()
     const r = store.addReward({
       name: '看一场电影',
       icon: '🎬',
       desc: '周末去影院',
       cost: 120,
+      budget: 80,
       rarity: 'epic',
       priceTier: '¥80 左右',
       buyTime: '下个月发工资后',
@@ -155,6 +163,7 @@ describe('兑换商店：增删改与兑换', () => {
       icon: '🎬',
       desc: '周末去影院',
       cost: 120,
+      budget: 80,
       rarity: 'epic',
       priceTier: '¥80 左右',
       buyTime: '下个月发工资后',
@@ -171,10 +180,11 @@ describe('兑换商店：增删改与兑换', () => {
 
   it('编辑与删除目标', () => {
     const r = store.addReward({ name: '旧名', cost: 10 })
-    store.updateReward(r.id, { name: '新名', cost: 99, rarity: 'legend', priceTier: '¥200 档', buyTime: '年底' })
+    store.updateReward(r.id, { name: '新名', cost: 99, budget: 1288, rarity: 'legend', priceTier: '¥200 档', buyTime: '年底' })
     const updated = store.state.rewards[0]
     expect(updated.name).toBe('新名')
     expect(updated.cost).toBe(99)
+    expect(updated.budget).toBe(1288)
     expect(updated.priceTier).toBe('¥200 档')
     expect(updated.buyTime).toBe('年底')
     expect(rarityMeta(updated.rarity).label).toBe('传说')
@@ -224,18 +234,155 @@ describe('兑换商店：增删改与兑换', () => {
   })
 })
 
+describe('兑换商店：预估预算', () => {
+  it('预估预算为手动输入的数字，负数/非数字归零，不参与解锁判定', () => {
+    const r = store.addReward({ name: '耳机', cost: 100, budget: 899 })
+    expect(r.budget).toBe(899)
+    store.updateReward(r.id, { budget: -5 })
+    expect(store.state.rewards[0].budget).toBe(0)
+    store.updateReward(r.id, { budget: 'abc' })
+    expect(store.state.rewards[0].budget).toBe(0)
+
+    // 预算不影响解锁：预算再高，金币不够仍锁定；金币够了就能兑换
+    store.updateReward(r.id, { budget: 99999 })
+    expect(rewardStatus(store.state, store.state.rewards[0]).unlocked).toBe(false)
+    expect(rewardStatus(store.state, store.state.rewards[0]).reason).toContain('金币不足')
+    addSessions([100])
+    expect(rewardStatus(store.state, store.state.rewards[0]).unlocked).toBe(true)
+  })
+
+  it('预估预算合计 = 奖励金额 + 其他预算金额', () => {
+    store.addReward({ name: 'A', cost: 0, budget: 100 })
+    store.addReward({ name: 'B', cost: 0, budget: 250.5 })
+    store.addReward({ name: 'C', cost: 0 })
+    store.addOtherBudget({ name: '房租', amount: 1500, note: '每月固定' })
+    store.addOtherBudget({ name: '通勤', amount: 200 })
+    expect(shopRewardBudgetTotal(store.state)).toBe(350.5)
+    expect(shopOtherBudgetTotal(store.state)).toBe(1700)
+    expect(shopBudgetTotal(store.state)).toBe(2050.5)
+    expect(moneyText(350.5)).toBe('¥350.50')
+    expect(moneyText(1288)).toBe('¥1,288')
+  })
+
+  it('其他预算可增删改，金额负数/非数字归零', () => {
+    const o = store.addOtherBudget({ name: '日用采购', amount: 320, note: '每周一次' })
+    expect(o).toMatchObject({ name: '日用采购', amount: 320, note: '每周一次' })
+    store.updateOtherBudget(o.id, { name: '日用采购（调整）', amount: 400 })
+    expect(store.state.otherBudgets[0]).toMatchObject({ name: '日用采购（调整）', amount: 400 })
+    store.updateOtherBudget(o.id, { amount: -10 })
+    expect(store.state.otherBudgets[0].amount).toBe(0)
+    store.deleteOtherBudget(o.id)
+    expect(store.state.otherBudgets).toHaveLength(0)
+  })
+
+  it('商店顶部展示预估预算合计（奖励 + 其他），卡片展示每条奖励的预算', async () => {
+    store.addReward({ name: '耳机', cost: 100, budget: 899 })
+    store.addReward({ name: '键盘', cost: 50, budget: 1288 })
+    store.addOtherBudget({ name: '房租', amount: 1500 })
+    const w = mount(ShopView)
+    await nextTick()
+    const line = w.find('.wallet-budget')
+    expect(line.exists()).toBe(true)
+    expect(line.text()).toContain('预估预算合计')
+    expect(line.text()).toContain('¥3,687')
+    expect(line.text()).toContain('奖励 ¥2,187')
+    expect(line.text()).toContain('其他 ¥1,500')
+    const card = w.findAll('.reward-card')[0]
+    expect(card.find('.info-chip.budget').text()).toBe('预估预算：¥899')
+    w.unmount()
+  })
+
+  it('其他预算单独一栏：展示条目与小计，可新增、编辑、删除', async () => {
+    store.addOtherBudget({ name: '房租', amount: 1500, note: '每月固定' })
+    const w = mount(ShopView)
+    await nextTick()
+    const sec = w.find('.other-budget')
+    expect(sec.exists()).toBe(true)
+    expect(sec.text()).toContain('其他预算')
+    expect(sec.text()).toContain('小计 ¥1,500')
+    expect(sec.find('.ob-row').text()).toContain('房租')
+    expect(sec.find('.ob-row').text()).toContain('每月固定')
+
+    // 新增
+    await sec.findAll('button').find((b) => b.text().includes('新增')).trigger('click')
+    await nextTick()
+    const panel = document.body.querySelector('.modal-panel')
+    expect(panel).toBeTruthy()
+    const nameInput = panel.querySelector('input')
+    nameInput.value = '通勤'
+    nameInput.dispatchEvent(new Event('input'))
+    const amountInput = panel.querySelector('input[type="number"]')
+    amountInput.value = '200'
+    amountInput.dispatchEvent(new Event('input'))
+    await nextTick()
+    ;[...panel.querySelectorAll('button')].find((b) => b.textContent.includes('保存')).click()
+    await nextTick()
+    expect(store.state.otherBudgets).toHaveLength(2)
+    expect(w.find('.other-budget').text()).toContain('小计 ¥1,700')
+
+    // 删除（确认后生效）
+    const row = w.findAll('.ob-row').find((r) => r.text().includes('通勤'))
+    await row.find('.mini-btn.danger').trigger('click')
+    await nextTick()
+    settleConfirm(true)
+    await new Promise((r) => setTimeout(r, 10))
+    expect(store.state.otherBudgets).toHaveLength(1)
+    expect(w.find('.other-budget').text()).not.toContain('通勤')
+    w.unmount()
+  })
+
+  it('其他预算弹层保存字段并在编辑时回显', async () => {
+    const w = mount(OtherBudgetModal, { props: { open: true } })
+    await nextTick()
+    const panel = document.body.querySelector('.modal-panel')
+    const nameInput = panel.querySelector('input')
+    nameInput.value = '水电燃气'
+    nameInput.dispatchEvent(new Event('input'))
+    const amountInput = panel.querySelector('input[type="number"]')
+    amountInput.value = '480'
+    amountInput.dispatchEvent(new Event('input'))
+    await nextTick()
+    ;[...panel.querySelectorAll('button')].find((b) => b.textContent.includes('保存')).click()
+    await nextTick()
+    expect(store.state.otherBudgets[0]).toMatchObject({ name: '水电燃气', amount: 480 })
+    w.unmount()
+
+    document.body.innerHTML = ''
+    const w2 = mount(OtherBudgetModal, { props: { open: true, item: store.state.otherBudgets[0] } })
+    await nextTick()
+    const panel2 = document.body.querySelector('.modal-panel')
+    expect(panel2.querySelector('input').value).toBe('水电燃气')
+    expect(panel2.querySelector('input[type="number"]').value).toBe('480')
+    w2.unmount()
+  })
+})
+
 describe('兑换商店：本地存储与导入导出', () => {
   it('normalizeData 保留 rewards / rewardRedemptions（刷新不丢数据）', () => {
     const raw = {
       todos: [],
       rewards: [{ id: 'r1', name: '奖励', cost: 5 }],
       rewardRedemptions: [{ id: 'l1', rewardId: 'r1', name: '奖励', cost: 5, at: 1 }],
+      otherBudgets: [{ id: 'o1', name: '房租', amount: 1500 }],
     }
     const out = normalizeData(raw)
     expect(out.rewards).toHaveLength(1)
     expect(out.rewardRedemptions).toHaveLength(1)
+    expect(out.otherBudgets).toHaveLength(1)
     // 旧数据没有 shop 设置时使用默认费率
     expect(out.settings.shop).toEqual({ coinPerFocusMin: 1, coinPerTodo: 5 })
+  })
+
+  it('导出导入往返不丢其他预算', async () => {
+    store.addOtherBudget({ name: '房租', amount: 1500, note: '每月固定' })
+    const exported = store.exportData()
+    expect(exported.otherBudgets).toHaveLength(1)
+
+    store._replace(defaultState())
+    const missing = await store.importData(exported)
+    expect(missing).toEqual([])
+    expect(store.state.otherBudgets).toHaveLength(1)
+    expect(store.state.otherBudgets[0]).toMatchObject({ name: '房租', amount: 1500 })
   })
 
   it('导出导入往返不丢奖励与兑换流水', async () => {
@@ -336,6 +483,11 @@ describe('兑换商店：界面', () => {
     const nameInput = panel.querySelector('input')
     nameInput.value = '自助餐'
     nameInput.dispatchEvent(new Event('input'))
+    // 预估预算（数字）
+    const budgetInput = [...panel.querySelectorAll('input[type="number"]')].find((i) => i.placeholder.includes('120'))
+    expect(budgetInput).toBeTruthy()
+    budgetInput.value = '268'
+    budgetInput.dispatchEvent(new Event('input'))
     // 预估价位 / 预估购买时间
     const texts = [...panel.querySelectorAll('input')].filter((i) => i.placeholder.includes('¥') || i.placeholder.includes('发工资'))
     expect(texts).toHaveLength(2)
@@ -348,7 +500,7 @@ describe('兑换商店：界面', () => {
     saveBtn.click()
     await nextTick()
     expect(store.state.rewards).toHaveLength(1)
-    expect(store.state.rewards[0]).toMatchObject({ name: '自助餐', priceTier: '¥300 档', buyTime: '春节前' })
+    expect(store.state.rewards[0]).toMatchObject({ name: '自助餐', budget: 268, priceTier: '¥300 档', buyTime: '春节前' })
     expect(store.state.rewards[0].icon).toBe(ICON_CHOICES[0])
     w.unmount()
 
