@@ -62,24 +62,24 @@
       </div>
 
       <div class="field">
-        <span class="field-label">解锁条件（三选一）</span>
-        <SegControl v-model="form.conditionType" :options="conditionOptions" />
+        <span class="field-label">解锁条件</span>
+        <p class="muted mini">金币攒够即可兑换（在下方「花费」里设置需要的金币数）。</p>
+      </div>
+
+      <div class="two-col">
+        <div class="field">
+          <span class="field-label">预估价位</span>
+          <input v-model="form.priceTier" class="input" placeholder="如：¥100 左右" />
+        </div>
+        <div class="field">
+          <span class="field-label">预估购买时间</span>
+          <input v-model="form.buyTime" class="input" placeholder="如：下个月发工资后" />
+        </div>
       </div>
 
       <div class="field">
-        <template v-if="form.conditionType === 'focus'">
-          <span class="field-label">累计专注达到（分钟）</span>
-          <input v-model.number="form.conditionValue" type="number" min="0" step="10" class="input" />
-        </template>
-        <template v-else-if="form.conditionType === 'todos'">
-          <span class="field-label">累计完成任务达到（个）</span>
-          <input v-model.number="form.conditionValue" type="number" min="0" step="1" class="input" />
-        </template>
-        <template v-else>
-          <span class="field-label">自定义条件</span>
-          <input v-model="form.conditionText" class="input" placeholder="如：连续一周早起打卡" />
-        </template>
-        <p class="muted mini">{{ conditionHint }}</p>
+        <span class="field-label">额外解锁条件（可选，需手动标记达成）</span>
+        <input v-model="form.conditionText" class="input" placeholder="如：先完成本周复盘" />
       </div>
 
       <div class="field">
@@ -112,7 +112,7 @@ import BaseModal from '../ui/BaseModal.vue'
 import SegControl from '../ui/SegControl.vue'
 import Icon from '../ui/Icon.vue'
 import { store } from '../../store.js'
-import { ICON_CHOICES, RARITY_OPTIONS, CONDITION_OPTIONS, CONDITION_TYPES } from '../../rewardMeta.js'
+import { ICON_CHOICES, RARITY_OPTIONS } from '../../rewardMeta.js'
 import { fmtDate, parseDateStr } from '../../utils/date.js'
 import { showToast } from '../../ui.js'
 
@@ -124,7 +124,6 @@ const emit = defineEmits(['close', 'saved'])
 
 const iconChoices = ICON_CHOICES
 const rarityOptions = RARITY_OPTIONS
-const conditionOptions = CONDITION_OPTIONS
 
 const empty = () => ({
   name: '',
@@ -132,10 +131,10 @@ const empty = () => ({
   desc: '',
   cost: 50,
   rarity: 'common',
+  priceTier: '',
+  buyTime: '',
   previewImage: '',
   previewNote: '',
-  conditionType: 'focus',
-  conditionValue: 300,
   conditionText: '',
   unlockFrom: null,
   unlockUntil: null,
@@ -144,7 +143,6 @@ const empty = () => ({
 const form = reactive(empty())
 const fileInput = ref(null)
 const isLocalImage = computed(() => form.previewImage.startsWith('data:'))
-const conditionHint = computed(() => (CONDITION_TYPES.find((c) => c.key === form.conditionType) || {}).hint || '')
 
 function apply(r) {
   Object.assign(form, empty())
@@ -154,10 +152,10 @@ function apply(r) {
   form.desc = r.desc || ''
   form.cost = r.cost || 0
   form.rarity = r.rarity || 'common'
+  form.priceTier = r.priceTier || ''
+  form.buyTime = r.buyTime || ''
   form.previewImage = r.previewImage || ''
   form.previewNote = r.previewNote || ''
-  form.conditionType = r.conditionType || 'focus'
-  form.conditionValue = r.conditionValue || 0
   form.conditionText = r.conditionText || ''
   form.unlockFrom = r.unlockFrom == null ? null : r.unlockFrom
   form.unlockUntil = r.unlockUntil == null ? null : r.unlockUntil
@@ -231,10 +229,10 @@ function save() {
     desc: form.desc,
     cost: Math.max(0, Math.round(Number(form.cost) || 0)),
     rarity: form.rarity,
+    priceTier: form.priceTier,
+    buyTime: form.buyTime,
     previewImage: form.previewImage,
     previewNote: form.previewNote,
-    conditionType: form.conditionType,
-    conditionValue: Math.max(0, Math.round(Number(form.conditionValue) || 0)),
     conditionText: form.conditionText,
     unlockFrom: form.unlockFrom,
     unlockUntil: form.unlockUntil,
