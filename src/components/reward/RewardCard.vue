@@ -17,7 +17,8 @@
     </div>
     <p v-if="reward.previewNote" class="rc-note muted">{{ reward.previewNote }}</p>
 
-    <div v-if="reward.priceTier || reward.buyTime" class="rc-info">
+    <div class="rc-info">
+      <span class="info-chip budget">预估预算：{{ moneyText(reward.budget) }}</span>
       <span v-if="reward.priceTier" class="info-chip">预估价位：{{ reward.priceTier }}</span>
       <span v-if="reward.buyTime" class="info-chip">预估购买时间：{{ reward.buyTime }}</span>
     </div>
@@ -66,7 +67,7 @@ import ProgressBar from '../ui/ProgressBar.vue'
 import Icon from '../ui/Icon.vue'
 import { store } from '../../store.js'
 import { rewardStatus } from '../../selectors.js'
-import { rarityMeta } from '../../rewardMeta.js'
+import { rarityMeta, moneyText } from '../../rewardMeta.js'
 
 const props = defineProps({
   reward: { type: Object, required: true },
@@ -236,6 +237,11 @@ const redeemText = computed(() => {
   background: color-mix(in srgb, var(--line) 40%, transparent);
   border-radius: 999px;
   padding: 2px 9px;
+}
+
+.info-chip.budget {
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .rc-cond {
