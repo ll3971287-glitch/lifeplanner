@@ -71,20 +71,15 @@
         <p class="muted mini">金币攒够即可兑换（在下方「花费」里设置需要的金币数）；预估预算仅记录金额，不参与解锁判定。</p>
       </div>
 
-      <div class="two-col">
-        <div class="field">
-          <span class="field-label">预估价位</span>
-          <input v-model="form.priceTier" class="input" placeholder="如：¥100 左右" />
-        </div>
-        <div class="field">
-          <span class="field-label">预估购买时间</span>
-          <input v-model="form.buyTime" class="input" placeholder="如：下个月发工资后" />
-        </div>
+      <div class="field">
+        <span class="field-label">大致时间预估</span>
+        <SegControl v-model="form.timeHint" :options="timeHintOptions" />
+        <p class="muted mini">只需模糊估算，不用填具体日期。</p>
       </div>
 
       <div class="field">
-        <span class="field-label">额外解锁条件（可选，需手动标记达成）</span>
-        <input v-model="form.conditionText" class="input" placeholder="如：先完成本周复盘" />
+        <span class="field-label">预估价位</span>
+        <input v-model="form.priceTier" class="input" placeholder="如：¥100 左右" />
       </div>
 
       <div class="field">
@@ -103,6 +98,11 @@
         </div>
       </div>
 
+      <div class="field">
+        <span class="field-label">额外解锁条件（可选，需手动标记达成）</span>
+        <input v-model="form.conditionText" class="input" placeholder="如：先完成本周复盘" />
+      </div>
+
       <div class="row gap8" style="justify-content: flex-end">
         <button type="button" class="btn btn-outline btn-sm" @click="$emit('close')">取消</button>
         <button type="button" class="btn btn-primary btn-sm" :disabled="!form.name.trim()" @click="save">保存</button>
@@ -117,7 +117,7 @@ import BaseModal from '../ui/BaseModal.vue'
 import SegControl from '../ui/SegControl.vue'
 import Icon from '../ui/Icon.vue'
 import { store } from '../../store.js'
-import { ICON_CHOICES, RARITY_OPTIONS } from '../../rewardMeta.js'
+import { ICON_CHOICES, RARITY_OPTIONS, TIME_HINT_OPTIONS } from '../../rewardMeta.js'
 import { fmtDate, parseDateStr } from '../../utils/date.js'
 import { showToast } from '../../ui.js'
 
@@ -129,6 +129,7 @@ const emit = defineEmits(['close', 'saved'])
 
 const iconChoices = ICON_CHOICES
 const rarityOptions = RARITY_OPTIONS
+const timeHintOptions = TIME_HINT_OPTIONS
 
 const empty = () => ({
   name: '',
@@ -138,7 +139,7 @@ const empty = () => ({
   budget: 0,
   rarity: 'common',
   priceTier: '',
-  buyTime: '',
+  timeHint: '',
   previewImage: '',
   previewNote: '',
   conditionText: '',
@@ -160,7 +161,7 @@ function apply(r) {
   form.budget = r.budget || 0
   form.rarity = r.rarity || 'common'
   form.priceTier = r.priceTier || ''
-  form.buyTime = r.buyTime || ''
+  form.timeHint = r.timeHint || ''
   form.previewImage = r.previewImage || ''
   form.previewNote = r.previewNote || ''
   form.conditionText = r.conditionText || ''
@@ -238,7 +239,7 @@ function save() {
     budget: Math.max(0, Number(form.budget) || 0),
     rarity: form.rarity,
     priceTier: form.priceTier,
-    buyTime: form.buyTime,
+    timeHint: form.timeHint,
     previewImage: form.previewImage,
     previewNote: form.previewNote,
     conditionText: form.conditionText,
