@@ -17,15 +17,23 @@
     </div>
     <p v-if="reward.previewNote" class="rc-note muted">{{ reward.previewNote }}</p>
 
+    <div v-if="reward.priceTier || reward.buyTime" class="rc-info">
+      <span v-if="reward.priceTier" class="info-chip">预估价位：{{ reward.priceTier }}</span>
+      <span v-if="reward.buyTime" class="info-chip">预估购买时间：{{ reward.buyTime }}</span>
+    </div>
+
     <div class="rc-cond">
       <div class="row-between cond-line">
-        <span class="cond-text">{{ status.conditionText }}</span>
-        <span class="muted cond-num">{{ progress.current }}{{ progress.unit }} / {{ progress.target }}{{ progress.unit }}</span>
+        <span class="cond-text">金币进度</span>
+        <span class="muted cond-num">{{ progress.current }} / {{ progress.target }} {{ progress.unit }}</span>
       </div>
       <ProgressBar :value="pct" />
+      <p v-if="status.conditionText" class="muted mini period">
+        额外条件：{{ status.conditionText }}<template v-if="status.condMet">（已达成）</template>
+      </p>
       <p v-if="status.period.text" class="muted mini period">{{ status.period.text }}</p>
       <button
-        v-if="reward.conditionType === 'custom' && !progress.met"
+        v-if="status.conditionText && !status.condMet"
         type="button"
         class="link-btn"
         @click="$emit('toggle-met', reward)"
@@ -79,22 +87,22 @@ const canRedeem = computed(() => status.value.unlocked && status.value.affordabl
 const stateText = computed(() => {
   if (status.value.redeemed) return '已兑换'
   if (!status.value.period.ok) return '未到时间'
-  if (!progress.value.met) return '未解锁'
   if (!status.value.affordable) return '金币不足'
+  if (!status.value.condMet) return '条件未达成'
   return '可兑换'
 })
 
 const stateClass = computed(() => ({
   ok: canRedeem.value,
-  warn: !status.value.redeemed && status.value.unlocked && !status.value.affordable,
+  warn: !status.value.redeemed && !status.value.affordable,
   done: status.value.redeemed,
 }))
 
 const redeemText = computed(() => {
   if (status.value.redeemed) return '已兑换'
   if (!status.value.period.ok) return '未到时间'
-  if (!progress.value.met) return '未解锁'
   if (!status.value.affordable) return '金币不足'
+  if (!status.value.condMet) return '条件未达成'
   return '兑换'
 })
 </script>
@@ -213,6 +221,21 @@ const redeemText = computed(() => {
 .rc-note {
   margin: 0;
   font-size: 12px;
+}
+
+.rc-info {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.info-chip {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--line) 40%, transparent);
+  border-radius: 999px;
+  padding: 2px 9px;
 }
 
 .rc-cond {
