@@ -2,10 +2,11 @@ import { reactive } from 'vue'
 import { db } from './db.js'
 import { applyTheme } from './theme.js'
 import { nextRecurrenceTs } from './utils/date.js'
-import { RARITIES } from './rewardMeta.js'
+import { RARITIES, TIME_HINTS } from './rewardMeta.js'
 import { rewardStatus } from './selectors.js'
 
 const RARITIES_KEYS = RARITIES.map((r) => r.key)
+const TIME_HINT_KEYS = TIME_HINTS.map((t) => t.key)
 
 export function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
@@ -67,10 +68,10 @@ const RELATION_PATCH_KEYS = ['name', 'gender', 'age', 'birthYear', 'birthMonth',
 const GOAL_PATCH_KEYS = ['name', 'desc', 'done', 'year', 'scope', 'index', 'order']
 const FOOD_PATCH_KEYS = ['name', 'category', 'place', 'opened', 'storedAt', 'expireAt', 'imageUrl', 'note', 'status', 'consumedAt', 'discardedAt', 'percent']
 const REWARD_PATCH_KEYS = [
-  'name', 'icon', 'desc', 'cost', 'budget', 'rarity', 'priceTier', 'buyTime', 'previewImage', 'previewNote',
+  'name', 'icon', 'desc', 'cost', 'budget', 'rarity', 'priceTier', 'timeHint', 'previewImage', 'previewNote',
   'conditionText', 'unlockFrom', 'unlockUntil', 'order',
 ]
-const OTHER_BUDGET_PATCH_KEYS = ['name', 'amount', 'note', 'order']
+const OTHER_BUDGET_PATCH_KEYS = ['name', 'amount', 'note', 'timeHint', 'order']
 const MEDIA_PATCH_KEYS = [
   'category', 'status', 'title', 'creator', 'coverUrl', 'startDate', 'endDate', 'rating', 'tags',
   'oneLine', 'review', 'memo', 'favorite',
@@ -1070,7 +1071,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     budget = 0,
     rarity = 'common',
     priceTier = '',
-    buyTime = '',
+    timeHint = '',
     previewImage = '',
     previewNote = '',
     conditionText = '',
@@ -1086,7 +1087,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
       budget: Math.max(0, Number(budget) || 0),
       rarity: RARITIES_KEYS.includes(rarity) ? rarity : 'common',
       priceTier: priceTier || '',
-      buyTime: buyTime || '',
+      timeHint: TIME_HINT_KEYS.includes(timeHint) ? timeHint : '',
       previewImage: previewImage || '',
       previewNote: previewNote || '',
       conditionText: conditionText || '',
@@ -1110,6 +1111,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     if ('cost' in p) r.cost = Math.max(0, Math.round(Number(p.cost) || 0))
     if ('budget' in p) r.budget = Math.max(0, Number(p.budget) || 0)
     if ('rarity' in p) r.rarity = RARITIES_KEYS.includes(p.rarity) ? p.rarity : 'common'
+    if ('timeHint' in p) r.timeHint = TIME_HINT_KEYS.includes(p.timeHint) ? p.timeHint : ''
     if ('unlockFrom' in p) r.unlockFrom = p.unlockFrom == null ? null : Number(p.unlockFrom)
     if ('unlockUntil' in p) r.unlockUntil = p.unlockUntil == null ? null : Number(p.unlockUntil)
     scheduleSave()
@@ -1148,12 +1150,13 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
   }
 
   // ---------- 其他预算（不绑定奖励的金额记录）----------
-  function addOtherBudget({ name, amount = 0, note = '' } = {}) {
+  function addOtherBudget({ name, amount = 0, note = '', timeHint = '' } = {}) {
     const o = {
       id: uid(),
       name,
       amount: Math.max(0, Number(amount) || 0),
       note: note || '',
+      timeHint: TIME_HINT_KEYS.includes(timeHint) ? timeHint : '',
       order: state.otherBudgets.length,
       createdAt: now(),
     }
@@ -1167,6 +1170,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     if (!o) return null
     patch(o, p, OTHER_BUDGET_PATCH_KEYS)
     if ('amount' in p) o.amount = Math.max(0, Number(p.amount) || 0)
+    if ('timeHint' in p) o.timeHint = TIME_HINT_KEYS.includes(p.timeHint) ? p.timeHint : ''
     scheduleSave()
     return o
   }
