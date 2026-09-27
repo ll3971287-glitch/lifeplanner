@@ -47,6 +47,21 @@
     </section>
 
     <section class="card s-card">
+      <h2 class="s-title"><Icon name="gamepad" :size="16" /> 兑换商店</h2>
+      <div class="focus-grid">
+        <div class="field">
+          <span class="field-label">每专注 1 分钟得金币</span>
+          <input v-model.number="coinPerFocusMin" type="number" min="0" class="input" @change="applyShopSettings" />
+        </div>
+        <div class="field">
+          <span class="field-label">每完成 1 个任务得金币</span>
+          <input v-model.number="coinPerTodo" type="number" min="0" class="input" @change="applyShopSettings" />
+        </div>
+      </div>
+      <p class="muted tip-line">金币 = 历史累计专注分钟、已完成任务按上述费率折算；兑换奖励时扣除，剩余金币在商店顶部显示。</p>
+    </section>
+
+    <section class="card s-card">
       <h2 class="s-title"><Icon name="home" :size="16" /> 首页内容</h2>
       <div class="row-between opt-row">
         <div class="opt-text">
@@ -143,7 +158,7 @@
     <section class="card s-card">
       <h2 class="s-title"><Icon name="checkCircle" :size="16" /> 关于</h2>
       <p class="muted desc">
-        Ultimate Life System v3.2.3 · 本地任务与项目管理<br />
+        Ultimate Life System v3.3.0 · 本地任务与项目管理<br />
         数据存放于本机 IndexedDB，无需账号，离线可用。
       </p>
     </section>
@@ -196,6 +211,7 @@ import SegControl from '../components/ui/SegControl.vue'
 import { showToast } from '../ui.js'
 import { askConfirm } from '../ui.js'
 import { fileDateStamp } from '../format.js'
+import { shopRate } from '../rewardMeta.js'
 import Icon from '../components/ui/Icon.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import Switch from '../components/ui/Switch.vue'
@@ -204,6 +220,8 @@ import Switch from '../components/ui/Switch.vue'
 const focusMin = ref(store.state.settings.pomodoroFocusMin)
 const breakMin = ref(store.state.settings.pomodoroBreakMin)
 const goalMin = ref(store.state.settings.dailyFocusGoalMin)
+const coinPerFocusMin = ref(shopRate(store.state.settings).coinPerFocusMin)
+const coinPerTodo = ref(shopRate(store.state.settings).coinPerTodo)
 
 const fileInput = ref(null)
 const clearOpen = ref(false)
@@ -220,6 +238,14 @@ function applyFocusSettings() {
   store.setSetting('pomodoroBreakMin', Math.max(1, Math.min(60, Math.round(breakMin.value) || 5)))
   store.setSetting('dailyFocusGoalMin', Math.max(0, Math.round(goalMin.value) || 0))
   showToast('计时设置已保存')
+}
+
+function applyShopSettings() {
+  store.setSetting('shop', {
+    coinPerFocusMin: Math.max(0, Math.round(Number(coinPerFocusMin.value)) || 0),
+    coinPerTodo: Math.max(0, Math.round(Number(coinPerTodo.value)) || 0),
+  })
+  showToast('金币规则已保存')
 }
 
 const exportOpen = ref(false)
