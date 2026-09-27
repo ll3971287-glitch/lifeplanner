@@ -138,4 +138,16 @@ describe('设置页', () => {
     expect(document.body.querySelector('.modal-panel')).toBeNull()
     w.unmount()
   })
+
+  it('兑换商店金币费率可修改并保存', async () => {
+    const w = mountView()
+    const coinInputs = w.findAll('input[type="number"]').slice(-2)
+    expect(coinInputs).toHaveLength(2)
+    await coinInputs[0].setValue(2)
+    await coinInputs[0].trigger('change')
+    await coinInputs[1].setValue(8)
+    await coinInputs[1].trigger('change')
+    expect(store.state.settings.shop).toEqual({ coinPerFocusMin: 2, coinPerTodo: 8 })
+    w.unmount()
+  })
 })
