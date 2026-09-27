@@ -74,6 +74,10 @@ const groups = [
     ],
   },
   {
+    label: '激励',
+    items: [{ label: '兑换商店', to: '/shop', icon: 'gamepad' }],
+  },
+  {
     label: '生活',
     items: [{ label: '食物储存', to: '/food', icon: 'box' }],
   },
