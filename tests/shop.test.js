@@ -45,21 +45,43 @@ function completeTodos(n) {
 }
 
 describe('兑换商店：金币产出与余额', () => {
-  it('默认费率：专注 1 分钟 1 金币、完成 1 个任务 5 金币', () => {
+  it('默认费率：专注 1 分钟 1 金币、完成 1 个任务 5 金币、打卡/复盘各 1 金币', () => {
     addSessions([30, 45])
     completeTodos(2)
+    const c = store.addCheckin({ name: '晨跑', dailyTargetCount: 1 })
+    store.addCheckinRecord(c.id, { count: 1, durationMin: 20 })
+    store.addCheckinRecord(c.id, { count: 1, durationMin: 20 })
+    store.addReview({ type: 'day', fields: { summary: '还行' } })
     const income = shopIncome(store.state)
     expect(income.focusMin).toBe(75)
     expect(income.todoCount).toBe(2)
-    expect(income.coins).toBe(75 + 2 * 5)
-    expect(shopBalance(store.state)).toBe(85)
+    expect(income.checkinCount).toBe(2)
+    expect(income.reviewCount).toBe(1)
+    expect(income.coins).toBe(75 + 2 * 5 + 2 * 1 + 1 * 1)
+    expect(shopBalance(store.state)).toBe(88)
   })
 
-  it('费率可调，且只统计历史累计', () => {
-    store.setSetting('shop', { coinPerFocusMin: 2, coinPerTodo: 10 })
+  it('费率可调（含打卡/复盘），且只统计历史累计', () => {
+    store.setSetting('shop', { coinPerFocusMin: 2, coinPerTodo: 10, coinPerCheckin: 3, coinPerReview: 8 })
     addSessions([10])
     completeTodos(1)
-    expect(shopIncome(store.state).coins).toBe(10 * 2 + 1 * 10)
+    const c = store.addCheckin({ name: '喝水', dailyTargetCount: 1 })
+    store.addCheckinRecord(c.id, { count: 1, durationMin: 1 })
+    store.addReview({ type: 'week', fields: { summary: '周复盘' } })
+    expect(shopIncome(store.state).coins).toBe(10 * 2 + 1 * 10 + 1 * 3 + 1 * 8)
+  })
+
+  it('打卡一次、复盘一次各记一笔金币（每新增记录都增加产出）', () => {
+    const c = store.addCheckin({ name: '阅读', dailyTargetCount: 1 })
+    expect(shopIncome(store.state).coins).toBe(0)
+    store.addCheckinRecord(c.id, { count: 1 })
+    expect(shopIncome(store.state).coins).toBe(1)
+    store.addReview({ type: 'day', fields: {} })
+    expect(shopIncome(store.state).coins).toBe(2)
+    // 删除记录后金币相应减少
+    const rec = store.state.checkinRecords[0]
+    store.deleteCheckinRecord(rec.id)
+    expect(shopIncome(store.state).coins).toBe(1)
   })
 
   it('余额 = 累计产出 − 已兑换消耗', () => {
@@ -436,13 +458,28 @@ describe('兑换商店：界面', () => {
     const w = mount(ShopView)
     await nextTick()
     expect(w.find('.coin-num').text()).toBe('110')
-    expect(w.text()).toContain('专注 100 分钟')
-    expect(w.text()).toContain('完成任务 2 个')
+    expect(w.find('.wallet-sub').text()).toContain('专注 100 分钟')
+    expect(w.find('.wallet-sub').text()).toContain('完成任务 2 个')
+    expect(w.find('.wallet-sub').text()).toContain('打卡 0 次')
+    expect(w.find('.wallet-sub').text()).toContain('复盘 0 次')
     const labels = w.findAll('.seg-item').map((s) => s.text())
     expect(labels).toContain('全部（2）')
     expect(labels).toContain('可兑换（1）')
     expect(labels).toContain('未解锁（1）')
     expect(labels).toContain('已兑换（0）')
+    w.unmount()
+  })
+
+  it('商店顶部产出明细包含打卡与复盘次数', async () => {
+    const c = store.addCheckin({ name: '晨跑', dailyTargetCount: 1 })
+    store.addCheckinRecord(c.id, { count: 1 })
+    store.addReview({ type: 'day', fields: {} })
+    const w = mount(ShopView)
+    await nextTick()
+    const sub = w.find('.wallet-sub').text()
+    expect(sub).toContain('打卡 1 次 × 1')
+    expect(sub).toContain('复盘 1 次 × 1')
+    expect(w.find('.coin-num').text()).toBe('2')
     w.unmount()
   })
 
