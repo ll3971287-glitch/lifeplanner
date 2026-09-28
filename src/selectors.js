@@ -674,13 +674,20 @@ export function foodStats(state, fromTs, toTsExclusive) {
 
 // ---------- 兑换商店 ----------
 
-// 历史累计产出：专注分钟 → 金币、已完成任务 → 金币
+// 历史累计产出：专注分钟 → 金币、已完成任务 → 金币、打卡记录 → 金币、复盘 → 金币
 export function shopIncome(state, nowTs = Date.now()) {
   const focusMin = state.sessions.reduce((a, s) => a + (s.durationMin || 0), 0)
   const todoCount = state.todos.filter((t) => t.completed && !t.canceled).length
+  const checkinCount = (state.checkinRecords || []).length
+  const reviewCount = (state.reviews || []).length
   const rate = shopRate(state.settings)
-  const coins = Math.round(focusMin * rate.coinPerFocusMin + todoCount * rate.coinPerTodo)
-  return { focusMin, todoCount, coins, rate, nowTs }
+  const coins = Math.round(
+    focusMin * rate.coinPerFocusMin +
+      todoCount * rate.coinPerTodo +
+      checkinCount * rate.coinPerCheckin +
+      reviewCount * rate.coinPerReview
+  )
+  return { focusMin, todoCount, checkinCount, reviewCount, coins, rate, nowTs }
 }
 
 export function shopSpent(state) {
