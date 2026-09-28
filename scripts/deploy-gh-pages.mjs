@@ -32,6 +32,31 @@ async function api(method, url, body) {
   return res.json()
 }
 
+// 网络不稳：连接类失败、服务端 5xx、以及被截断的 400 malformed 都退避重试
+const NET_TRIES = 6
+function retryable(e) {
+  if (!e.status) return true
+  if (e.status >= 500) return true
+  return e.status === 400 && /malformed|timeout|temporar/i.test(e.message || '')
+}
+async function apiRetry(method, url, body, label) {
+  let lastErr
+  for (let i = 1; i <= NET_TRIES; i += 1) {
+    try {
+      return await api(method, url, body)
+    } catch (e) {
+      lastErr = e
+      if (!retryable(e)) throw e
+      if (i < NET_TRIES) {
+        const wait = 2000 * i
+        console.log(`  … ${label} 请求失败（${(e.cause && e.cause.code) || e.status || e.message}），${wait / 1000}s 后重试（${i}/${NET_TRIES}）`)
+        await new Promise((r) => setTimeout(r, wait))
+      }
+    }
+  }
+  throw lastErr
+}
+
 function walk(dir, rel = '') {
   const out = []
   for (const name of fs.readdirSync(dir)) {
@@ -53,14 +78,14 @@ for (const f of files) {
   const enc = f.rel.split('/').map(encodeURIComponent).join('/')
   const body = { message: `deploy ${f.rel}`, content, branch: BRANCH }
   try {
-    await api('PUT', `/repos/${OWNER}/${REPO}/contents/${enc}`, body)
+    await apiRetry('PUT', `/repos/${OWNER}/${REPO}/contents/${enc}`, body, f.rel)
     console.log('  ✓', f.rel)
   } catch (e) {
     if (e.status === 422 || e.status === 409) {
       // 已存在：取 sha 后更新
-      const cur = await api('GET', `/repos/${OWNER}/${REPO}/contents/${enc}?ref=${BRANCH}`)
+      const cur = await apiRetry('GET', `/repos/${OWNER}/${REPO}/contents/${enc}?ref=${BRANCH}`, null, f.rel)
       body.sha = cur.sha
-      await api('PUT', `/repos/${OWNER}/${REPO}/contents/${enc}`, body)
+      await apiRetry('PUT', `/repos/${OWNER}/${REPO}/contents/${enc}`, body, f.rel)
       console.log('  ↻', f.rel, '(更新)')
     } else {
       console.error('  ✗', f.rel, e.message)
