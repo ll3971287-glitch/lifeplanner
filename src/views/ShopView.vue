@@ -16,6 +16,8 @@
       <p class="muted wallet-sub">
         累计产出 {{ income.coins }} 金币 = 专注 {{ income.focusMin }} 分钟 × {{ income.rate.coinPerFocusMin }}
         + 完成任务 {{ income.todoCount }} 个 × {{ income.rate.coinPerTodo }}
+        + 打卡 {{ income.checkinCount }} 次 × {{ income.rate.coinPerCheckin }}
+        + 复盘 {{ income.reviewCount }} 次 × {{ income.rate.coinPerReview }}
         <template v-if="spent">，已兑换消耗 {{ spent }} 金币</template>
       </p>
       <p class="wallet-budget">
