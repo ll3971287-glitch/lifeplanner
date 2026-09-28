@@ -31,13 +31,16 @@ export function timeHintLabel(key) {
   return hit ? hit.label : ''
 }
 
-export const SHOP_DEFAULT_RATE = { coinPerFocusMin: 1, coinPerTodo: 5 }
+export const SHOP_DEFAULT_RATE = { coinPerFocusMin: 1, coinPerTodo: 5, coinPerCheckin: 1, coinPerReview: 1 }
 
 export function shopRate(settings) {
   const raw = (settings && settings.shop) || {}
+  const pick = (key) => (raw[key] == null ? SHOP_DEFAULT_RATE[key] : Number(raw[key]) || 0)
   return {
-    coinPerFocusMin: raw.coinPerFocusMin == null ? SHOP_DEFAULT_RATE.coinPerFocusMin : Number(raw.coinPerFocusMin) || 0,
-    coinPerTodo: raw.coinPerTodo == null ? SHOP_DEFAULT_RATE.coinPerTodo : Number(raw.coinPerTodo) || 0,
+    coinPerFocusMin: pick('coinPerFocusMin'),
+    coinPerTodo: pick('coinPerTodo'),
+    coinPerCheckin: pick('coinPerCheckin'),
+    coinPerReview: pick('coinPerReview'),
   }
 }
 
