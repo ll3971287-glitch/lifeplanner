@@ -73,7 +73,7 @@
 
       <div class="actions">
         <button v-if="canDelay" type="button" class="btn btn-outline btn-sm" @click="delayOpen = true">
-          <Icon name="clock" :size="14" /> {{ delayActive ? '调整推迟' : '推迟（不算逾期）' }}
+          <Icon name="clock" :size="14" /> 调整推迟
         </button>
         <button v-if="hasBlueprints" type="button" class="btn btn-outline btn-sm" @click="linkBpOpen = true">
           <Icon name="flag" :size="13" /> 关联蓝图
@@ -165,7 +165,8 @@ function goBlueprints() {
 }
 const delayActive = computed(() => todo.value && todo.value.snoozeUntil != null && !todo.value.completed && Date.now() < todo.value.snoozeUntil)
 const snoozeText = computed(() => (todo.value && todo.value.snoozeUntil ? fmtDateTime(todo.value.snoozeUntil) : ''))
-const canDelay = computed(() => todo.value && todo.value.timeType !== 'none' && (isOverdue.value || delayActive.value))
+// 逾期任务不再提供推迟入口：只有已在推迟期内的任务可以调整或取消推迟
+const canDelay = computed(() => todo.value && delayActive.value)
 const delayOptions = computed(() => {
   const n = Date.now()
   return [
