@@ -5,8 +5,8 @@
         <div class="row gap8">
           <span class="coin-icon"><Icon name="sparkles" :size="18" /></span>
           <div class="coin-box">
-            <span class="coin-num">{{ balance }}</span>
-            <span class="muted coin-unit">金币可用</span>
+            <span class="coin-num" :class="{ owe: balance < 0 }">{{ balance }}</span>
+            <span class="muted coin-unit">{{ balance < 0 ? '金币（欠）' : '金币可用' }}</span>
           </div>
         </div>
         <button type="button" class="btn btn-primary btn-sm" @click="openCreate">
@@ -188,7 +188,7 @@ function onRedeem(r) {
     showToast(res.text, 'err')
     return
   }
-  showToast(`已兑换「${r.name}」，花费 ${res.cost} 金币`)
+  showToast(res.debt > 0 ? `已兑换「${r.name}」，花费 ${res.cost} 金币（欠 ${res.debt}）` : `已兑换「${r.name}」，花费 ${res.cost} 金币`)
   fireConfetti(walletEl.value)
 }
 
@@ -247,6 +247,10 @@ async function onRemove(r) {
   font-size: 24px;
   font-weight: 800;
   color: var(--accent-deep);
+}
+
+.coin-num.owe {
+  color: var(--warn);
 }
 
 .coin-unit {
