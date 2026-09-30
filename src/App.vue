@@ -8,7 +8,6 @@
     <SideMenu />
     <ConfirmDialog />
     <ToastHost />
-    <FocusOverlay />
   </div>
 </template>
 
@@ -20,7 +19,6 @@ import BottomNav from './components/layout/BottomNav.vue'
 import SideMenu from './components/layout/SideMenu.vue'
 import ConfirmDialog from './components/ui/ConfirmDialog.vue'
 import ToastHost from './components/ui/ToastHost.vue'
-import FocusOverlay from './components/focus/FocusOverlay.vue'
 import { sideMenuState, openSideMenu } from './ui.js'
 
 onMounted(async () => {
