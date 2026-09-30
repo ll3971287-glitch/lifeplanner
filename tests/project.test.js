@@ -283,6 +283,9 @@ describe('ProjectDetailView 项目任务（普通待办语义）', () => {
     const b = store.addSubTask({ projectId: p.id, name: '任务B', dueAt: parseDateStr('2026-10-01') + 9 * 3600000 })
     const w = await mountDetail(p.id)
     await nextTick()
+    // 默认定位到未完成任务；本用例要观察勾选前后，切到「全部状态」
+    await w.findAll('select')[0].setValue('all')
+    await nextTick()
     const cells = w.findAll('.sub-cell')
     expect(cells).toHaveLength(2)
     expect(w.text()).toContain('0/2')
@@ -355,10 +358,15 @@ describe('ProjectDetailView 项目任务（普通待办语义）', () => {
     store.cancelTodo(canceled.id)
     const w = await mountDetail(p.id)
     await nextTick()
-    // 全部：三条都在
-    expect(w.findAll('.sub-cell')).toHaveLength(3)
+    // 默认即定位到「未完成」：只显示未完成的那个
+    expect(w.findAll('.sub-cell')).toHaveLength(1)
+    expect(w.text()).toContain('未完成任务')
 
     const selects = w.findAll('select')
+    // 全部：三条都在
+    await selects[0].setValue('all')
+    await nextTick()
+    expect(w.findAll('.sub-cell')).toHaveLength(3)
     // 未完成：只剩未完成的那个（取消的已归档，不算未完成）
     await selects[0].setValue('open')
     await nextTick()
