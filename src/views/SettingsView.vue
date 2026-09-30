@@ -67,6 +67,18 @@
         </div>
       </div>
       <p class="muted tip-line">金币 = 历史累计专注分钟、已完成任务、打卡记录、复盘次数按上述费率折算；兑换奖励时扣除，剩余金币在商店顶部显示。</p>
+      <div class="row-between opt-row">
+        <div class="opt-text">
+          <span class="opt-name">允许欠金币</span>
+          <p class="muted opt-desc">开启后金币不足也能兑换，余额会变成负数（欠账）；关闭则金币必须足够。</p>
+        </div>
+        <Switch :model-value="allowDebt" @update:model-value="onAllowDebtChange" />
+      </div>
+      <div class="field" v-if="allowDebt">
+        <span class="field-label">最多可欠（金币，0 表示不限）</span>
+        <input v-model.number="maxDebt" type="number" min="0" class="input" @change="applyShopSettings" />
+      </div>
+      <p class="muted tip-line">超过欠款上限的奖励将无法兑换（例如上限 300，则余额低于 -300 时不能再兑）。</p>
     </section>
 
     <section class="card s-card">
@@ -166,7 +178,7 @@
     <section class="card s-card">
       <h2 class="s-title"><Icon name="checkCircle" :size="16" /> 关于</h2>
       <p class="muted desc">
-        Ultimate Life System v3.4.3 · 本地任务与项目管理<br />
+        Ultimate Life System v3.4.4 · 本地任务与项目管理<br />
         数据存放于本机 IndexedDB，无需账号，离线可用。
       </p>
     </section>
@@ -219,7 +231,7 @@ import SegControl from '../components/ui/SegControl.vue'
 import { showToast } from '../ui.js'
 import { askConfirm } from '../ui.js'
 import { fileDateStamp } from '../format.js'
-import { shopRate } from '../rewardMeta.js'
+import { shopRate, shopDebtRule } from '../rewardMeta.js'
 import Icon from '../components/ui/Icon.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import Switch from '../components/ui/Switch.vue'
@@ -232,6 +244,8 @@ const coinPerFocusMin = ref(shopRate(store.state.settings).coinPerFocusMin)
 const coinPerTodo = ref(shopRate(store.state.settings).coinPerTodo)
 const coinPerCheckin = ref(shopRate(store.state.settings).coinPerCheckin)
 const coinPerReview = ref(shopRate(store.state.settings).coinPerReview)
+const allowDebt = ref(shopDebtRule(store.state.settings).allowDebt)
+const maxDebt = ref(shopDebtRule(store.state.settings).maxDebt)
 
 const fileInput = ref(null)
 const clearOpen = ref(false)
@@ -256,8 +270,15 @@ function applyShopSettings() {
     coinPerTodo: Math.max(0, Math.round(Number(coinPerTodo.value)) || 0),
     coinPerCheckin: Math.max(0, Math.round(Number(coinPerCheckin.value)) || 0),
     coinPerReview: Math.max(0, Math.round(Number(coinPerReview.value)) || 0),
+    allowDebt: allowDebt.value,
+    maxDebt: Math.max(0, Math.round(Number(maxDebt.value)) || 0),
   })
   showToast('金币规则已保存')
+}
+
+function onAllowDebtChange(v) {
+  allowDebt.value = !!v
+  applyShopSettings()
 }
 
 const exportOpen = ref(false)
