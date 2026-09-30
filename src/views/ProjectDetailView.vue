@@ -78,13 +78,13 @@
         :key="t.id"
         type="button"
         class="sub-cell card"
-        :class="{ done: t.completed }"
+        :class="{ done: t.completed, canceled: t.canceled }"
         @click="openTaskDrawer(t)"
       >
-        <span class="status-bar" :class="t.completed ? 's-done' : 's-open'" />
+        <span class="status-bar" :class="t.canceled ? 's-canceled' : t.completed ? 's-done' : 's-open'" />
         <span v-if="t.priority" class="pri-bar2" :class="'pri-' + t.priority" />
         <div class="row-between">
-          <span class="status-text" :class="{ done: t.completed }">{{ t.completed ? '已完成' : '未完成' }}</span>
+          <span class="status-text" :class="{ done: t.completed, canceled: t.canceled }">{{ t.canceled ? '已取消' : t.completed ? '已完成' : '未完成' }}</span>
           <button
             type="button"
             class="check"
@@ -116,12 +116,13 @@
     </div>
 
     <div v-else class="list card">
-      <div v-for="t in filteredTasks" :key="t.id" class="list-row" :class="{ done: t.completed }" @click="openTaskDrawer(t)">
+      <div v-for="t in filteredTasks" :key="t.id" class="list-row" :class="{ done: t.completed, canceled: t.canceled }" @click="openTaskDrawer(t)">
         <button type="button" class="check" :class="{ on: t.completed }" @click.stop="store.toggleTodo(t.id)">
           <Icon v-if="t.completed" name="check" :size="12" />
         </button>
         <div class="row gap6 list-main">
-          <span class="list-name" :class="{ done: t.completed }">{{ t.title }}</span>
+          <span class="list-name" :class="{ done: t.completed, canceled: t.canceled }">{{ t.title }}</span>
+          <span v-if="t.canceled" class="cancel-chip">已取消</span>
           <span v-if="t.priority" class="pri-bar2" :class="'pri-' + t.priority" />
           <span v-if="tText(t)" class="due-mini">{{ tText(t) }}</span>
           <TagChips :tag-ids="t.tagIds" />
@@ -167,6 +168,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { store } from '../store.js'
 import {
+  isArchived,
   projectSubTasks,
   projectStats,
   projectById,
@@ -228,8 +230,9 @@ const viewOptions = [
 const filteredTasks = computed(() => {
   if (!project.value) return []
   let list = projectSubTasks(store.state, project.value.id)
-  if (statusFilter.value === 'open') list = list.filter((t) => !t.completed)
-  if (statusFilter.value === 'done') list = list.filter((t) => t.completed)
+  // 已取消的任务视为已归档：不计入「未完成」，与已完成任务一起归入「已完成」
+  if (statusFilter.value === 'open') list = list.filter((t) => !isArchived(t))
+  if (statusFilter.value === 'done') list = list.filter((t) => isArchived(t))
   if (tagFilter.value) list = list.filter((t) => (t.tagIds || []).includes(tagFilter.value))
   return list
 })
@@ -475,6 +478,11 @@ async function doDelete() {
   background: var(--success);
 }
 
+.status-bar.s-canceled {
+  background: var(--danger);
+  opacity: 0.6;
+}
+
 .pri-bar2 {
   position: absolute;
   left: 5px;
@@ -507,6 +515,10 @@ async function doDelete() {
   color: var(--success);
 }
 
+.status-text.canceled {
+  color: var(--danger);
+}
+
 .check {
   width: 21px;
   height: 21px;
@@ -537,6 +549,11 @@ async function doDelete() {
 }
 
 .cell-name.done {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+.cell-name.canceled {
   color: var(--text-dim);
   text-decoration: line-through;
 }
@@ -605,5 +622,20 @@ async function doDelete() {
 .list-name.done {
   color: var(--text-dim);
   text-decoration: line-through;
+}
+
+.list-name.canceled {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+.cancel-chip {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-radius: 999px;
+  padding: 1px 7px;
+  flex: none;
 }
 </style>
