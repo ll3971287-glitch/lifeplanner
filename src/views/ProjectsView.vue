@@ -13,8 +13,15 @@
     </div>
 
     <template v-if="activeList.length">
-      <div class="grid">
-        <button v-for="p in activeList" :key="p.id" type="button" class="p-card card" @click="router.push(`/projects/${p.id}`)">
+      <div class="list-area">
+        <div class="idx-blocks">
+          <section v-for="g in groups" :key="g.letter" :id="`proj-idx-${g.letter}`" class="idx-block">
+            <h4 class="idx-letter">
+              {{ g.letter }}
+              <span class="muted mini idx-count">{{ g.items.length }} 个</span>
+            </h4>
+            <div class="grid">
+        <button v-for="p in g.items" :key="p.id" type="button" class="p-card card" @click="router.push(`/projects/${p.id}`)">
           <div class="p-head">
             <button
               type="button"
@@ -42,6 +49,25 @@
             <TagChips :tag-ids="p.tagIds" />
           </div>
         </button>
+            </div>
+          </section>
+        </div>
+
+        <!-- 右侧字母索引：点击快速跳转到对应首字母的项目 -->
+        <nav class="idx-bar" aria-label="项目字母索引">
+          <button
+            v-for="l in letters"
+            :key="l"
+            type="button"
+            class="idx-item"
+            :class="{ on: activeLetters.includes(l) }"
+            :disabled="!activeLetters.includes(l)"
+            :title="activeLetters.includes(l) ? `跳到 ${l} 开头的项目` : `没有 ${l} 开头的项目`"
+            @click="jumpTo(l)"
+          >
+            {{ l }}
+          </button>
+        </nav>
       </div>
     </template>
     <EmptyState v-else-if="!store.state.projects.length" icon="briefcase" text="还没有项目" hint="创建一个学习或工作项目，拆分子任务来推进">
@@ -114,6 +140,7 @@ import BaseModal from '../components/ui/BaseModal.vue'
 import TagChips from '../components/ui/TagChips.vue'
 import ProjectFormModal from '../components/project/ProjectFormModal.vue'
 import { PROJECT_CATS, catOf, catMeta, catColor, catLabelOfKey } from '../projectMeta.js'
+import { INDEX_LETTERS, groupByInitial } from '../projectIndex.js'
 
 const router = useRouter()
 
@@ -153,6 +180,16 @@ const activeList = computed(() => {
 })
 
 const archivedList = computed(() => archivedProjects(store.state).filter(inCat))
+
+// 按名称首字母排序并分组（同组内也按拼音顺序）
+const groups = computed(() => groupByInitial(activeList.value))
+const letters = INDEX_LETTERS
+const activeLetters = computed(() => groups.value.map((g) => g.letter))
+
+function jumpTo(letter) {
+  const el = document.getElementById(`proj-idx-${letter}`)
+  if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 function statsOf(p) {
   return projectStats(store.state, p.id)
@@ -241,6 +278,74 @@ function openCreate() {
 
 .wrap {
   flex-wrap: wrap;
+}
+
+.list-area {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.idx-blocks {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.idx-block {
+  scroll-margin-top: 12px;
+}
+
+.idx-letter {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent-deep);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.idx-count {
+  font-weight: 600;
+}
+
+.idx-bar {
+  position: sticky;
+  top: 10px;
+  max-height: 68vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 30%, transparent);
+  flex: none;
+}
+
+.idx-item {
+  width: 18px;
+  height: 16px;
+  line-height: 1;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+}
+
+.idx-item.on {
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.idx-item:disabled {
+  opacity: 0.3;
 }
 
 .grid {
