@@ -710,9 +710,9 @@ export function shopBudgetTotal(state) {
   return shopRewardBudgetTotal(state) + shopOtherBudgetTotal(state)
 }
 
-// 当前可用金币余额 = 累计产出 − 已兑换消耗
+// 当前金币余额 = 累计产出 − 已兑换消耗（允许为负：金币不足即为欠金币）
 export function shopBalance(state, nowTs = Date.now()) {
-  return Math.max(0, shopIncome(state, nowTs).coins - shopSpent(state))
+  return shopIncome(state, nowTs).coins - shopSpent(state)
 }
 
 // 金币进度：距离兑换还差多少（解锁以金币为准）
@@ -743,7 +743,7 @@ export function rewardPeriodOk(reward, nowTs = Date.now()) {
   return { ok: nowTs <= until, text: `${fmtDate(until)} 前可兑换` }
 }
 
-// 卡片汇总状态：金币是否够（解锁以金币为准）/ 期限内 / 自定义条件是否达成 / 已兑换 / 原因
+// 卡片汇总状态：期限内 + 额外条件达成即可兑换；金币不够也能兑换，只是会欠金币
 export function rewardStatus(state, reward, nowTs = Date.now()) {
   const period = rewardPeriodOk(reward, nowTs)
   const progress = rewardCoinProgress(state, reward)
@@ -751,18 +751,20 @@ export function rewardStatus(state, reward, nowTs = Date.now()) {
   const balance = shopBalance(state, nowTs)
   const redeemed = !!reward.redeemed
   const affordable = balance >= (reward.cost || 0)
-  const unlocked = period.ok && condMet && affordable && !redeemed
+  const debt = Math.max(0, (reward.cost || 0) - balance)
+  const unlocked = period.ok && condMet && !redeemed
   let reason = ''
   if (redeemed) reason = '已兑换'
   else if (!period.ok) reason = period.text
-  else if (!affordable) reason = `金币不足，还差 ${Math.max(0, (reward.cost || 0) - balance)}`
   else if (!condMet) reason = '额外条件未达成'
+  else if (!affordable) reason = `金币不足，将欠 ${debt} 金币`
   return {
     unlocked,
     period,
     condMet,
     progress,
     affordable,
+    debt,
     balance,
     redeemed,
     conditionText: conditionLabel(reward),
