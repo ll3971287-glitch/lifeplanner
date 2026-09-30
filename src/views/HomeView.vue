@@ -43,7 +43,7 @@
               type="button"
               class="focus-mini"
               title="开始专注"
-              @click.stop="store.openFocus({ mode: 'pomodoro', targetType: 'todo', targetId: row.id })"
+              @click.stop="goFocus(router, { mode: 'pomodoro', targetType: 'todo', targetId: row.id })"
             >
               <Icon name="clock" :size="14" />
             </button>
@@ -189,11 +189,11 @@
             v-if="running"
             type="button"
             class="btn btn-lg btn-accent resume-btn"
-            @click="store.openFocus({})"
+            @click="goFocus(router, {})"
           >
             <Icon name="play" :size="17" /> 回到专注（进行中）
           </button>
-          <button v-else type="button" class="btn btn-lg btn-accent resume-btn" @click="store.openFocus({})">
+          <button v-else type="button" class="btn btn-lg btn-accent resume-btn" @click="goFocus(router, {})">
             <Icon name="play" :size="17" /> 开始专注
           </button>
         </div>
@@ -327,7 +327,7 @@ import BlueprintDrawer from '../components/blueprint/BlueprintDrawer.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import TaskDrawer from '../components/todo/TaskDrawer.vue'
 import TodoFormModal from '../components/todo/TodoFormModal.vue'
-import { showToast, randomMotivation, fireConfetti } from '../ui.js'
+import { goFocus, showToast, randomMotivation, fireConfetti } from '../ui.js'
 
 const router = useRouter()
 const drawerId = ref(null)
@@ -510,7 +510,7 @@ function openAddSub(parent) {
 }
 
 function startFocus(todo) {
-  store.openFocus({ mode: 'pomodoro', targetType: 'todo', targetId: todo.id })
+  goFocus(router, { mode: 'pomodoro', targetType: 'todo', targetId: todo.id })
 }
 
 const projList = computed(() => activeProjects(store.state).slice(0, 3))
