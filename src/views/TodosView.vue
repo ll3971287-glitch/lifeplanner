@@ -100,7 +100,7 @@ import TaskItem from '../components/todo/TaskItem.vue'
 import TaskDrawer from '../components/todo/TaskDrawer.vue'
 import ScheduleModal from '../components/todo/ScheduleModal.vue'
 import TagFilterBar from '../components/tag/TagFilterBar.vue'
-import { askConfirm, showToast } from '../ui.js'
+import { askConfirm, goFocus, showToast } from '../ui.js'
 
 const router = useRouter()
 
@@ -228,7 +228,7 @@ function openDrawer(todo) {
 }
 
 function startFocus(todo) {
-  store.openFocus({ mode: 'pomodoro', targetType: 'todo', targetId: todo.id })
+  goFocus(router, { mode: 'pomodoro', targetType: 'todo', targetId: todo.id })
 }
 </script>
 
