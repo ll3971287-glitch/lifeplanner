@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { store } from './store.js'
 
 export const confirmState = reactive({
   visible: false,
@@ -87,4 +88,10 @@ export function fireConfetti(el) {
     document.body.appendChild(s)
     setTimeout(() => s.remove(), 750)
   }
+}
+
+// 专注入口：直接进入专注主页面（原中间浮层已移除）
+export function goFocus(router, opts = {}) {
+  store.prepareFocus(opts)
+  router.push('/focus')
 }
