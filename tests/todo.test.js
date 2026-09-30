@@ -281,24 +281,39 @@ describe('TaskDrawer 详情', () => {
     expect(panel.textContent).toContain('25 分钟')
   })
 
-  it('逾期任务可推迟：推迟期内不算逾期，可调整/取消', async () => {
+  it('逾期任务已移除推迟入口：抽屉里没有推迟按钮', async () => {
     const t = store.addTodo({ title: '过期汇报', timeType: 'datetime', startAt: Date.now() - 3600000 })
     expect(todoOverdue(t, Date.now())).toBe(true)
-    // 抽屉为逾期任务提供推迟入口
     const w = mount(TaskDrawer, { props: { open: true, todoId: t.id } })
     await nextTick()
     const panel = document.querySelector('.drawer-panel')
     expect(panel.textContent).toContain('已逾期')
     const delayBtn = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('推迟'))
-    expect(delayBtn).toBeTruthy()
+    expect(delayBtn).toBeUndefined()
     w.unmount()
-    // 推迟期内不算逾期，到期未完成恢复逾期，取消推迟立即恢复逾期
+  })
+
+  it('已在推迟期内的任务可调整/取消推迟（推迟期内不算逾期，到期恢复逾期）', async () => {
+    const t = store.addTodo({ title: '延期中的任务', timeType: 'datetime', startAt: Date.now() - 3600000 })
     const future = Date.now() + 3600000
     store.updateTodo(t.id, { snoozeUntil: future })
     let t2 = store.state.todos.find((x) => x.id === t.id)
     expect(t2.snoozeUntil).toBe(future)
     expect(todoOverdue(t2, Date.now())).toBe(false)
     expect(todoOverdue(t2, future + 1000)).toBe(true)
+
+    // 推迟期内抽屉提供「调整推迟」入口
+    const w = mount(TaskDrawer, { props: { open: true, todoId: t.id } })
+    await nextTick()
+    const panel = document.querySelector('.drawer-panel')
+    const delayBtn = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('调整推迟'))
+    expect(delayBtn).toBeTruthy()
+    delayBtn.click()
+    await nextTick()
+    const modal = document.body.querySelector('.modal-panel')
+    expect(modal.textContent).toContain('取消推迟')
+    w.unmount()
+
     store.updateTodo(t.id, { snoozeUntil: null })
     t2 = store.state.todos.find((x) => x.id === t.id)
     expect(t2.snoozeUntil).toBeNull()
