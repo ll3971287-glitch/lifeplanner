@@ -114,15 +114,24 @@ describe('关系页面', () => {
     await nextTick()
     const modal = document.body.textContent
     expect(modal).toContain('生日日历')
-    expect(modal).toContain('小美')
     // 弹窗默认选中今天；点选生日当天
     const day = new Date()
     day.setDate(day.getDate() + 2)
     const targetDayTs = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()
+    // 目标日期可能跨月（例如今天 9/30、生日 10/2）：先按标题翻到目标月份再点
+    const targetLabel = `${day.getFullYear()} 年 ${day.getMonth() + 1} 月`
+    for (let i = 0; i < 3; i += 1) {
+      const head = document.querySelector('.bcal .cal-head strong').textContent.replace(/\s+/g, ' ').trim()
+      if (head === targetLabel) break
+      document.querySelectorAll('.bcal .nav-btn')[1].click()
+      await nextTick()
+    }
     const cells = [...document.querySelectorAll('.bcal .cell')]
-    const target = cells.find((c) => c.textContent.trim().startsWith(String(day.getDate())))
+    const target = cells.find((c) => !c.classList.contains('out') && c.querySelector('.num').textContent === String(day.getDate()))
+    expect(target).toBeTruthy()
     target.click()
     await nextTick()
+    expect(document.body.textContent).toContain('小美')
     expect(document.body.textContent).toContain('距生日 2 天')
     expect(targetDayTs).toBeGreaterThan(0)
     w.unmount()
