@@ -63,9 +63,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { store } from '../../store.js'
-import { unlockAudio } from '../../sound.js'
+import { playChime, unlockAudio } from '../../sound.js'
 import { todayFocusStats } from '../../selectors.js'
 import { fmtDurationMin } from '../../utils/date.js'
 import { pad } from '../../utils/date.js'
@@ -89,6 +89,16 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => clearInterval(timer))
+
+// 专注到点 → 上行铃声；休息结束 → 柔和提示音（与设置里的开关联动）
+watch(
+  () => store.focusState.phase,
+  (now, before) => {
+    if (store.state.settings.soundOn === false) return
+    if (before === 'run' && now === 'break') playChime('focusEnd')
+    else if (before === 'break' && now === 'idle') playChime('breakEnd')
+  }
+)
 
 const f = computed(() => store.focusState)
 
