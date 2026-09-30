@@ -159,6 +159,31 @@ describe('首页摘要', () => {
     void t
   })
 
+  it('首页「开始专注」直接跳转专注主页面（无中间浮层）', async () => {
+    const { w, router } = mountHome()
+    await nextTick()
+    const btn = w.findAll('button').find((b) => b.text().includes('开始专注'))
+    expect(btn).toBeTruthy()
+    await btn.trigger('click')
+    await new Promise((r) => setTimeout(r, 10))
+    expect(router.currentRoute.value.path).toBe('/focus')
+    w.unmount()
+  })
+
+  it('首页今日计划行上的专注按钮：带上该任务并跳转专注页', async () => {
+    const d = startOfDayTs(Date.now())
+    const t = store.addTodo({ title: '待专注任务', timeType: 'datetime', startAt: d + 10 * 3600000 })
+    const { w, router } = mountHome()
+    await nextTick()
+    const row = w.findAll('.h-row').find((r) => r.text().includes('待专注任务'))
+    await row.find('.focus-mini').trigger('click')
+    await new Promise((r) => setTimeout(r, 10))
+    expect(store.focusState.targetType).toBe('todo')
+    expect(store.focusState.targetId).toBe(t.id)
+    expect(router.currentRoute.value.path).toBe('/focus')
+    w.unmount()
+  })
+
   it('今日计划板块可按 本周/本月 切换展示范围任务', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-09T12:00:00')) // 固定周三：明天的任务必属于本周且本月
