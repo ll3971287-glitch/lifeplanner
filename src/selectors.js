@@ -1,6 +1,6 @@
 import { DAY_MS, startOfDayTs, endOfDayTs, isSameDayTs, fmtDate, startOfWeekTs } from './utils/date.js'
 import { daysLeft as foodDaysLeft, NEAR_DAYS as FOOD_NEAR_DAYS } from './foodMeta.js'
-import { conditionLabel, shopRate } from './rewardMeta.js'
+import { conditionLabel, shopRate, shopDebtRule } from './rewardMeta.js'
 
 // ---------- 待办 ----------
 
@@ -743,7 +743,7 @@ export function rewardPeriodOk(reward, nowTs = Date.now()) {
   return { ok: nowTs <= until, text: `${fmtDate(until)} 前可兑换` }
 }
 
-// 卡片汇总状态：期限内 + 额外条件达成即可兑换；金币不够也能兑换，只是会欠金币
+// 卡片汇总状态：期限内 + 额外条件达成即可兑换；金币不够可欠款（受欠款上限约束）
 export function rewardStatus(state, reward, nowTs = Date.now()) {
   const period = rewardPeriodOk(reward, nowTs)
   const progress = rewardCoinProgress(state, reward)
@@ -752,19 +752,27 @@ export function rewardStatus(state, reward, nowTs = Date.now()) {
   const redeemed = !!reward.redeemed
   const affordable = balance >= (reward.cost || 0)
   const debt = Math.max(0, (reward.cost || 0) - balance)
+  const { allowDebt, maxDebt } = shopDebtRule(state.settings)
+  // 超出欠款规则：不允许欠（debt>0）或超过自定义上限
+  const overDebtLimit = debt > 0 && (!allowDebt || (maxDebt > 0 && debt > maxDebt))
   const unlocked = period.ok && condMet && !redeemed
   let reason = ''
   if (redeemed) reason = '已兑换'
   else if (!period.ok) reason = period.text
   else if (!condMet) reason = '额外条件未达成'
-  else if (!affordable) reason = `金币不足，将欠 ${debt} 金币`
+  else if (overDebtLimit) reason = allowDebt ? `超出欠款上限（最多可欠 ${maxDebt} 金币）` : '金币不足'
+  else if (debt > 0) reason = `金币不足，将欠 ${debt} 金币`
   return {
     unlocked,
+    canRedeem: unlocked && !overDebtLimit,
     period,
     condMet,
     progress,
     affordable,
     debt,
+    overDebtLimit,
+    allowDebt,
+    maxDebt,
     balance,
     redeemed,
     conditionText: conditionLabel(reward),
