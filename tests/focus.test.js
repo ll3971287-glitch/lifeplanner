@@ -4,7 +4,6 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
 import FocusTimer from '../src/components/focus/FocusTimer.vue'
-import FocusOverlay from '../src/components/focus/FocusOverlay.vue'
 import FocusView from '../src/views/FocusView.vue'
 import ConfirmDialog from '../src/components/ui/ConfirmDialog.vue'
 import { settleConfirm, confirmState } from '../src/ui.js'
@@ -112,7 +111,7 @@ describe('FocusTimer 状态映射', () => {
 
   it('绑定任务后显示任务名', () => {
     const t = store.addTodo({ title: '写周报' })
-    store.openFocus({ targetType: 'todo', targetId: t.id })
+    store.prepareFocus({ targetType: 'todo', targetId: t.id })
     const w = mount(FocusTimer)
     expect(w.text()).toContain('写周报')
     w.unmount()
@@ -130,38 +129,6 @@ describe('FocusTimer 状态映射', () => {
     settleConfirm(true)
     await new Promise((r) => setTimeout(r, 10))
     expect(store.focusState.phase).toBe('idle')
-    w.unmount()
-  })
-})
-
-describe('FocusOverlay 浮层', () => {
-  it('visible 时全屏展示计时，可收起', async () => {
-    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }] })
-    const w = mount(FocusOverlay, { global: { plugins: [router] } })
-    expect(document.body.querySelector('.focus-overlay')).toBeNull()
-    store.openFocus({ mode: 'pomodoro' })
-    await nextTick()
-    expect(document.body.querySelector('.focus-overlay')).toBeTruthy()
-    expect(document.body.textContent).toContain('开始番茄')
-    const hideBtn = document.body.querySelectorAll('.pill-btn')
-    hideBtn[1].click()
-    await nextTick()
-    expect(store.focusState.visible).toBe(false)
-    expect(document.body.querySelector('.focus-overlay')).toBeNull()
-    w.unmount()
-  })
-
-  it('右上角可进入专注页', async () => {
-    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }] })
-    router.push('/')
-    const w = mount(FocusOverlay, { global: { plugins: [router] } })
-    store.openFocus({})
-    await nextTick()
-    const goBtn = document.body.querySelectorAll('.pill-btn')[0]
-    goBtn.click()
-    await new Promise((r) => setTimeout(r, 10))
-    expect(router.currentRoute.value.path).toBe('/focus')
-    expect(store.focusState.visible).toBe(false)
     w.unmount()
   })
 })
