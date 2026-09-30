@@ -567,13 +567,15 @@ describe('专注状态机', () => {
     expect(store.focusState.phase).toBe('idle')
   })
 
-  it('openFocus / closeFocus 控制浮层可见性', () => {
+  it('prepareFocus 设置专注模式与目标（专注入口直接进主页面，无浮层）', () => {
     const { store } = makeStore()
-    store.openFocus({ mode: 'pomodoro', targetType: 'projectSub', targetId: 's1' })
-    expect(store.focusState.visible).toBe(true)
+    store.prepareFocus({ mode: 'pomodoro', targetType: 'projectSub', targetId: 's1' })
     expect(store.focusState.targetId).toBe('s1')
-    store.closeFocus()
-    expect(store.focusState.visible).toBe(false)
+    expect(store.focusState.targetType).toBe('projectSub')
+    // 运行中不允许改目标
+    store.startFocusRun({ mode: 'pomodoro' })
+    store.prepareFocus({ targetType: 'todo', targetId: 't9' })
+    expect(store.focusState.targetId).toBe('s1')
   })
 
   it('净时长不足 1 分钟时手动结束不落库', () => {
