@@ -674,20 +674,23 @@ export function foodStats(state, fromTs, toTsExclusive) {
 
 // ---------- 兑换商店 ----------
 
-// 历史累计产出：专注分钟 → 金币、已完成任务 → 金币、打卡记录 → 金币、复盘 → 金币
+// 历史累计产出：专注分钟 → 金币、已完成任务 → 金币、打卡记录 → 金币、打卡专注时长 → 金币、复盘 → 金币
 export function shopIncome(state, nowTs = Date.now()) {
   const focusMin = state.sessions.reduce((a, s) => a + (s.durationMin || 0), 0)
   const todoCount = state.todos.filter((t) => t.completed && !t.canceled).length
-  const checkinCount = (state.checkinRecords || []).length
+  const checkinRecords = state.checkinRecords || []
+  const checkinCount = checkinRecords.length
+  // 打卡自带的专注时长（时长型打卡，如跑步 30 分钟）；番茄自动生成的记录不重复计
+  const checkinFocusMin = checkinRecords.reduce((a, r) => a + (r.fromFocus ? 0 : r.durationMin || 0), 0)
   const reviewCount = (state.reviews || []).length
   const rate = shopRate(state.settings)
   const coins = Math.round(
-    focusMin * rate.coinPerFocusMin +
+    (focusMin + checkinFocusMin) * rate.coinPerFocusMin +
       todoCount * rate.coinPerTodo +
       checkinCount * rate.coinPerCheckin +
       reviewCount * rate.coinPerReview
   )
-  return { focusMin, todoCount, checkinCount, reviewCount, coins, rate, nowTs }
+  return { focusMin, todoCount, checkinCount, checkinFocusMin, reviewCount, coins, rate, nowTs }
 }
 
 export function shopSpent(state) {
