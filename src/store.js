@@ -1151,7 +1151,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     return r
   }
 
-  // 兑换：需在期限内 + 额外条件达成 + 未兑换；金币不足也可兑换（余额可为负）
+  // 兑换：需在期限内 + 额外条件达成 + 未兑换 + 未超出欠款上限；允许欠款时余额可为负
   function redeemReward(id) {
     const r = state.rewards.find((x) => x.id === id)
     if (!r) return { ok: false, reason: 'not-found', text: '奖励不存在' }
@@ -1159,6 +1159,13 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     if (st.redeemed) return { ok: false, reason: 'redeemed', text: '该奖励已兑换过' }
     if (!st.period.ok) return { ok: false, reason: 'period', text: st.period.text }
     if (!st.condMet) return { ok: false, reason: 'condition', text: '额外解锁条件未达成' }
+    if (st.overDebtLimit) {
+      return {
+        ok: false,
+        reason: 'debt-limit',
+        text: st.allowDebt ? `超出欠款上限（最多可欠 ${st.maxDebt} 金币）` : '金币不足',
+      }
+    }
     const at = now()
     state.rewardRedemptions.push({ id: uid(), rewardId: r.id, name: r.name, cost: r.cost, at })
     r.redeemed = true
