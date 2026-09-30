@@ -483,7 +483,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     scheduleSave()
   }
 
-  function addCheckinRecord(checkinId, { count = 1, durationMin = 0, at = null, note = '' } = {}) {
+  function addCheckinRecord(checkinId, { count = 1, durationMin = 0, at = null, note = '', fromFocus = false } = {}) {
     const r = {
       id: uid(),
       checkinId,
@@ -491,6 +491,8 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
       durationMin: Number(durationMin) || 0,
       at: at == null ? now() : at,
       note: String(note || '').trim(),
+      // 由番茄专注自动生成的记录：时长已计入 sessions，不再重复计金币
+      fromFocus: !!fromFocus,
     }
     state.checkinRecords.push(r)
     scheduleSave()
@@ -667,7 +669,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
       })
       // 打卡项目专注：完成一轮番茄自动记为一次打卡（时长型计入 minutes）
       if (auto && targetType === 'checkin' && targetId && state.checkins.some((c) => c.id === targetId)) {
-        addCheckinRecord(targetId, { count: 1, durationMin, at: t, note: '专注完成' })
+        addCheckinRecord(targetId, { count: 1, durationMin, at: t, note: '专注完成', fromFocus: true })
       }
     }
     focusState.accumMs = 0
