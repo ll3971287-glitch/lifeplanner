@@ -84,26 +84,25 @@ const pct = computed(() => {
   return Math.max(0, Math.min(100, Math.round((current / target) * 100)))
 })
 
-const canRedeem = computed(() => status.value.unlocked && status.value.affordable)
+const canRedeem = computed(() => status.value.unlocked)
 
 const stateText = computed(() => {
   if (status.value.redeemed) return '已兑换'
   if (!status.value.period.ok) return '未到时间'
-  if (!status.value.affordable) return '金币不足'
   if (!status.value.condMet) return '条件未达成'
+  if (!status.value.affordable) return '可兑换 · 会欠币'
   return '可兑换'
 })
 
 const stateClass = computed(() => ({
-  ok: canRedeem.value,
-  warn: !status.value.redeemed && !status.value.affordable,
+  ok: status.value.unlocked,
+  warn: !status.value.redeemed && status.value.unlocked && !status.value.affordable,
   done: status.value.redeemed,
 }))
 
 const redeemText = computed(() => {
   if (status.value.redeemed) return '已兑换'
   if (!status.value.period.ok) return '未到时间'
-  if (!status.value.affordable) return '金币不足'
   if (!status.value.condMet) return '条件未达成'
   return '兑换'
 })
