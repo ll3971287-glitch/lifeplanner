@@ -4,7 +4,7 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
 import { CHIMES } from '../src/sound.js'
-import FocusOverlay from '../src/components/focus/FocusOverlay.vue'
+import FocusTimer from '../src/components/focus/FocusTimer.vue'
 import FocusChainCard from '../src/components/focus/FocusChainCard.vue'
 
 // —— 假的 Web Audio 实现（jsdom 没有）
@@ -72,16 +72,14 @@ describe('提示音合成', () => {
   })
 })
 
-describe('专注浮层：计时结束提示音', () => {
-  async function mountOverlay() {
-    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }] })
-    router.push('/')
-    return mount(FocusOverlay, { global: { plugins: [router] } })
+describe('专注计时：结束提示音', () => {
+  async function mountTimer() {
+    return mount(FocusTimer)
   }
 
   it('专注到点响 focusEnd，休息结束响 breakEnd，开关关闭时不响', async () => {
     const spy = vi.spyOn(await import('../src/sound.js'), 'playChime')
-    const w = await mountOverlay()
+    const w = await mountTimer()
     store.focusState.phase = 'run'
     await nextTick()
     store.focusState.phase = 'break' // 番茄到点
