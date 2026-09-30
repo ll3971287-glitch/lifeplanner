@@ -3,7 +3,7 @@ import { db } from './db.js'
 import { applyTheme } from './theme.js'
 import { nextRecurrenceTs } from './utils/date.js'
 import { RARITIES, TIME_HINTS } from './rewardMeta.js'
-import { rewardStatus } from './selectors.js'
+import { rewardStatus, shopBalance } from './selectors.js'
 
 const RARITIES_KEYS = RARITIES.map((r) => r.key)
 const TIME_HINT_KEYS = TIME_HINTS.map((t) => t.key)
@@ -1151,21 +1151,20 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     return r
   }
 
-  // 兑换：需在期限内 + 条件达成 + 未兑换 + 金币足够；成功后扣减并记流水
+  // 兑换：需在期限内 + 额外条件达成 + 未兑换；金币不足也可兑换（余额可为负）
   function redeemReward(id) {
     const r = state.rewards.find((x) => x.id === id)
     if (!r) return { ok: false, reason: 'not-found', text: '奖励不存在' }
     const st = rewardStatus(state, r, now())
     if (st.redeemed) return { ok: false, reason: 'redeemed', text: '该奖励已兑换过' }
     if (!st.period.ok) return { ok: false, reason: 'period', text: st.period.text }
-    if (!st.affordable) return { ok: false, reason: 'coins', text: `金币不足，还差 ${Math.max(0, r.cost - st.balance)}` }
     if (!st.condMet) return { ok: false, reason: 'condition', text: '额外解锁条件未达成' }
     const at = now()
     state.rewardRedemptions.push({ id: uid(), rewardId: r.id, name: r.name, cost: r.cost, at })
     r.redeemed = true
     r.redeemedAt = at
     scheduleSave()
-    return { ok: true, reward: r, cost: r.cost }
+    return { ok: true, reward: r, cost: r.cost, balance: shopBalance(state, at), debt: Math.max(0, r.cost - st.balance) }
   }
 
   // ---------- 其他预算（不绑定奖励的金额记录）----------
