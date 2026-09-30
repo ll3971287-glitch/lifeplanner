@@ -127,7 +127,7 @@ describe('兑换商店：金币产出与余额', () => {
 })
 
 describe('兑换商店：解锁以金币为准 + 时间窗口', () => {
-  it('金币够即解锁；不够则锁定并显示还差多少', () => {
+  it('金币够即解锁；不够也能兑换（欠金币），余额变负', () => {
     addSessions([50])
     const cheap = store.addReward({ name: '小吃', cost: 20 })
     const pricey = store.addReward({ name: '大餐', cost: 200 })
@@ -136,11 +136,16 @@ describe('兑换商店：解锁以金币为准 + 时间窗口', () => {
     expect(rewardStatus(store.state, cheap)).toMatchObject({ unlocked: true, affordable: true, reason: '' })
     expect(store.redeemReward(cheap.id).ok).toBe(true)
 
+    // 金币不足：仍可兑换，提示将欠多少，余额扣成负数
     const st = rewardStatus(store.state, pricey)
-    expect(st.unlocked).toBe(false)
+    expect(st.unlocked).toBe(true)
     expect(st.affordable).toBe(false)
-    expect(st.reason).toBe('金币不足，还差 170')
-    expect(store.redeemReward(pricey.id)).toMatchObject({ ok: false, reason: 'coins' })
+    expect(st.debt).toBe(170)
+    expect(st.reason).toBe('金币不足，将欠 170 金币')
+    const res = store.redeemReward(pricey.id)
+    expect(res.ok).toBe(true)
+    expect(res.debt).toBe(170)
+    expect(shopBalance(store.state)).toBe(-170)
   })
 
   it('时间窗口：某日之后 / 某日之前 / 两者都设 / 都不设', () => {
@@ -270,18 +275,18 @@ describe('兑换商店：增删改与兑换', () => {
     expect(shopBalance(store.state)).toBe(80)
   })
 
-  it('金币不足 / 额外条件未达成时不可兑换，且余额不变', () => {
+  it('金币不足可欠账兑换；额外条件未达成时才不可兑换', () => {
     addSessions([60])
     const pricey = store.addReward({ name: '大礼', cost: 500 })
     const res = store.redeemReward(pricey.id)
-    expect(res).toMatchObject({ ok: false, reason: 'coins' })
-    expect(res.text).toContain('还差 440')
-    expect(store.state.rewardRedemptions).toHaveLength(0)
-    expect(shopBalance(store.state)).toBe(60)
+    expect(res.ok).toBe(true)
+    expect(res.debt).toBe(440)
+    expect(store.state.rewardRedemptions).toHaveLength(1)
+    expect(shopBalance(store.state)).toBe(-440)
 
     const gated = store.addReward({ name: '条件奖励', cost: 10, conditionText: '先做完复盘' })
     expect(store.redeemReward(gated.id)).toMatchObject({ ok: false, reason: 'condition' })
-    expect(store.state.rewardRedemptions).toHaveLength(0)
+    expect(store.state.rewardRedemptions).toHaveLength(1)
   })
 
   it('不存在的奖励兑换返回 not-found', () => {
@@ -298,12 +303,11 @@ describe('兑换商店：预估预算', () => {
     store.updateReward(r.id, { budget: 'abc' })
     expect(store.state.rewards[0].budget).toBe(0)
 
-    // 预算不影响解锁：预算再高，金币不够仍锁定；金币够了就能兑换
+    // 预算不影响解锁与兑换：金币不足时提示会欠币，但仍可兑换
     store.updateReward(r.id, { budget: 99999 })
-    expect(rewardStatus(store.state, store.state.rewards[0]).unlocked).toBe(false)
-    expect(rewardStatus(store.state, store.state.rewards[0]).reason).toContain('金币不足')
-    addSessions([100])
-    expect(rewardStatus(store.state, store.state.rewards[0]).unlocked).toBe(true)
+    const st = rewardStatus(store.state, store.state.rewards[0])
+    expect(st.unlocked).toBe(true)
+    expect(st.reason).toContain('将欠')
   })
 
   it('预估预算合计 = 奖励金额 + 其他预算金额', () => {
@@ -517,7 +521,7 @@ describe('兑换商店：界面', () => {
     w.unmount()
   })
 
-  it('金币够的卡片可兑换并扣减金币；不够的按钮禁用并给出原因', async () => {
+  it('金币不够的卡片也提示可兑换（会欠币），兑换后余额变负并标红', async () => {
     addSessions([50])
     store.addReward({ name: '电影票', cost: 20 })
     store.addReward({ name: '大餐', cost: 500 })
@@ -526,18 +530,20 @@ describe('兑换商店：界面', () => {
 
     const cards = w.findAll('.reward-card')
     const okCard = cards.find((c) => c.text().includes('电影票'))
-    const lockedCard = cards.find((c) => c.text().includes('大餐'))
+    const oweCard = cards.find((c) => c.text().includes('大餐'))
     expect(okCard.find('.btn').text()).toBe('兑换')
-    expect(okCard.find('.btn').attributes('disabled')).toBeUndefined()
-    expect(lockedCard.find('.btn').text()).toBe('金币不足')
-    expect(lockedCard.find('.btn').attributes('disabled')).toBeDefined()
-    expect(lockedCard.find('.reason').text()).toBe('金币不足，还差 450')
+    expect(oweCard.find('.btn').text()).toBe('兑换')
+    expect(oweCard.find('.btn').attributes('disabled')).toBeUndefined()
+    expect(oweCard.find('.reason').text()).toBe('金币不足，将欠 450 金币')
+    expect(oweCard.text()).toContain('可兑换 · 会欠币')
 
-    await okCard.find('.btn').trigger('click')
+    await oweCard.find('.btn').trigger('click')
     await nextTick()
-    expect(store.state.rewards[0].redeemed).toBe(true)
+    expect(store.state.rewards[1].redeemed).toBe(true)
     expect(store.state.rewardRedemptions).toHaveLength(1)
-    expect(w.find('.coin-num').text()).toBe('30')
+    expect(w.find('.coin-num').text()).toBe('-450')
+    expect(w.find('.coin-num').classes()).toContain('owe')
+    expect(w.find('.coin-unit').text()).toBe('金币（欠）')
     w.unmount()
   })
 
