@@ -66,7 +66,7 @@ describe('设置页', () => {
   it('首页内容开关控制项目进度在首页的显示', async () => {
     const w = mountView()
     expect(w.text()).toContain('首页内容')
-    const sw = w.find('.opt-row .switch')
+    const sw = w.findAll('.opt-row').find((r) => r.text().includes('在首页显示项目进度')).find('.switch')
     await sw.trigger('click')
     expect(store.state.settings.showProjectsOnHome).toBe(false)
     await sw.trigger('click')
@@ -139,10 +139,10 @@ describe('设置页', () => {
     w.unmount()
   })
 
-  it('兑换商店金币费率可修改并保存', async () => {
+  it('兑换商店金币费率与欠款规则可修改并保存', async () => {
     const w = mountView()
-    const coinInputs = w.findAll('input[type="number"]').slice(-4)
-    expect(coinInputs).toHaveLength(4)
+    const coinInputs = w.findAll('input[type="number"]').slice(-5)
+    expect(coinInputs).toHaveLength(5)
     await coinInputs[0].setValue(2)
     await coinInputs[0].trigger('change')
     await coinInputs[1].setValue(8)
@@ -151,7 +151,23 @@ describe('设置页', () => {
     await coinInputs[2].trigger('change')
     await coinInputs[3].setValue(4)
     await coinInputs[3].trigger('change')
-    expect(store.state.settings.shop).toEqual({ coinPerFocusMin: 2, coinPerTodo: 8, coinPerCheckin: 3, coinPerReview: 4 })
+    await coinInputs[4].setValue(300)
+    await coinInputs[4].trigger('change')
+    expect(store.state.settings.shop).toEqual({
+      coinPerFocusMin: 2,
+      coinPerTodo: 8,
+      coinPerCheckin: 3,
+      coinPerReview: 4,
+      allowDebt: true,
+      maxDebt: 300,
+    })
+    // 关闭「允许欠金币」后不再显示上限输入
+    const sw = w.findAll('.opt-row').find((r) => r.text().includes('允许欠金币'))
+    await sw.find('button').trigger('click')
+    await nextTick()
+    expect(store.state.settings.shop.allowDebt).toBe(false)
+    expect(w.text()).not.toContain('最多可欠') // 关闭后不再显示欠款上限输入
+    expect(w.findAll('input[type="number"]')).toHaveLength(6)
     w.unmount()
   })
 })
