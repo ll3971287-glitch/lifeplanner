@@ -177,7 +177,7 @@ import {
 } from '../selectors.js'
 import { fmtDateTime } from '../utils/date.js'
 import { todoTimeText, deadlineText } from '../format.js'
-import { askConfirm, showToast } from '../ui.js'
+import { askConfirm, goFocus, showToast } from '../ui.js'
 import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
 import ProgressBar from '../components/ui/ProgressBar.vue'
@@ -275,7 +275,7 @@ function openEditProject() {
 }
 
 function startFocus(t) {
-  store.openFocus({ mode: 'pomodoro', targetType: 'todo', targetId: t.id })
+  goFocus(router, { mode: 'pomodoro', targetType: 'todo', targetId: t.id })
 }
 
 async function doArchive() {
