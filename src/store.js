@@ -123,7 +123,6 @@ export function normalizeData(raw) {
 export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
   const state = reactive(defaultState())
   const focusState = reactive({
-    visible: false,
     mode: 'pomodoro',
     phase: 'idle', // idle | run | pause | break
     targetType: 'none', // none | todo | projectSub
@@ -550,8 +549,8 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
   }
 
   // ---------- 专注 ----------
-  function openFocus({ mode = null, targetType = 'none', targetId = null } = {}) {
-    focusState.visible = true
+  // 准备一次专注：设置模式与目标（专注入口直接跳转专注主页面，不再有中间浮层）
+  function prepareFocus({ mode = null, targetType = 'none', targetId = null } = {}) {
     if (focusState.phase === 'idle' || focusState.phase === 'break') {
       if (mode) focusState.mode = mode
       focusState.targetType = targetType || 'none'
@@ -568,10 +567,6 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
   function setFocusMode(mode) {
     if (focusState.phase !== 'idle' && focusState.phase !== 'break') return
     if (mode === 'pomodoro' || mode === 'free') focusState.mode = mode
-  }
-
-  function closeFocus() {
-    focusState.visible = false
   }
 
   function focusPlanMs() {
@@ -1345,8 +1340,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     updateTag,
     deleteTag,
     reorderTags,
-    openFocus,
-    closeFocus,
+    prepareFocus,
     setFocusTarget,
     setFocusMode,
     startFocusRun,
