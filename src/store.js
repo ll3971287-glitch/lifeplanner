@@ -625,6 +625,28 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     return s
   }
 
+  // 补记打卡：按「向前 N 分钟」补一条专注历史记录（参与金币计算）
+  function addManualSession({ minutes, endAt = null } = {}) {
+    const mins = Math.min(1440, Math.round(Number(minutes) || 0))
+    if (mins <= 0) return null
+    const e = endAt == null ? now() : Number(endAt)
+    const s = {
+      id: uid(),
+      mode: 'manual',
+      targetType: 'none',
+      targetId: null,
+      startAt: Math.max(0, e - mins * 60000),
+      endAt: e,
+      durationMin: mins,
+      plannedMinutes: null,
+      status: 'completed',
+      manual: true,
+    }
+    state.sessions.push(s)
+    scheduleSave()
+    return s
+  }
+
   function endFocusRun({ auto = false } = {}, at = null) {
     const t = at == null ? now() : at
     const mode = focusState.mode
@@ -1334,6 +1356,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     breakRemainMs,
     focusElapsedMs,
     addSession,
+    addManualSession,
     addReview,
     updateReview,
     deleteReview,
