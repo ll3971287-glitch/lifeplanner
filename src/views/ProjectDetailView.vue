@@ -213,7 +213,8 @@ const progressText = computed(() => (project.value ? projectProgressText(store.s
 const isOverdue = computed(() => (project.value ? projectOverdue(project.value, Date.now()) : false))
 
 const viewMode = ref('grid')
-const statusFilter = ref('all')
+// 进入项目默认定位到未完成任务
+const statusFilter = ref('open')
 const tagFilter = ref('')
 const editOpen = ref(false)
 const formProject = ref(null)
