@@ -346,20 +346,32 @@ describe('ProjectDetailView 项目任务（普通待办语义）', () => {
     w.unmount()
   })
 
-  it('状态筛选 未完成/已完成 生效', async () => {
+  it('状态筛选 未完成/已完成 生效（取消的任务归入已完成分类）', async () => {
     const p = store.addProject({ name: 'P' })
     const doneTask = store.addSubTask({ projectId: p.id, name: '已完成任务' })
     store.addSubTask({ projectId: p.id, name: '未完成任务' })
+    const canceled = store.addSubTask({ projectId: p.id, name: '取消的任务' })
     store.toggleTodo(doneTask.id, true)
+    store.cancelTodo(canceled.id)
     const w = await mountDetail(p.id)
     await nextTick()
-    expect(w.findAll('.sub-cell')).toHaveLength(2)
+    // 全部：三条都在
+    expect(w.findAll('.sub-cell')).toHaveLength(3)
+
     const selects = w.findAll('select')
-    await selects[0].setValue('done')
+    // 未完成：只剩未完成的那个（取消的已归档，不算未完成）
+    await selects[0].setValue('open')
     await nextTick()
     expect(w.findAll('.sub-cell')).toHaveLength(1)
+    expect(w.text()).toContain('未完成任务')
+
+    // 已完成：已完成 + 已取消都在，并标注「已取消」
+    await selects[0].setValue('done')
+    await nextTick()
+    expect(w.findAll('.sub-cell')).toHaveLength(2)
     expect(w.text()).toContain('已完成任务')
-    expect(w.text()).not.toContain('未完成任务')
+    expect(w.text()).toContain('取消的任务')
+    expect(w.text()).toContain('已取消')
     w.unmount()
   })
 
