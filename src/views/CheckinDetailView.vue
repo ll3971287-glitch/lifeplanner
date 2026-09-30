@@ -133,7 +133,7 @@ import {
 } from '../selectors.js'
 import { fmtDateTime, fmtDate, startOfDayTs, parseDateStr, DAY_MS } from '../utils/date.js'
 import { countdownText } from '../format.js'
-import { askConfirm, showToast, randomMotivation, fireConfetti } from '../ui.js'
+import { askConfirm, goFocus, showToast, randomMotivation, fireConfetti } from '../ui.js'
 import { unlockAudio } from '../sound.js'
 import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
@@ -225,7 +225,7 @@ function startCheckinFocus() {
     showToast('打卡项目已过期', 'err')
     return
   }
-  store.openFocus({ mode: 'pomodoro', targetType: 'checkin', targetId: checkin.value.id })
+  goFocus(router, { mode: 'pomodoro', targetType: 'checkin', targetId: checkin.value.id })
 }
 
 function doCheckin(btn) {
