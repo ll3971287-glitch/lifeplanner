@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
+import { initialOf, groupByInitial } from '../src/projectIndex.js'
 import { parseDateStr } from '../src/utils/date.js'
 import ProjectFormModal from '../src/components/project/ProjectFormModal.vue'
 import { catOf } from '../src/projectMeta.js'
@@ -396,6 +397,79 @@ describe('ProjectDetailView 项目任务（普通待办语义）', () => {
     await new Promise((r) => setTimeout(r, 10))
     expect(store.state.projects).toHaveLength(0)
     expect(store.state.todos).toHaveLength(0)
+    w.unmount()
+  })
+})
+
+describe('项目字母索引', () => {
+  it('按名称首字母分组：汉字取拼音首字母、英文取首字母、数字归 #', () => {
+    expect(initialOf('学习的事')).toBe('X')
+    expect(initialOf('规划的事')).toBe('G')
+    expect(initialOf('考研计划')).toBe('K')
+    expect(initialOf('阿米巴')).toBe('A')
+    expect(initialOf('English Project')).toBe('E')
+    expect(initialOf('iPhone 改造')).toBe('I')
+    expect(initialOf('123 计划')).toBe('#')
+    expect(initialOf('')).toBe('#')
+
+    const groups = groupByInitial([
+      { name: '考研' },
+      { name: '阿米巴' },
+      { name: '学习的事' },
+      { name: 'English' },
+      { name: '123 计划' },
+    ])
+    expect(groups.map((g) => g.letter)).toEqual(['A', 'E', 'K', 'X', '#'])
+    expect(groups.find((g) => g.letter === 'X').items.map((i) => i.name)).toEqual(['学习的事'])
+  })
+})
+
+describe('ProjectsView 右侧字母索引栏', () => {
+  function mountList() {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div/>' } }, { path: '/projects/:id', component: { template: '<div/>' } }] })
+    router.push('/')
+    return { w: mount(ProjectsView, { global: { plugins: [router] } }), router }
+  }
+
+  it('项目按首字母分组展示，右侧字母栏只点亮有项目的字母', async () => {
+    store.addProject({ name: '学习的事', category: 'study' })
+    store.addProject({ name: '规划的事', category: 'study' })
+    store.addProject({ name: '阿米巴', category: 'study' })
+    const { w } = mountList()
+    await nextTick()
+    // 分组标题
+    const lettersShown = w.findAll('.idx-letter').map((el) => el.text().replace(/\s+/g, ''))
+    expect(lettersShown).toEqual(['A1个', 'G1个', 'X1个'])
+    // 锚点存在（供点击定位）
+    expect(w.find('#proj-idx-A').exists()).toBe(true)
+    expect(w.find('#proj-idx-X').exists()).toBe(true)
+    // 字母栏
+    const items = w.findAll('.idx-item')
+    expect(items).toHaveLength(27) // A-Z + #
+    const on = items.filter((i) => i.classes().includes('on')).map((i) => i.text())
+    expect(on).toEqual(['A', 'G', 'X'])
+    const offA = items.find((i) => i.text() === 'B')
+    expect(offA.attributes('disabled')).toBeDefined()
+    // 点击已点亮的字母不报错（jsdom 无 scrollIntoView 也能安全跳过）
+    const itemA = items.find((i) => i.text() === 'A')
+    expect(itemA.attributes('disabled')).toBeUndefined()
+    await itemA.trigger('click')
+    expect(w.find('#proj-idx-A').exists()).toBe(true)
+    w.unmount()
+  })
+
+  it('切换分类后字母栏跟随当前分类的项目变化', async () => {
+    store.addProject({ name: '学习的事', category: 'study' })
+    store.addProject({ name: '房租项目', category: 'project' })
+    const { w } = mountList()
+    await nextTick()
+    expect(w.findAll('.idx-letter')).toHaveLength(1)
+    expect(w.find('#proj-idx-X').exists()).toBe(true)
+    // 切到「项目」分类
+    await w.findAll('.seg-item')[1].trigger('click')
+    await nextTick()
+    expect(w.find('#proj-idx-F').exists()).toBe(true)
+    expect(w.findAll('.idx-letter').map((el) => el.text().replace(/\s+/g, ''))).toEqual(['F1个'])
     w.unmount()
   })
 })
