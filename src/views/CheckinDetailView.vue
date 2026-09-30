@@ -57,8 +57,7 @@
         <SegControl v-if="chartMode === 'line'" :model-value="lineDays" :options="[{ label: '30 天', value: 30 }, { label: '90 天', value: 90 }]" @update:model-value="lineDays = $event" />
       </div>
       <LineChart v-if="chartMode === 'line'" :checkin-id="checkin.id" :days="lineDays" />
-      <Heatmap v-else-if="chartMode === 'heat'" :checkin-id="checkin.id" />
-      <GanttChart v-else :checkin-id="checkin.id" :days="14" :offset-days="ganttOffset" @update:offset="ganttOffset = $event" />
+      <Heatmap v-else :checkin-id="checkin.id" :focus-ts="heatFocusTs" />
     </section>
 
     <section class="records-card card">
@@ -68,7 +67,7 @@
           <span class="mode-tag">打卡</span>
           <div class="rec-main">
             <div class="row gap8 rec-line">
-              <span>{{ fmtDateTime(r.at) }}</span>
+              <button type="button" class="rec-date" title="在热力图中定位这一天" @click="locateDay(r.at)">{{ fmtDateTime(r.at) }}</button>
               <span v-if="r.durationMin" class="muted">{{ r.durationMin }} 分钟</span>
               <span v-else class="muted">{{ r.count }} {{ checkin.unit }}</span>
             </div>
@@ -143,7 +142,6 @@ import CheckinFormModal from '../components/checkin/CheckinFormModal.vue'
 import CheckinRecordModal from '../components/checkin/CheckinRecordModal.vue'
 import LineChart from '../components/checkin/charts/LineChart.vue'
 import Heatmap from '../components/checkin/charts/Heatmap.vue'
-import GanttChart from '../components/checkin/charts/GanttChart.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -153,14 +151,14 @@ const map = computed(() => (checkin.value ? indexCheckinRecords(store.state.chec
 
 const chartMode = ref('line')
 const lineDays = ref(30)
-const ganttOffset = ref(0)
+// 点击历史记录里的日期后，热力图定位到该日期所在半年分区并高亮
+const heatFocusTs = ref(null)
 const editOpen = ref(false)
 const recordOpen = ref(false)
 
 const chartOptions = [
   { label: '折线图', value: 'line' },
   { label: '热力图', value: 'heat' },
-  { label: '甘特图', value: 'gantt' },
 ]
 
 const today = computed(() => startOfDayTs(Date.now()))
@@ -217,6 +215,11 @@ function saveMakeup() {
   })
   makeup.open = false
   showToast('已补打卡')
+}
+
+function locateDay(ts) {
+  heatFocusTs.value = startOfDayTs(ts)
+  chartMode.value = 'heat'
 }
 
 function startCheckinFocus() {
@@ -399,6 +402,14 @@ async function doDelete() {
 
 .rec-line {
   gap: 8px;
+}
+
+.rec-date {
+  font-size: 13.5px;
+  color: var(--accent-deep);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-style: dotted;
 }
 
 .rec-note {
