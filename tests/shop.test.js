@@ -618,3 +618,74 @@ describe('兑换商店：界面', () => {
     w2.unmount()
   })
 })
+
+describe('兑换商店：欠款上限', () => {
+  function saveShop(patch) {
+    store.setSetting('shop', { coinPerFocusMin: 1, coinPerTodo: 5, coinPerCheckin: 1, coinPerReview: 1, ...patch })
+  }
+
+  it('默认不限欠款：金币不足可一直欠', () => {
+    store.addReward({ name: '大件', cost: 500 })
+    const res = store.redeemReward(store.state.rewards[0].id)
+    expect(res.ok).toBe(true)
+    expect(shopBalance(store.state)).toBe(-500)
+  })
+
+  it('自定义欠款上限：在上限内可欠，超出上限则不能兑换', () => {
+    saveShop({ allowDebt: true, maxDebt: 300 })
+    const small = store.addReward({ name: '小额', cost: 200 })
+    const big = store.addReward({ name: '大额', cost: 500 })
+
+    // 200 ≤ 300：可欠
+    expect(rewardStatus(store.state, small)).toMatchObject({ canRedeem: true, debt: 200 })
+    expect(store.redeemReward(small.id).ok).toBe(true)
+    expect(shopBalance(store.state)).toBe(-200)
+
+    // 再兑 500 会欠 700，且余额 -200 已接近上限：超出上限被拒
+    const st = rewardStatus(store.state, big)
+    expect(st.overDebtLimit).toBe(true)
+    expect(st.canRedeem).toBe(false)
+    expect(st.reason).toBe('超出欠款上限（最多可欠 300 金币）')
+    const res = store.redeemReward(big.id)
+    expect(res).toMatchObject({ ok: false, reason: 'debt-limit' })
+    expect(res.text).toContain('最多可欠 300')
+    expect(store.state.rewardRedemptions).toHaveLength(1)
+    expect(shopBalance(store.state)).toBe(-200)
+  })
+
+  it('上限内仍可兑换（欠款不超过上限）', () => {
+    saveShop({ allowDebt: true, maxDebt: 300 })
+    const t = store.addReward({ name: '刚好', cost: 300 })
+    const st = rewardStatus(store.state, t)
+    expect(st.debt).toBe(300)
+    expect(st.overDebtLimit).toBe(false)
+    expect(store.redeemReward(t.id).ok).toBe(true)
+    expect(shopBalance(store.state)).toBe(-300)
+  })
+
+  it('关闭「允许欠金币」后金币必须足够', () => {
+    saveShop({ allowDebt: false })
+    const t = store.addReward({ name: '付费奖励', cost: 50 })
+    const st = rewardStatus(store.state, t)
+    expect(st.canRedeem).toBe(false)
+    expect(st.reason).toBe('金币不足')
+    expect(store.redeemReward(t.id)).toMatchObject({ ok: false, reason: 'debt-limit', text: '金币不足' })
+
+    // 攒够金币后即可兑换
+    addSessions([60])
+    expect(store.redeemReward(t.id).ok).toBe(true)
+    expect(shopBalance(store.state)).toBe(10)
+  })
+
+  it('卡片按钮随欠款上限变化：超限时禁用并显示原因', async () => {
+    saveShop({ allowDebt: true, maxDebt: 100 })
+    store.addReward({ name: '超限奖励', cost: 500 })
+    const w = mount(ShopView)
+    await nextTick()
+    const card = w.find('.reward-card')
+    expect(card.find('.btn').text()).toBe('金币不足')
+    expect(card.find('.btn').attributes('disabled')).toBeDefined()
+    expect(card.find('.reason').text()).toBe('超出欠款上限（最多可欠 100 金币）')
+    w.unmount()
+  })
+})
