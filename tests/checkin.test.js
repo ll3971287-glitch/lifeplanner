@@ -218,14 +218,21 @@ describe('CheckinsView', () => {
     w.unmount()
   })
 
-  it('卡片专注按钮拉起针对该打卡项目的番茄专注', async () => {
+  it('卡片专注按钮：设置该打卡为专注目标并跳转专注主页面', async () => {
     const c = store.addCheckin({ name: '晨跑', dailyTargetCount: 1 })
-    const w = mountView()
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }],
+    })
+    await router.push('/')
+    await router.isReady()
+    const w = mount(CheckinsView, { global: { plugins: [router] } })
     await nextTick()
     await w.find('.focus-mini').trigger('click')
-    expect(store.focusState.visible).toBe(true)
+    await new Promise((r) => setTimeout(r, 10))
     expect(store.focusState.targetType).toBe('checkin')
     expect(store.focusState.targetId).toBe(c.id)
+    expect(router.currentRoute.value.path).toBe('/focus')
     w.unmount()
   })
 
