@@ -95,7 +95,7 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import CheckinFormModal from '../components/checkin/CheckinFormModal.vue'
 import CheckinRecordModal from '../components/checkin/CheckinRecordModal.vue'
-import { showToast, randomMotivation, fireConfetti } from '../ui.js'
+import { goFocus, showToast, randomMotivation, fireConfetti } from '../ui.js'
 import { unlockAudio } from '../sound.js'
 
 const router = useRouter()
@@ -130,7 +130,7 @@ let lastBtn = null
 function focusCheckin(it) {
   if (!it.active || !it.checkin) return
   unlockAudio()
-  store.openFocus({ mode: 'pomodoro', targetType: 'checkin', targetId: it.checkin.id })
+  goFocus(router, { mode: 'pomodoro', targetType: 'checkin', targetId: it.checkin.id })
 }
 
 function doCheckin(it, btn) {
