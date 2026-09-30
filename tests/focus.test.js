@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
@@ -8,7 +8,8 @@ import FocusOverlay from '../src/components/focus/FocusOverlay.vue'
 import FocusView from '../src/views/FocusView.vue'
 import ConfirmDialog from '../src/components/ui/ConfirmDialog.vue'
 import { settleConfirm, confirmState } from '../src/ui.js'
-import { startOfDayTs, DAY_MS } from '../src/utils/date.js'
+import { startOfDayTs, DAY_MS, fmtTime } from '../src/utils/date.js'
+import { shopIncome, shopBalance } from '../src/selectors.js'
 
 function resetFocus() {
   const f = store.focusState
@@ -207,6 +208,87 @@ describe('FocusView 专注页', () => {
     await nextTick()
     const pickBtn = w.findAll('button').find((b) => b.text().includes('选择要专注的任务'))
     expect(pickBtn.attributes('disabled')).toBeDefined()
+    w.unmount()
+  })
+})
+
+describe('补记打卡', () => {
+  function mountView() {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div/>' } }] })
+    router.push('/')
+    return mount(FocusView, { global: { plugins: [router] } })
+  }
+
+  it('addManualSession：按「向前 N 分钟」生成专注历史记录', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-30T12:15:00'))
+    const s = store.addManualSession({ minutes: 15 })
+    expect(s).toBeTruthy()
+    expect(s.mode).toBe('manual')
+    expect(s.manual).toBe(true)
+    expect(s.durationMin).toBe(15)
+    expect(fmtTime(s.startAt)).toBe('12:00')
+    expect(fmtTime(s.endAt)).toBe('12:15')
+    expect(store.state.sessions).toHaveLength(1)
+    vi.useRealTimers()
+  })
+
+  it('无效分钟数不生成记录（0 / 负数 / 空）', () => {
+    expect(store.addManualSession({ minutes: 0 })).toBeNull()
+    expect(store.addManualSession({ minutes: -5 })).toBeNull()
+    expect(store.addManualSession({})).toBeNull()
+    expect(store.state.sessions).toHaveLength(0)
+  })
+
+  it('补记时长参与金币计算：每 15 分钟 = 15 金币', () => {
+    store.addManualSession({ minutes: 15 })
+    expect(shopIncome(store.state).focusMin).toBe(15)
+    expect(shopIncome(store.state).coins).toBe(15)
+    store.addManualSession({ minutes: 30 })
+    expect(shopIncome(store.state).focusMin).toBe(45)
+    expect(shopIncome(store.state).coins).toBe(45)
+    expect(shopBalance(store.state)).toBe(45)
+  })
+
+  it('补记记录进入今日统计与列表（标注「补记」）', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-30T12:15:00'))
+    store.addManualSession({ minutes: 25 })
+    const w = mountView()
+    await nextTick()
+    expect(w.text()).toContain('补记打卡')
+    expect(w.text()).toContain('25 分钟')
+    const row = w.find('.session-row')
+    expect(row.find('.mode-tag').text()).toBe('补记')
+    expect(row.text()).toContain('11:50')
+    vi.useRealTimers()
+    w.unmount()
+  })
+
+  it('点击补记打卡按钮：表单可填分钟数并预览区间，保存后生成记录', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-30T12:15:00'))
+    const w = mountView()
+    await nextTick()
+    const openBtn = w.findAll('button').find((b) => b.text().includes('补记打卡'))
+    expect(openBtn).toBeTruthy()
+    await openBtn.trigger('click')
+    await nextTick()
+    const panel = document.body.querySelector('.modal-panel')
+    expect(panel).toBeTruthy()
+    // 默认向前 15 分钟 → 12:00 - 12:15
+    expect(panel.querySelector('.bf-range').textContent).toContain('12:00 - 12:15')
+    // 快捷选择 30 分钟 → 11:45 - 12:15
+    const chip30 = [...panel.querySelectorAll('.pomo-chip')].find((c) => c.textContent.includes('向前 30 分钟'))
+    chip30.click()
+    await nextTick()
+    expect(panel.querySelector('.bf-range').textContent).toContain('11:45 - 12:15')
+    const saveBtn = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('生成记录'))
+    saveBtn.click()
+    await nextTick()
+    expect(store.state.sessions).toHaveLength(1)
+    expect(store.state.sessions[0]).toMatchObject({ mode: 'manual', durationMin: 30, manual: true })
+    vi.useRealTimers()
     w.unmount()
   })
 })
