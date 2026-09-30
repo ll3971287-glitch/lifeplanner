@@ -56,9 +56,10 @@ describe('兑换商店：金币产出与余额', () => {
     expect(income.focusMin).toBe(75)
     expect(income.todoCount).toBe(2)
     expect(income.checkinCount).toBe(2)
+    expect(income.checkinFocusMin).toBe(40) // 两条打卡各 20 分钟
     expect(income.reviewCount).toBe(1)
-    expect(income.coins).toBe(75 + 2 * 5 + 2 * 1 + 1 * 1)
-    expect(shopBalance(store.state)).toBe(88)
+    expect(income.coins).toBe(75 + 2 * 5 + 2 * 1 + 40 * 1 + 1 * 1)
+    expect(shopBalance(store.state)).toBe(128)
   })
 
   it('费率可调（含打卡/复盘），且只统计历史累计', () => {
@@ -68,7 +69,8 @@ describe('兑换商店：金币产出与余额', () => {
     const c = store.addCheckin({ name: '喝水', dailyTargetCount: 1 })
     store.addCheckinRecord(c.id, { count: 1, durationMin: 1 })
     store.addReview({ type: 'week', fields: { summary: '周复盘' } })
-    expect(shopIncome(store.state).coins).toBe(10 * 2 + 1 * 10 + 1 * 3 + 1 * 8)
+    // 专注 10×2 + 任务 1×10 + 打卡 1×3 + 打卡时长 1×2 + 复盘 1×8
+    expect(shopIncome(store.state).coins).toBe(10 * 2 + 1 * 10 + 1 * 3 + 1 * 2 + 1 * 8)
   })
 
   it('打卡一次、复盘一次各记一笔金币（每新增记录都增加产出）', () => {
@@ -82,6 +84,37 @@ describe('兑换商店：金币产出与余额', () => {
     const rec = store.state.checkinRecords[0]
     store.deleteCheckinRecord(rec.id)
     expect(shopIncome(store.state).coins).toBe(1)
+  })
+
+  it('打卡自带的专注时长按时长计金币（每 15 分钟 15 金币）', () => {
+    const c = store.addCheckin({ name: '跑步', rule: 'fixed', fixedDurationMin: 30 })
+    store.addCheckinRecord(c.id, { count: 1, durationMin: 30 })
+    const income = shopIncome(store.state)
+    expect(income.checkinFocusMin).toBe(30)
+    expect(income.checkinCount).toBe(1)
+    // 30 分钟 × 1 金币 + 打卡 1 次 × 1 金币
+    expect(income.coins).toBe(31)
+    // 再来一次 15 分钟：45 分钟 + 2 次
+    store.addCheckinRecord(c.id, { count: 1, durationMin: 15 })
+    expect(shopIncome(store.state).checkinFocusMin).toBe(45)
+    expect(shopIncome(store.state).coins).toBe(47)
+  })
+
+  it('番茄专注完成打卡不重复计时长金币（时长只在 sessions 计一次）', () => {
+    const c = store.addCheckin({ name: '冥想', rule: 'fixed', fixedDurationMin: 25 })
+    store.focusState.mode = 'pomodoro'
+    store.focusState.targetType = 'checkin'
+    store.focusState.targetId = c.id
+    store.startFocusRun({ mode: 'pomodoro' })
+    // 一轮番茄自动完成：写入 session(25 分钟) + 打卡记录（时长来自专注）
+    store.endFocusRun({ auto: true }, Date.now() + 25 * 60000)
+    expect(store.state.sessions).toHaveLength(1)
+    expect(store.state.checkinRecords).toHaveLength(1)
+    expect(store.state.checkinRecords[0].fromFocus).toBe(true)
+    const income = shopIncome(store.state)
+    expect(income.checkinFocusMin).toBe(0) // 不重复计
+    expect(income.focusMin).toBe(25)
+    expect(income.coins).toBe(25 + 1) // 专注 25 分钟 + 打卡 1 次
   })
 
   it('余额 = 累计产出 − 已兑换消耗', () => {
@@ -478,6 +511,7 @@ describe('兑换商店：界面', () => {
     await nextTick()
     const sub = w.find('.wallet-sub').text()
     expect(sub).toContain('打卡 1 次 × 1')
+    expect(sub).toContain('打卡专注 0 分钟 × 1')
     expect(sub).toContain('复盘 1 次 × 1')
     expect(w.find('.coin-num').text()).toBe('2')
     w.unmount()
