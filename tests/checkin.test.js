@@ -10,7 +10,6 @@ import CheckinsView from '../src/views/CheckinsView.vue'
 import CheckinDetailView from '../src/views/CheckinDetailView.vue'
 import LineChart from '../src/components/checkin/charts/LineChart.vue'
 import Heatmap from '../src/components/checkin/charts/Heatmap.vue'
-import GanttChart from '../src/components/checkin/charts/GanttChart.vue'
 import { confirmState } from '../src/ui.js'
 
 beforeEach(() => {
@@ -293,18 +292,72 @@ describe('CheckinDetailView 与图表', () => {
     expect(w.findComponent(LineChart).exists()).toBe(true)
     const lineSvg = w.findComponent(LineChart).find('svg')
     expect(lineSvg.findAll('rect.bar').length).toBe(30)
-    // 切热力
+    // 切热力：按半年分区展示
     const segs = w.findAll('.seg-item')
     await segs[1].trigger('click')
     await nextTick()
-    expect(w.findComponent(Heatmap).exists()).toBe(true)
-    expect(w.findComponent(Heatmap).findAll('rect').length).toBe(52 * 7)
-    // 切甘特
-    await segs[2].trigger('click')
+    const heat = w.findComponent(Heatmap)
+    expect(heat.exists()).toBe(true)
+    const now = new Date()
+    const halfLabel = now.getMonth() < 6 ? '上半年' : '下半年'
+    expect(heat.find('.hm-title').text()).toContain(`${now.getFullYear()} 年${halfLabel}`)
+    // 只渲染该半年内的日期格子（不会铺满 52 周）
+    const cellCount = heat.findAll('rect').length
+    expect(cellCount).toBeGreaterThan(180)
+    expect(cellCount).toBeLessThanOrEqual(186)
+    // 只有两个图表模式：折线 / 热力（甘特图已移除）
+    expect(segs.slice(0, 2).map((x) => x.text())).toEqual(['折线图', '热力图'])
+    w.unmount()
+  })
+})
+
+describe('热力图：半年分区与日期定位', () => {
+  async function mountDetail(id) {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/checkins/:id', component: { template: '<div/>' } }, { path: '/checkins', component: { template: '<div/>' } }] })
+    await router.push(`/checkins/${id}`)
+    await router.isReady()
+    return mount(CheckinDetailView, { global: { plugins: [router] } })
+  }
+
+  it('默认展示当前半年，可前后翻期', async () => {
+    const lastYearStart = new Date(new Date().getFullYear() - 1, 0, 5).getTime()
+    const c = store.addCheckin({ name: '阅读', dailyTargetCount: 1, startDate: lastYearStart })
+    store.addCheckinRecord(c.id, { count: 1 })
+    const w = await mountDetail(c.id)
     await nextTick()
-    const gantt = w.findComponent(GanttChart)
-    expect(gantt.exists()).toBe(true)
-    expect(gantt.findAll('.gantt-bar, .gantt-dot').length).toBeGreaterThanOrEqual(1)
+    await w.findAll('.seg-item')[1].trigger('click') // 切到热力图
+    await nextTick()
+    const heat = w.findComponent(Heatmap)
+    const now = new Date()
+    const halfLabel = now.getMonth() < 6 ? '上半年' : '下半年'
+    expect(heat.find('.hm-title').text()).toContain(`${now.getFullYear()} 年${halfLabel}`)
+    // 有记录时上一期可点（开始日期/记录所在半年在更早）
+    const prev = heat.find('.mini-btn')
+    expect(prev.attributes('disabled')).toBeUndefined()
+    await prev.trigger('click')
+    await nextTick()
+    const prevLabel = now.getMonth() < 6 ? '下半年' : '上半年'
+    const prevYear = now.getMonth() < 6 ? now.getFullYear() - 1 : now.getFullYear()
+    expect(w.findComponent(Heatmap).find('.hm-title').text()).toContain(`${prevYear} 年${prevLabel}`)
+    w.unmount()
+  })
+
+  it('点击历史记录里的日期：切到热力图并定位到该日期所在半年并高亮', async () => {
+    const c = store.addCheckin({ name: '跑步', rule: 'fixed', fixedDurationMin: 30 })
+    // 造一条去年上半年的记录（定位到往期）
+    const past = new Date(new Date().getFullYear() - 1, 2, 10, 12, 0, 0).getTime()
+    store.addCheckinRecord(c.id, { count: 1, durationMin: 30, at: past })
+    const w = await mountDetail(c.id)
+    await nextTick()
+    expect(w.findComponent(LineChart).exists()).toBe(true)
+    const dateBtn = w.find('.rec-date')
+    expect(dateBtn.text()).toContain('03-10')
+    await dateBtn.trigger('click')
+    await nextTick()
+    const heat = w.findComponent(Heatmap)
+    expect(heat.exists()).toBe(true)
+    expect(heat.find('.hm-title').text()).toContain(`${new Date().getFullYear() - 1} 年上半年`)
+    expect(heat.find('.hm-cell.focus').exists()).toBe(true)
     w.unmount()
   })
 })
