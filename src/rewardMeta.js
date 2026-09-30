@@ -31,6 +31,17 @@ export function timeHintLabel(key) {
   return hit ? hit.label : ''
 }
 
+export const SHOP_DEFAULT_DEBT = { allowDebt: true, maxDebt: 0 }
+
+// 欠款规则：allowDebt=不允许欠（必须余额足够）；maxDebt=0 表示欠多少都不限
+export function shopDebtRule(settings) {
+  const raw = (settings && settings.shop) || {}
+  return {
+    allowDebt: raw.allowDebt == null ? SHOP_DEFAULT_DEBT.allowDebt : !!raw.allowDebt,
+    maxDebt: raw.maxDebt == null ? SHOP_DEFAULT_DEBT.maxDebt : Math.max(0, Number(raw.maxDebt) || 0),
+  }
+}
+
 export const SHOP_DEFAULT_RATE = { coinPerFocusMin: 1, coinPerTodo: 5, coinPerCheckin: 1, coinPerReview: 1 }
 
 export function shopRate(settings) {
