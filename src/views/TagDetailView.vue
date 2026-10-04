@@ -36,7 +36,7 @@
       <h3 class="group-title">项目（{{ entities.projects.length }}）</h3>
       <div v-if="entities.projects.length" class="group-list">
         <button v-for="p in entities.projects" :key="p.id" type="button" class="row item" @click="router.push(`/projects/${p.id}`)">
-          <span class="type-mini" :class="p.type === '工作' ? 'work' : 'study'">{{ p.type }}</span>
+          <span class="type-mini" :style="{ background: catColor(p) }">{{ catMeta(p).short }}</span>
           <span class="item-title">{{ p.name }}</span>
           <Icon name="chevronRight" :size="15" class="go-icon" />
         </button>
@@ -72,6 +72,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { store } from '../store.js'
 import { tagEntities } from '../selectors.js'
 import { tagOf } from '../selectors.js'
+import { catColor, catMeta } from '../projectMeta.js'
 import { askConfirm, showToast } from '../ui.js'
 import { ref } from 'vue'
 import Icon from '../components/ui/Icon.vue'
@@ -185,14 +186,8 @@ async function doDelete() {
   flex: none;
 }
 
-.type-mini.study {
-  background: color-mix(in srgb, var(--primary) 45%, transparent);
-  color: var(--primary-deep);
-}
-
-.type-mini.work {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: var(--accent-deep);
+.type-mini {
+  color: #fff;
 }
 
 .item-title {
