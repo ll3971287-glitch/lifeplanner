@@ -26,6 +26,7 @@ onMounted(async () => {
   window.addEventListener('pointerdown', onEdgeDown, { capture: true, passive: true })
   window.addEventListener('pointermove', onEdgeMove, { passive: true })
   window.addEventListener('pointerup', onEdgeUp, { passive: true })
+  document.addEventListener('click', onDateInputClick)
   await store.init()
 })
 
@@ -33,7 +34,26 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointerdown', onEdgeDown, { capture: true })
   window.removeEventListener('pointermove', onEdgeMove)
   window.removeEventListener('pointerup', onEdgeUp)
+  document.removeEventListener('click', onDateInputClick)
 })
+
+// 日期/时间输入兜底：若点击后未拿到焦点（安卓等环境下会被父层吞掉），
+// 主动聚焦并请求弹出原生选择器
+const DATE_INPUT_TYPES = ['date', 'time', 'datetime-local', 'month', 'week']
+
+function onDateInputClick(e) {
+  const el = e.target
+  if (!el || el.tagName !== 'INPUT') return
+  if (!DATE_INPUT_TYPES.includes(el.type)) return
+  if (el.disabled || el.readOnly) return
+  if (document.activeElement === el) return // 已正常聚焦，系统会自行弹出选择器
+  try {
+    el.focus()
+    if (typeof el.showPicker === 'function') el.showPicker()
+  } catch (err) {
+    /* 不支持 showPicker 的环境：仅完成聚焦 */
+  }
+}
 
 // 屏幕左边缘向右滑动呼出侧栏
 const EDGE = 26
