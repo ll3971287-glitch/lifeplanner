@@ -1,4 +1,4 @@
-// 项目分类：学习 / 项目 / 规划（可自由调整，不受项目「类型」字段限制）
+// 项目分类：学习 / 项目 / 规划（项目只用分类区分，不再有「类型」字段）
 
 export const PROJECT_CATS = [
   { key: 'study', label: '学习分类', short: '学习', color: '#5476B8' },
@@ -11,7 +11,7 @@ export const DEFAULT_PROJECT_CAT = 'project'
 export function catOf(p) {
   const k = p && p.category
   if (PROJECT_CATS.some((c) => c.key === k)) return k
-  // 老数据（没有分类字段）按原「类型」兜底：学习 → 学习分类，其余 → 项目分类
+  // 老数据（没有分类字段）按历史「类型」字段兜底：学习 → 学习分类，其余 → 项目分类
   if (p && p.type === '学习') return 'study'
   return DEFAULT_PROJECT_CAT
 }
