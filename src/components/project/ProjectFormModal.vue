@@ -6,12 +6,7 @@
     </div>
 
     <div class="field">
-      <span class="field-label">类型</span>
-      <SegControl v-model="form.type" :options="[{ label: '学习', value: '学习' }, { label: '工作', value: '工作' }]" />
-    </div>
-
-    <div class="field">
-      <span class="field-label">分类（列表页的分类标签）</span>
+      <span class="field-label">分类</span>
       <SegControl v-model="form.category" :options="catOptions" />
     </div>
 
@@ -95,7 +90,6 @@ const catOptions = PROJECT_CATS.map((c) => ({ label: c.label, value: c.key }))
 function buildForm(src) {
   return {
     name: src ? src.name : '',
-    type: src ? src.type : '学习',
     category: src ? catOf(src) : 'project',
     desc: src ? src.desc : '',
     totalWorkload: src ? src.totalWorkload ?? 0 : 0,
@@ -131,7 +125,6 @@ function save() {
   }
   const payload = {
     name,
-    type: form.value.type,
     category: form.value.category,
     desc: form.value.desc,
     totalWorkload: Number(form.value.totalWorkload) || 0,
