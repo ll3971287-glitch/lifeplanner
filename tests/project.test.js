@@ -28,9 +28,10 @@ function stubRouter(routes) {
 }
 
 describe('ProjectFormModal', () => {
-  it('新建项目默认学习类型并保存 deadline', async () => {
+  it('新建项目保存名称与 deadline（表单已无「类型」，只用分类区分）', async () => {
     const w = mount(ProjectFormModal)
     await w.find('input.input').setValue('毕业论文')
+    expect(w.text()).not.toContain('类型')
     const dateInput = w.find('input[type="date"]')
     dateInput.element.value = '2026-12-31'
     await dateInput.trigger('change')
@@ -38,7 +39,8 @@ describe('ProjectFormModal', () => {
     expect(store.state.projects).toHaveLength(1)
     const p = store.state.projects[0]
     expect(p.name).toBe('毕业论文')
-    expect(p.type).toBe('学习')
+    expect(p.type).toBeUndefined()
+    expect(p.category).toBe('project')
     expect(p.deadline).toBe(parseDateStr('2026-12-31'))
   })
 
@@ -46,9 +48,9 @@ describe('ProjectFormModal', () => {
     const w = mount(ProjectFormModal)
     await w.find('input.input').setValue('外包项目')
     const segs = w.findAll('.seg-item')
-    // 类型 2 项 + 分类 3 项 + 进度规则 2 项 = 7
-    expect(segs).toHaveLength(7)
-    await segs[6].trigger('click') // 进度规则第二项
+    // 分类 3 项 + 进度规则 2 项 = 5（类型已移除）
+    expect(segs).toHaveLength(5)
+    await segs[4].trigger('click') // 进度规则第二项
     await w.find('.btn-primary').trigger('click')
     expect(store.state.projects[0].progressMode).toBe('hours')
   })
@@ -66,13 +68,13 @@ describe('项目分类（学习/项目/规划）', () => {
     const w = mount(ProjectFormModal)
     await w.find('input.input').setValue('考研计划')
     const segs = w.findAll('.seg-item')
-    await segs[3].trigger('click') // 分类第二项 = 项目分类
+    await segs[1].trigger('click') // 分类第二项 = 项目分类
     await w.find('.btn-primary').trigger('click')
     expect(store.state.projects[0].category).toBe('project')
     const w2 = mount(ProjectFormModal)
     await w2.find('input.input').setValue('学英语')
     const segs2 = w2.findAll('.seg-item')
-    await segs2[2].trigger('click') // 分类第一项 = 学习分类
+    await segs2[0].trigger('click') // 分类第一项 = 学习分类
     await w2.find('.btn-primary').trigger('click')
     expect(store.state.projects[1].category).toBe('study')
   })
@@ -110,7 +112,7 @@ describe('项目编辑面板：二次修改与实时生效', () => {
     // 面板内二次修改并保存 → 实时写入
     await w.find('input.input').setValue('第三次修改')
     const segs = w.findAll('.seg-item')
-    await segs[6].trigger('click') // 进度规则第二项 = 按预计时长统计
+    await segs[4].trigger('click') // 进度规则第二项 = 按预计时长统计
     await w.find('.btn-primary').trigger('click')
     expect(store.state.projects[0].name).toBe('第三次修改')
     expect(store.state.projects[0].progressMode).toBe('hours')
