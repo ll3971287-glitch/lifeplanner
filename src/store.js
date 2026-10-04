@@ -59,7 +59,7 @@ export function defaultState() {
 
 const TODO_PATCH_KEYS = ['title', 'note', 'timeType', 'startAt', 'endAt', 'tagIds', 'parentId', 'recurrence', 'priority', 'projectId', 'estimatedHours', 'onHome', 'snoozeUntil', 'canceled', 'canceledAt']
 const PROJECT_PATCH_KEYS = ['name', 'desc', 'totalWorkload', 'workloadUnit', 'deadline', 'tagIds', 'completed', 'completedAt', 'progressMode', 'category']
-const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMin', 'startDate', 'endDate', 'rule', 'countUnlimited']
+const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMin', 'startDate', 'endDate', 'rule', 'countUnlimited', 'archived', 'archivedAt']
 const REVIEW_PATCH_KEYS = ['type', 'periodDate', 'fields', 'goals']
 const TAG_PATCH_KEYS = ['name', 'color']
 const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBreakMin', 'dailyFocusGoalMin', 'navOrder', 'homeOrder', 'showProjectsOnHome', 'showBlueprintsOnCalendar', 'blueprintDims', 'focusChain', 'soundOn', 'shop']
@@ -457,6 +457,8 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
       endDate: endDate == null ? null : new Date(new Date(endDate).getFullYear(), new Date(endDate).getMonth(), new Date(endDate).getDate()).getTime(),
       rule: rule || 'fixed',
       countUnlimited: !!countUnlimited,
+      archived: false,
+      archivedAt: null,
       createdAt: now(),
     }
     state.checkins.push(c)
@@ -471,6 +473,25 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     if ('fixedDurationMin' in p) c.fixedDurationMin = p.fixedDurationMin == null ? null : Number(p.fixedDurationMin)
     if ('rule' in p) c.rule = p.rule === 'count' ? 'count' : 'fixed'
     if ('countUnlimited' in p) c.countUnlimited = !!p.countUnlimited
+    scheduleSave()
+    return c
+  }
+
+  // 归档打卡：从打卡列表移入归档箱，记录与统计保留
+  function archiveCheckin(id) {
+    const c = state.checkins.find((x) => x.id === id)
+    if (!c) return null
+    c.archived = true
+    c.archivedAt = now()
+    scheduleSave()
+    return c
+  }
+
+  function restoreCheckin(id) {
+    const c = state.checkins.find((x) => x.id === id)
+    if (!c) return null
+    c.archived = false
+    c.archivedAt = null
     scheduleSave()
     return c
   }
@@ -1339,6 +1360,8 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     addCheckin,
     updateCheckin,
     deleteCheckin,
+    archiveCheckin,
+    restoreCheckin,
     addCheckinRecord,
     deleteCheckinRecord,
     addTag,
