@@ -1,41 +1,42 @@
 <template>
   <div v-if="checkin" class="detail-view">
     <header class="head-card card">
-      <div class="row-between wrap gap8">
-        <div>
-          <h2 class="c-name">{{ checkin.name }}</h2>
-          <p class="muted c-meta">
-            每日 {{ checkin.dailyTargetCount }}{{ checkin.unit }}
-            <template v-if="checkin.fixedDurationMin">· 每次 {{ checkin.fixedDurationMin }} 分钟</template>
-            <template v-if="checkin.endDate">· {{ fmtDate(checkin.endDate) }} 截止</template>
-            <template v-else>· 永久</template>
-          </p>
+      <div class="head-info">
+        <h2 class="c-name">{{ checkin.name }}</h2>
+        <p class="muted c-meta">
+          每日 {{ checkin.dailyTargetCount }}{{ checkin.unit }}
+          <template v-if="checkin.fixedDurationMin">· 每次 {{ checkin.fixedDurationMin }} 分钟</template>
+          <template v-if="checkin.endDate">· {{ fmtDate(checkin.endDate) }} 截止</template>
+          <template v-else>· 永久</template>
+        </p>
+        <div v-if="checkin.endDate || checkin.archived" class="chips-row">
           <span v-if="checkin.endDate" class="cdown" :class="{ over: countdownText(checkin.endDate).startsWith('已结束') }">{{ countdownText(checkin.endDate) }}</span>
           <span v-if="checkin.archived" class="arch-chip">已归档</span>
         </div>
-        <div class="row gap6">
-          <button type="button" class="btn btn-primary btn-sm check-now" @click="doCheckin($event.currentTarget)">
-            <Icon name="checkCircle" :size="14" /> {{ todayMet ? '再记一次' : '记一次打卡' }}
-          </button>
-          <button type="button" class="btn btn-outline btn-sm" :disabled="!active" @click="startCheckinFocus">
-            <Icon name="alarm" :size="13" /> 专注
-          </button>
-          <button type="button" class="btn btn-outline btn-sm" @click="openMakeup">
-            <Icon name="refresh" :size="13" /> 补打卡
-          </button>
-          <button type="button" class="btn btn-outline btn-sm" @click="editOpen = true">
-            <Icon name="edit" :size="13" /> 编辑
-          </button>
-          <button v-if="checkin.archived" type="button" class="btn btn-outline btn-sm" @click="doRestore">
-            <Icon name="refresh" :size="13" /> 恢复
-          </button>
-          <button v-else type="button" class="btn btn-outline btn-sm" @click="doArchive">
-            <Icon name="box" :size="13" /> 归档
-          </button>
-          <button type="button" class="icon-btn danger" title="删除打卡项目" @click="doDelete">
-            <Icon name="trash" :size="16" />
-          </button>
-        </div>
+      </div>
+
+      <div class="action-grid">
+        <button type="button" class="btn btn-primary btn-sm check-now" @click="doCheckin($event.currentTarget)">
+          <Icon name="checkCircle" :size="14" /> {{ todayMet ? '再记一次' : '记一次打卡' }}
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" :disabled="!active" @click="startCheckinFocus">
+          <Icon name="alarm" :size="13" /> 专注
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" @click="openMakeup">
+          <Icon name="refresh" :size="13" /> 补打卡
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" @click="editOpen = true">
+          <Icon name="edit" :size="13" /> 编辑
+        </button>
+        <button v-if="checkin.archived" type="button" class="btn btn-outline btn-sm" @click="doRestore">
+          <Icon name="refresh" :size="13" /> 恢复
+        </button>
+        <button v-else type="button" class="btn btn-outline btn-sm" @click="doArchive">
+          <Icon name="box" :size="13" /> 归档
+        </button>
+        <button type="button" class="btn btn-outline btn-sm danger-outline" @click="doDelete">
+          <Icon name="trash" :size="13" /> 删除
+        </button>
       </div>
 
       <div class="stats-grid">
@@ -328,9 +329,39 @@ async function doDelete() {
   gap: 14px;
 }
 
+.head-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .c-name {
   margin: 0;
   font-size: 20px;
+}
+
+.chips-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+/* 操作按钮：等宽网格排列，不再挤在一行 */
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(98px, 1fr));
+  gap: 8px;
+}
+
+.action-grid .btn {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.danger-outline {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 
 .c-meta {
