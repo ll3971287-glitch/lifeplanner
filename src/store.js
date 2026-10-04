@@ -58,7 +58,7 @@ export function defaultState() {
 }
 
 const TODO_PATCH_KEYS = ['title', 'note', 'timeType', 'startAt', 'endAt', 'tagIds', 'parentId', 'recurrence', 'priority', 'projectId', 'estimatedHours', 'onHome', 'snoozeUntil', 'canceled', 'canceledAt']
-const PROJECT_PATCH_KEYS = ['name', 'type', 'desc', 'totalWorkload', 'workloadUnit', 'deadline', 'tagIds', 'completed', 'completedAt', 'progressMode', 'category']
+const PROJECT_PATCH_KEYS = ['name', 'desc', 'totalWorkload', 'workloadUnit', 'deadline', 'tagIds', 'completed', 'completedAt', 'progressMode', 'category']
 const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMin', 'startDate', 'endDate', 'rule', 'countUnlimited']
 const REVIEW_PATCH_KEYS = ['type', 'periodDate', 'fields', 'goals']
 const TAG_PATCH_KEYS = ['name', 'color']
@@ -320,11 +320,10 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
   }
 
   // ---------- 项目 ----------
-  function addProject({ name, type = '学习', desc = '', totalWorkload = 0, workloadUnit = '小时', deadline = null, tagIds = [], progressMode = 'count', category = null } = {}) {
+  function addProject({ name, desc = '', totalWorkload = 0, workloadUnit = '小时', deadline = null, tagIds = [], progressMode = 'count', category = null } = {}) {
     const p = {
       id: uid(),
       name,
-      type,
       category: category || 'project',
       desc,
       totalWorkload,
@@ -782,7 +781,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
   function breakdownProject(bpId) {
     const b = state.blueprints.find((x) => x.id === bpId)
     if (!b) return null
-    const p = addProject({ name: b.title || '未命名蓝图', desc: b.desc || '', type: '目标', category: 'plan' })
+    const p = addProject({ name: b.title || '未命名蓝图', desc: b.desc || '', category: 'plan' })
     b.related = [...(b.related || []), { type: 'project', id: p.id }]
     rebuildBlueprintRefs()
     scheduleSave()
