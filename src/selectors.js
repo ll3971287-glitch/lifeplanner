@@ -379,7 +379,7 @@ export function checkinStatsRange(c, map, fromTs, toTsExclusive) {
 }
 
 export function checkinTodayList(state, nowTs = Date.now()) {
-  return state.checkins.map((c) => {
+  return state.checkins.filter((c) => !c.archived).map((c) => {
     const map = indexCheckinRecords(state.checkinRecords, c.id)
     const day = startOfDayTs(nowTs)
     const met = checkinDayMet(c, map, day)
@@ -394,10 +394,18 @@ export function checkinTodayList(state, nowTs = Date.now()) {
   })
 }
 
+// 已归档的打卡项目（按归档时间倒序）
+export function archivedCheckins(state) {
+  return state.checkins
+    .filter((c) => c.archived)
+    .sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0))
+}
+
 export function todayMetCount(state, nowTs = Date.now()) {
   const day = startOfDayTs(nowTs)
   let met = 0
   for (const c of state.checkins) {
+    if (c.archived) continue
     const map = indexCheckinRecords(state.checkinRecords, c.id)
     if (checkinDayMet(c, map, day)) met += 1
   }
