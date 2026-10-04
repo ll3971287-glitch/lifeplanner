@@ -61,7 +61,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { store } from '../../store.js'
 import { todoChildren, todoRoots, subtreeIds } from '../../selectors.js'
 import DateTimeFields from '../form/DateTimeFields.vue'
@@ -80,13 +80,26 @@ const emit = defineEmits(['close', 'saved'])
 
 const editing = computed(() => !!props.todo)
 
+// 新建任务时的所属项目：显式传入 > 编辑对象的项目 > 父任务所属项目
+const contextProject = computed(() => {
+  if (props.project) return props.project
+  let pid = props.todo ? props.todo.projectId : null
+  if (!pid && props.defaultParentId) {
+    const parent = store.state.todos.find((t) => t.id === props.defaultParentId)
+    pid = parent ? parent.projectId : null
+  }
+  if (!pid) return null
+  return store.state.projects.find((p) => p.id === pid) || null
+})
+
 function initForm() {
   const base = props.presetTime || { timeType: 'none', startAt: null, endAt: null }
   return {
     title: props.todo ? props.todo.title : '',
     note: props.todo ? props.todo.note : '',
     parentChoice: props.defaultParentId ? 't:' + props.defaultParentId : 'none',
-    tagIds: props.todo ? [...(props.todo.tagIds || [])] : [],
+    // 项目内的新任务默认继承项目标签
+    tagIds: props.todo ? [...(props.todo.tagIds || [])] : [...((contextProject.value && contextProject.value.tagIds) || [])],
     recurrence: props.todo ? props.todo.recurrence : null,
     priority: props.todo ? props.todo.priority || 'none' : 'none',
     time: {
@@ -99,6 +112,18 @@ function initForm() {
 
 const form = ref(initForm())
 const err = ref('')
+
+// 表单里改选「所属项目」时，若还没选过标签，则默认带入该项目的标签
+watch(
+  () => form.value.parentChoice,
+  (pc) => {
+    if (editing.value || !pc || !pc.startsWith('p:')) return
+    const proj = store.state.projects.find((p) => p.id === pc.slice(2))
+    if (!proj || !(proj.tagIds || []).length) return
+    if (form.value.tagIds.length) return
+    form.value.tagIds = [...proj.tagIds]
+  }
+)
 
 const recurFreq = ref(form.value.recurrence ? form.value.recurrence.freq : 'none')
 const recurStep = ref(form.value.recurrence ? form.value.recurrence.step || 1 : 1)
