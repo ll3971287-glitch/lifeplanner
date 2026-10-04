@@ -11,6 +11,7 @@
             <template v-else>· 永久</template>
           </p>
           <span v-if="checkin.endDate" class="cdown" :class="{ over: countdownText(checkin.endDate).startsWith('已结束') }">{{ countdownText(checkin.endDate) }}</span>
+          <span v-if="checkin.archived" class="arch-chip">已归档</span>
         </div>
         <div class="row gap6">
           <button type="button" class="btn btn-primary btn-sm check-now" @click="doCheckin($event.currentTarget)">
@@ -24,6 +25,12 @@
           </button>
           <button type="button" class="btn btn-outline btn-sm" @click="editOpen = true">
             <Icon name="edit" :size="13" /> 编辑
+          </button>
+          <button v-if="checkin.archived" type="button" class="btn btn-outline btn-sm" @click="doRestore">
+            <Icon name="refresh" :size="13" /> 恢复
+          </button>
+          <button v-else type="button" class="btn btn-outline btn-sm" @click="doArchive">
+            <Icon name="box" :size="13" /> 归档
           </button>
           <button type="button" class="icon-btn danger" title="删除打卡项目" @click="doDelete">
             <Icon name="trash" :size="16" />
@@ -251,6 +258,23 @@ async function delRecord(r) {
   store.deleteCheckinRecord(r.id)
 }
 
+async function doArchive() {
+  const ok = await askConfirm({
+    title: '归档打卡',
+    message: `把「${checkin.value.name}」移入归档箱？`,
+    detail: '归档后不再出现在打卡列表与今日统计里，历史记录和图表都会保留，可随时恢复。',
+    okText: '归档',
+  })
+  if (!ok) return
+  store.archiveCheckin(checkin.value.id)
+  showToast('已归档，可在打卡页归档箱恢复')
+}
+
+function doRestore() {
+  store.restoreCheckin(checkin.value.id)
+  showToast('已恢复到打卡列表')
+}
+
 async function doDelete() {
   const ok = await askConfirm({
     title: '删除打卡项目',
@@ -319,6 +343,16 @@ async function doDelete() {
   font-weight: 800;
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+
+.arch-chip {
+  align-self: flex-start;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--line) 55%, transparent);
   border-radius: 999px;
   padding: 3px 12px;
 }
