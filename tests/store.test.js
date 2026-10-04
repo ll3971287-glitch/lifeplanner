@@ -174,7 +174,7 @@ describe('项目 actions', () => {
 
   it('addProject 默认按数量统计模式，可指定累计时长模式', () => {
     const p = store.addProject({ name: '默认项目' })
-    expect(p.type).toBe('学习')
+    expect(p.type).toBeUndefined()
     expect(p.progressMode).toBe('count')
     const p2 = store.addProject({ name: '计时项目', progressMode: 'hours', totalWorkload: 12 })
     expect(p2.progressMode).toBe('hours')
