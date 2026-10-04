@@ -380,5 +380,24 @@ html[data-mode='dark'] body {
 html[data-mode='dark'] .card {
   box-shadow: 0 10px 26px -14px rgba(0, 0, 0, 0.6);
 }
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+
+/* 日期 / 时间输入：保证足够的触控区域，并允许点击唤起原生选择器 */
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'],
+input[type='month'],
+input[type='week'] {
+  min-height: 42px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Safari / Chrome 上隐藏原生指示符时不改变可点击区域 */
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='time']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.75;
 }
