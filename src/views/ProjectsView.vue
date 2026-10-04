@@ -382,15 +382,7 @@ function openCreate() {
   border-radius: 999px;
 }
 
-.type-badge.study {
-  background: color-mix(in srgb, var(--primary) 45%, transparent);
-  color: var(--primary-deep);
-}
 
-.type-badge.work {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: var(--accent-deep);
-}
 
 .late {
   font-size: 12px;
