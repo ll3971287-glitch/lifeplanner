@@ -6,6 +6,8 @@ import { store, defaultState } from '../src/store.js'
 import { initialOf, groupByInitial } from '../src/projectIndex.js'
 import { parseDateStr } from '../src/utils/date.js'
 import ProjectFormModal from '../src/components/project/ProjectFormModal.vue'
+import TodoFormModal from '../src/components/todo/TodoFormModal.vue'
+import TagPicker from '../src/components/form/TagPicker.vue'
 import { catOf } from '../src/projectMeta.js'
 import { projectStats, projectProgressText } from '../src/selectors.js'
 import ProjectsView from '../src/views/ProjectsView.vue'
@@ -472,6 +474,62 @@ describe('ProjectsView 右侧字母索引栏', () => {
     await nextTick()
     expect(w.find('#proj-idx-F').exists()).toBe(true)
     expect(w.findAll('.idx-letter').map((el) => el.text().replace(/\s+/g, ''))).toEqual(['F1个'])
+    w.unmount()
+  })
+})
+
+describe('项目子任务默认继承项目标签', () => {
+  it('在项目里新建任务：默认带上项目标签；编辑已有任务不覆盖原标签', async () => {
+    const tg1 = store.addTag({ name: '重要', color: '#ef4444' })
+    const tg2 = store.addTag({ name: '复习', color: '#3b82f6' })
+    const p = store.addProject({ name: '考研计划', tagIds: [tg1.id] })
+
+    // 新建任务（项目页表单）
+    const w = mount(TodoFormModal, { props: { project: p } })
+    await nextTick()
+    await w.find('input.input').setValue('背单词')
+    expect(w.findComponent(TagPicker).props('modelValue')).toEqual([tg1.id])
+    await w.find('.btn-primary').trigger('click')
+    const created = store.state.todos.find((t) => t.title === '背单词')
+    expect(created.tagIds).toEqual([tg1.id])
+    w.unmount()
+
+    // 编辑已有任务：保留它自己的标签，不被项目标签覆盖
+    const own = store.addSubTask({ projectId: p.id, name: '已有任务', tagIds: [tg2.id] })
+    const w2 = mount(TodoFormModal, { props: { project: p, todo: own } })
+    await nextTick()
+    expect(w2.findComponent(TagPicker).props('modelValue')).toEqual([tg2.id])
+    await w2.find('.btn-primary').trigger('click')
+    expect(store.state.todos.find((t) => t.id === own.id).tagIds).toEqual([tg2.id])
+    w2.unmount()
+  })
+
+  it('给项目任务加子任务（不传 project）也会带出项目标签', async () => {
+    const tg = store.addTag({ name: '论文', color: '#7c3aed' })
+    const p = store.addProject({ name: '毕业论文', tagIds: [tg.id] })
+    const parent = store.addSubTask({ projectId: p.id, name: '文献综述' })
+
+    const w = mount(TodoFormModal, { props: { defaultParentId: parent.id } })
+    await nextTick()
+    expect(w.findComponent(TagPicker).props('modelValue')).toEqual([tg.id])
+    await w.find('input.input').setValue('找 10 篇文献')
+    await w.find('.btn-primary').trigger('click')
+    const child = store.state.todos.find((t) => t.title === '找 10 篇文献')
+    expect(child.parentId).toBe(parent.id)
+    expect(child.tagIds).toEqual([tg.id])
+    w.unmount()
+  })
+
+  it('表单里改选所属项目时，未选标签则默认带入该项目标签', async () => {
+    const tg = store.addTag({ name: '运维', color: '#0ea5e9' })
+    const p = store.addProject({ name: '服务器迁移', tagIds: [tg.id] })
+    const w = mount(TodoFormModal)
+    await nextTick()
+    expect(w.findComponent(TagPicker).props('modelValue')).toEqual([])
+    // 模拟选择所属项目（表单内部选择器）
+    await w.find('select.select').setValue('p:' + p.id)
+    await nextTick()
+    expect(w.findComponent(TagPicker).props('modelValue')).toEqual([tg.id])
     w.unmount()
   })
 })
