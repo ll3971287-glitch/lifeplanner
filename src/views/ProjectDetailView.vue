@@ -4,7 +4,7 @@
       <div class="row-between wrap gap8">
         <div>
           <div class="row gap8">
-            <span class="type-badge" :class="project.type === '工作' ? 'work' : 'study'">{{ project.type }}</span>
+            <span class="type-badge" :style="{ background: catColor(project) }">{{ catMeta(project).short }}</span>
             <span v-if="isOverdue" class="late">已逾期</span>
             <span v-if="project.completed" class="done-chip">已完成</span>
           </div>
@@ -179,6 +179,7 @@ import {
 } from '../selectors.js'
 import { fmtDateTime } from '../utils/date.js'
 import { todoTimeText, deadlineText } from '../format.js'
+import { catColor, catMeta } from '../projectMeta.js'
 import { askConfirm, goFocus, showToast } from '../ui.js'
 import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
@@ -346,14 +347,8 @@ async function doDelete() {
   border-radius: 999px;
 }
 
-.type-badge.study {
-  background: color-mix(in srgb, var(--primary) 45%, transparent);
-  color: var(--primary-deep);
-}
-
-.type-badge.work {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: var(--accent-deep);
+.type-badge {
+  color: #fff;
 }
 
 .late {
