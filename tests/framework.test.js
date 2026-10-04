@@ -15,6 +15,7 @@ import ConfirmDialog from '../src/components/ui/ConfirmDialog.vue'
 import ToastHost from '../src/components/ui/ToastHost.vue'
 import TopBar from '../src/components/layout/TopBar.vue'
 import BottomNav from '../src/components/layout/BottomNav.vue'
+import App from '../src/App.vue'
 import { router as realRouter } from '../src/router.js'
 import { askConfirm, settleConfirm, showToast, toastState, confirmState } from '../src/ui.js'
 
@@ -218,5 +219,71 @@ describe('导航框架', () => {
     for (const n of ['home', 'todos', 'projects', 'project-detail', 'calendar', 'checkins', 'checkin-detail', 'focus', 'tags', 'tag-detail', 'reviews', 'blueprints', 'relations', 'goals', 'media', 'food', 'shop', 'settings']) {
       expect(names).toContain(n)
     }
+  })
+})
+
+describe('日期输入兜底（App 全局）', () => {
+  function mountApp() {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div/>' } }] })
+    router.push('/')
+    return mount(App, { global: { plugins: [router], stubs: { RouterView: true } } })
+  }
+
+  it('点击未获取焦点的日期/时间输入框时，兜底聚焦（并在支持时请求弹出选择器）', async () => {
+    const w = mountApp()
+    await nextTick()
+    const date = document.createElement('input')
+    date.type = 'date'
+    const time = document.createElement('input')
+    time.type = 'time'
+    const text = document.createElement('input')
+    text.type = 'text'
+    const pickerSpy = vi.fn()
+    date.showPicker = pickerSpy
+    time.showPicker = pickerSpy
+    document.body.append(date, time, text)
+
+    date.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(document.activeElement).toBe(date)
+    expect(pickerSpy).toHaveBeenCalledTimes(1)
+
+    time.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(document.activeElement).toBe(time)
+    expect(pickerSpy).toHaveBeenCalledTimes(2)
+
+    // 普通文本输入框不受影响
+    text.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(document.activeElement).not.toBe(text)
+
+    date.remove()
+    time.remove()
+    text.remove()
+    w.unmount()
+  })
+
+  it('已聚焦的日期输入不重复请求选择器；只读/禁用输入跳过', async () => {
+    const w = mountApp()
+    await nextTick()
+    const d1 = document.createElement('input')
+    d1.type = 'date'
+    const spy1 = vi.fn()
+    d1.showPicker = spy1
+    document.body.append(d1)
+    d1.focus()
+    d1.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(spy1).not.toHaveBeenCalled()
+
+    const d2 = document.createElement('input')
+    d2.type = 'date'
+    d2.disabled = true
+    const spy2 = vi.fn()
+    d2.showPicker = spy2
+    document.body.append(d2)
+    d2.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(spy2).not.toHaveBeenCalled()
+
+    d1.remove()
+    d2.remove()
+    w.unmount()
   })
 })
