@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
+import { todayMetCount, checkinTodayList, archivedCheckins } from '../src/selectors.js'
 import { startOfDayTs, DAY_MS, addDaysTs } from '../src/utils/date.js'
 import CheckinFormModal from '../src/components/checkin/CheckinFormModal.vue'
 import CheckinRecordModal from '../src/components/checkin/CheckinRecordModal.vue'
@@ -10,7 +11,7 @@ import CheckinsView from '../src/views/CheckinsView.vue'
 import CheckinDetailView from '../src/views/CheckinDetailView.vue'
 import LineChart from '../src/components/checkin/charts/LineChart.vue'
 import Heatmap from '../src/components/checkin/charts/Heatmap.vue'
-import { confirmState } from '../src/ui.js'
+import { confirmState, settleConfirm } from '../src/ui.js'
 
 beforeEach(() => {
   store._replace(defaultState())
@@ -433,6 +434,75 @@ describe('打卡图表数据修复与补打卡', () => {
     save.click()
     await nextTick()
     expect(store.state.checkinRecords).toHaveLength(0)
+    w.unmount()
+  })
+})
+
+describe('打卡归档', () => {
+  async function mountList() {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div/>' } }, { path: '/checkins/:id', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }] })
+    await router.push('/')
+    await router.isReady()
+    return { w: mount(CheckinsView, { global: { plugins: [router] } }), router }
+  }
+
+  it('归档后从打卡列表与今日统计移除，进入归档箱并可恢复', async () => {
+    const c = store.addCheckin({ name: '晨跑', dailyTargetCount: 1 })
+    store.addCheckinRecord(c.id, { count: 1 })
+    expect(todayMetCount(store.state)).toBe(1)
+    expect(checkinTodayList(store.state).some((i) => i.checkin.id === c.id)).toBe(true)
+
+    const { w } = await mountList()
+    await nextTick()
+    expect(w.text()).toContain('晨跑')
+    // 卡片上的归档按钮
+    const archBtn = w.find('.archive-mini')
+    expect(archBtn.exists()).toBe(true)
+    await archBtn.trigger('click')
+    await nextTick()
+    settleConfirm(true)
+    await new Promise((r) => setTimeout(r, 10))
+
+    expect(store.state.checkins[0].archived).toBe(true)
+    expect(store.state.checkins[0].archivedAt).toBeTruthy()
+    expect(todayMetCount(store.state)).toBe(0)
+    expect(checkinTodayList(store.state).some((i) => i.checkin.id === c.id)).toBe(false)
+    expect(archivedCheckins(store.state)).toHaveLength(1)
+
+    // 归档箱里可恢复
+    await nextTick()
+    expect(w.find('.archived').text()).toContain('归档箱（1）')
+    await w.find('.arch-head').trigger('click')
+    await nextTick()
+    const row = w.find('.arch-row')
+    expect(row.text()).toContain('晨跑')
+    await row.find('.btn-outline').trigger('click')
+    await nextTick()
+    expect(store.state.checkins[0].archived).toBe(false)
+    expect(w.find('.archived').exists()).toBe(false)
+    w.unmount()
+  })
+
+  it('打卡详情页可归档与恢复，并显示「已归档」标记', async () => {
+    const c = store.addCheckin({ name: '阅读', dailyTargetCount: 1 })
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/checkins/:id', component: { template: '<div/>' } }, { path: '/checkins', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }] })
+    await router.push(`/checkins/${c.id}`)
+    await router.isReady()
+    const w = mount(CheckinDetailView, { global: { plugins: [router] } })
+    await nextTick()
+    const archBtn = w.findAll('button').find((b) => b.text().includes('归档'))
+    expect(archBtn).toBeTruthy()
+    await archBtn.trigger('click')
+    await nextTick()
+    settleConfirm(true)
+    await new Promise((r) => setTimeout(r, 10))
+    expect(store.state.checkins[0].archived).toBe(true)
+    await nextTick()
+    expect(w.find('.arch-chip').text()).toBe('已归档')
+    const restoreBtn = w.findAll('button').find((b) => b.text().includes('恢复'))
+    await restoreBtn.trigger('click')
+    await nextTick()
+    expect(store.state.checkins[0].archived).toBe(false)
     w.unmount()
   })
 })
