@@ -64,6 +64,14 @@
               <Icon name="checkCircle" :size="18" />
               <span>{{ it.met ? '已完成' : '打卡' }}</span>
             </button>
+            <button
+              type="button"
+              class="icon-btn archive-mini"
+              title="归档（移入归档箱，记录与图表保留）"
+              @click.stop="archiveIt(it)"
+            >
+              <Icon name="box" :size="17" />
+            </button>
           </div>
         </div>
       </div>
@@ -73,6 +81,29 @@
         <Icon name="plus" :size="16" /> 新建第一个打卡
       </button>
     </EmptyState>
+
+    <!-- 归档箱 -->
+    <div v-if="archived.length" class="archived">
+      <button type="button" class="arch-head" @click="archOpen = !archOpen">
+        <span>归档箱（{{ archived.length }}）</span>
+        <Icon :name="archOpen ? 'chevronDown' : 'chevronRight'" :size="15" />
+      </button>
+      <template v-if="archOpen">
+        <div class="arch-list">
+          <div v-for="c in archived" :key="c.id" class="arch-row card">
+            <div class="arch-main" @click="router.push(`/checkins/${c.id}`)">
+              <span class="arch-name">{{ c.name }}</span>
+              <span class="muted mini">
+                每日 {{ c.dailyTargetCount }}{{ c.unit }}
+                <template v-if="c.fixedDurationMin">· 每次 {{ c.fixedDurationMin }} 分钟</template>
+                · 归档于 {{ fmtDate(c.archivedAt) }}
+              </span>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" @click="restoreIt(c)">恢复</button>
+          </div>
+        </div>
+      </template>
+    </div>
 
     <BaseModal :open="form.open" :title="form.checkin ? '编辑打卡' : '新建打卡项目'" @close="form.open = false">
       <CheckinFormModal v-if="form.open" :checkin="form.checkin" @close="form.open = false" @saved="form.open = false" />
@@ -86,7 +117,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { store } from '../store.js'
-import { checkinTodayList, checkinTodayProgressText } from '../selectors.js'
+import { checkinTodayList, checkinTodayProgressText, archivedCheckins } from '../selectors.js'
 import { fmtDate } from '../utils/date.js'
 import { countdownText } from '../format.js'
 import Icon from '../components/ui/Icon.vue'
@@ -95,12 +126,13 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import CheckinFormModal from '../components/checkin/CheckinFormModal.vue'
 import CheckinRecordModal from '../components/checkin/CheckinRecordModal.vue'
-import { goFocus, showToast, randomMotivation, fireConfetti } from '../ui.js'
+import { askConfirm, goFocus, showToast, randomMotivation, fireConfetti } from '../ui.js'
 import { unlockAudio } from '../sound.js'
 
 const router = useRouter()
 
 const form = ref({ open: false, checkin: null })
+const archOpen = ref(false)
 const recordOpen = ref(false)
 const recordCheckinId = ref(null)
 
@@ -119,6 +151,26 @@ function todayPct(it) {
     target = 1
   }
   return Math.min(100, Math.round((done / target) * 100))
+}
+
+const archived = computed(() => archivedCheckins(store.state))
+
+async function archiveIt(it) {
+  const c = it.checkin
+  const ok = await askConfirm({
+    title: '归档打卡',
+    message: `把「${c.name}」移入归档箱？`,
+    detail: '归档后不再出现在打卡列表与今日统计里，历史记录和图表都会保留，可随时恢复。',
+    okText: '归档',
+  })
+  if (!ok) return
+  store.archiveCheckin(c.id)
+  showToast('已归档，可在归档箱恢复')
+}
+
+function restoreIt(c) {
+  store.restoreCheckin(c.id)
+  showToast('已恢复到打卡列表')
 }
 
 function openCreate() {
@@ -162,6 +214,71 @@ function onRecorded() {
 
 .toolbar {
   padding: 14px;
+}
+
+.archived {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.arch-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dim);
+  padding: 6px 2px;
+  text-align: left;
+}
+
+.arch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.arch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+}
+
+.arch-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.arch-name {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.archive-mini {
+  align-self: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text-dim);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.archive-mini:active {
+  transform: scale(0.94);
+}
+
+.archive-mini:hover {
+  color: var(--accent-deep);
+  border-color: var(--accent);
 }
 
 .page-title {
