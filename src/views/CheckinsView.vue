@@ -24,6 +24,7 @@
           <div class="c-main">
             <div class="row gap8 c-head">
               <span class="c-name" :class="{ met: it.met }">{{ it.checkin.name }}</span>
+              <span v-if="it.checkin.pinned" class="pin-badge"><Icon name="pin" :size="11" /> 置顶</span>
               <span v-if="it.met" class="met-badge"><Icon name="check" :size="11" /> 达标</span>
               <span v-if="!it.active" class="exp-badge">已结束</span>
             </div>
@@ -63,6 +64,15 @@
             >
               <Icon name="checkCircle" :size="18" />
               <span>{{ it.met ? '已完成' : '打卡' }}</span>
+            </button>
+            <button
+              type="button"
+              class="icon-btn pin-mini"
+              :class="{ on: it.checkin.pinned }"
+              :title="it.checkin.pinned ? '取消置顶' : '置顶（最多 3 项）'"
+              @click.stop="togglePin(it)"
+            >
+              <Icon name="pin" :size="17" />
             </button>
             <button
               type="button"
@@ -136,7 +146,14 @@ const archOpen = ref(false)
 const recordOpen = ref(false)
 const recordCheckinId = ref(null)
 
-const items = computed(() => checkinTodayList(store.state, Date.now()).sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0)))
+// 置顶的排最前，其次进行中的在前
+const items = computed(() =>
+  checkinTodayList(store.state, Date.now()).sort(
+    (a, b) =>
+      (b.checkin.pinned ? 1 : 0) - (a.checkin.pinned ? 1 : 0) ||
+      (b.active ? 1 : 0) - (a.active ? 1 : 0)
+  )
+)
 const todayMet = computed(() => items.value.filter((i) => i.active && i.met).length)
 
 function todayPct(it) {
@@ -154,6 +171,15 @@ function todayPct(it) {
 }
 
 const archived = computed(() => archivedCheckins(store.state))
+
+function togglePin(it) {
+  const res = store.toggleCheckinPin(it.checkin.id)
+  if (!res.ok) {
+    showToast(res.text || '置顶失败', 'err')
+    return
+  }
+  showToast(res.pinned ? `已置顶「${it.checkin.name}」` : '已取消置顶')
+}
 
 async function archiveIt(it) {
   const c = it.checkin
@@ -257,6 +283,25 @@ function onRecorded() {
 .arch-name {
   font-size: 14.5px;
   font-weight: 700;
+}
+
+.pin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  flex: none;
+}
+
+.pin-mini.on {
+  color: var(--accent-deep);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .archive-mini {
