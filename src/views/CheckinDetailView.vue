@@ -9,7 +9,8 @@
           <template v-if="checkin.endDate">· {{ fmtDate(checkin.endDate) }} 截止</template>
           <template v-else>· 永久</template>
         </p>
-        <div v-if="checkin.endDate || checkin.archived" class="chips-row">
+        <div v-if="checkin.endDate || checkin.archived || checkin.pinned" class="chips-row">
+          <span v-if="checkin.pinned" class="pin-chip">已置顶</span>
           <span v-if="checkin.endDate" class="cdown" :class="{ over: countdownText(checkin.endDate).startsWith('已结束') }">{{ countdownText(checkin.endDate) }}</span>
           <span v-if="checkin.archived" class="arch-chip">已归档</span>
         </div>
@@ -24,6 +25,9 @@
         </button>
         <button type="button" class="btn btn-outline btn-sm" @click="openMakeup">
           <Icon name="refresh" :size="13" /> 补打卡
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" @click="togglePin">
+          <Icon name="pin" :size="13" /> {{ checkin.pinned ? '取消置顶' : '置顶' }}
         </button>
         <button type="button" class="btn btn-outline btn-sm" @click="editOpen = true">
           <Icon name="edit" :size="13" /> 编辑
@@ -259,6 +263,15 @@ async function delRecord(r) {
   store.deleteCheckinRecord(r.id)
 }
 
+function togglePin() {
+  const res = store.toggleCheckinPin(checkin.value.id)
+  if (!res.ok) {
+    showToast(res.text || '置顶失败', 'err')
+    return
+  }
+  showToast(res.pinned ? '已置顶' : '已取消置顶')
+}
+
 async function doArchive() {
   const ok = await askConfirm({
     title: '归档打卡',
@@ -374,6 +387,16 @@ async function doDelete() {
   font-weight: 800;
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+
+.pin-chip {
+  align-self: flex-start;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
   border-radius: 999px;
   padding: 3px 12px;
 }
