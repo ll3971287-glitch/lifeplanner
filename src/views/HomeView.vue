@@ -533,7 +533,11 @@ function hideProjects() {
 const focusStats = computed(() => todayFocusStats(store.state.sessions, nowTs.value))
 const running = computed(() => store.focusState.phase === 'run' || store.focusState.phase === 'pause')
 
-const checkinList = computed(() => checkinTodayList(store.state, nowTs.value).filter((i) => i.active))
+const checkinList = computed(() =>
+  checkinTodayList(store.state, nowTs.value)
+    .filter((i) => i.active)
+    .sort((a, b) => (b.checkin.pinned ? 1 : 0) - (a.checkin.pinned ? 1 : 0))
+)
 
 let lastBtn = null
 
