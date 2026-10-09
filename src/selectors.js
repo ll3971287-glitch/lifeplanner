@@ -394,6 +394,10 @@ export function checkinTodayList(state, nowTs = Date.now()) {
   })
 }
 
+export function pinnedCheckinCount(state) {
+  return (state.checkins || []).filter((c) => c.pinned).length
+}
+
 // 已归档的打卡项目（按归档时间倒序）
 export function archivedCheckins(state) {
   return state.checkins
