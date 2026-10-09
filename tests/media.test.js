@@ -6,7 +6,7 @@ import { store, defaultState } from '../src/store.js'
 import { mediaOf, mediaCounts, mediaCategoryStats, mediaFavorites } from '../src/selectors.js'
 import { progressInfo, ratingStars, wishLabel } from '../src/mediaMeta.js'
 import MediaView from '../src/views/MediaView.vue'
-import MediaCard from '../src/components/media/MediaCard.vue'
+import MediaRow from '../src/components/media/MediaRow.vue'
 import MediaDrawer from '../src/components/media/MediaDrawer.vue'
 import MediaFormModal from '../src/components/media/MediaFormModal.vue'
 import MediaTimeline from '../src/components/media/MediaTimeline.vue'
@@ -92,7 +92,7 @@ describe('书影音页面', () => {
     expect(w.text()).toContain('一本好书')
     expect(w.text()).not.toContain('一部电影')
     expect(w.text()).not.toContain('一个游戏')
-    // seg 顺序：视图(卡片/时间线) 2 项 → 品类 5 项 → 状态 6 项
+    // seg 顺序：视图(条状/时间线) 2 项 → 品类 5 项 → 状态 6 项
     const cats = w.findAll('.seg-item')
     await cats[3].trigger('click') // 电影（品类第 2 项）
     await nextTick()
@@ -325,6 +325,38 @@ describe('首页「最近在看」板块', () => {
     const { w } = await mountHome()
     await nextTick()
     expect(w.text()).not.toContain('最近在看')
+    w.unmount()
+  })
+})
+
+describe('书影音条状视图', () => {
+  it('默认条状视图，每行展示该条记录的个人专属标签', async () => {
+    store.addMedia({ category: 'book', title: '深入理解计算机系统', creator: 'Randal', tags: ['计算机', '教材'], status: 'doing', rating: 5 })
+    store.addMedia({ category: 'book', title: '无关书籍', tags: ['小说'] })
+    const w = mount(MediaView)
+    await nextTick()
+    expect(w.findAll('.media-row')).toHaveLength(2)
+    const row = w.findAll('.media-row').find((r) => r.text().includes('深入理解计算机系统'))
+    expect(row.exists()).toBe(true)
+    const tags = row.findAll('.mini-tag').map((t) => t.text())
+    expect(tags).toEqual(['计算机', '教材'])
+    // 大卡片视图已移除
+    expect(w.find('.media-card').exists()).toBe(false)
+    // 视图切换只剩 条状 / 时间线
+    const viewSegs = w.findAll('.seg-item').slice(0, 2).map((s) => s.text())
+    expect(viewSegs).toEqual(['条状', '时间线'])
+    w.unmount()
+  })
+
+  it('点击条状单行打开详情抽屉', async () => {
+    const m = store.addMedia({ category: 'book', title: '一本书' })
+    const w = mount(MediaView)
+    await nextTick()
+    await w.find('.media-row').trigger('click')
+    await nextTick()
+    const panel = document.body.querySelector('.drawer-panel')
+    expect(panel).toBeTruthy()
+    expect(panel.textContent).toContain('一本书')
     w.unmount()
   })
 })
