@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
-import { todayMetCount, checkinTodayList, archivedCheckins } from '../src/selectors.js'
+import { todayMetCount, checkinTodayList, archivedCheckins, pinnedCheckinCount } from '../src/selectors.js'
 import { startOfDayTs, DAY_MS, addDaysTs } from '../src/utils/date.js'
 import CheckinFormModal from '../src/components/checkin/CheckinFormModal.vue'
 import CheckinRecordModal from '../src/components/checkin/CheckinRecordModal.vue'
@@ -503,6 +503,80 @@ describe('打卡归档', () => {
     await restoreBtn.trigger('click')
     await nextTick()
     expect(store.state.checkins[0].archived).toBe(false)
+    w.unmount()
+  })
+})
+
+describe('打卡置顶', () => {
+  async function mountList() {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div/>' } }, { path: '/checkins/:id', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }] })
+    await router.push('/')
+    await router.isReady()
+    return mount(CheckinsView, { global: { plugins: [router] } })
+  }
+
+  it('最多可置顶 3 项，超出会被拒绝', () => {
+    const list = ['a', 'b', 'c', 'd'].map((n) => store.addCheckin({ name: n, dailyTargetCount: 1 }))
+    expect(store.toggleCheckinPin(list[0].id)).toMatchObject({ ok: true, pinned: true })
+    expect(store.toggleCheckinPin(list[1].id).ok).toBe(true)
+    expect(store.toggleCheckinPin(list[2].id).ok).toBe(true)
+    expect(pinnedCheckinCount(store.state)).toBe(3)
+
+    const res = store.toggleCheckinPin(list[3].id)
+    expect(res.ok).toBe(false)
+    expect(res.reason).toBe('limit')
+    expect(res.text).toContain('最多置顶 3 项')
+    expect(pinnedCheckinCount(store.state)).toBe(3)
+
+    // 取消一个后可再置顶
+    expect(store.toggleCheckinPin(list[0].id)).toMatchObject({ ok: true, pinned: false })
+    expect(store.toggleCheckinPin(list[3].id).ok).toBe(true)
+    expect(pinnedCheckinCount(store.state)).toBe(3)
+  })
+
+  it('置顶的打卡排在列表最前并显示「置顶」徽标，可取消', async () => {
+    store.addCheckin({ name: '甲', dailyTargetCount: 1 })
+    const b = store.addCheckin({ name: '乙', dailyTargetCount: 1 })
+    const c = store.addCheckin({ name: '丙', dailyTargetCount: 1 })
+    store.toggleCheckinPin(c.id)
+
+    const w = await mountList()
+    await nextTick()
+    const names = w.findAll('.c-name').map((n) => n.text())
+    expect(names[0]).toBe('丙')
+    expect(w.findAll('.pin-badge')).toHaveLength(1)
+
+    // 再置顶一个
+    const pinBtns = w.findAll('.pin-mini')
+    await pinBtns[1].trigger('click') // 此时第二个卡片（乙）的置顶按钮
+    await nextTick()
+    expect(pinnedCheckinCount(store.state)).toBe(2)
+    expect(w.findAll('.pin-badge')).toHaveLength(2)
+
+    // 置顶第三个后已达上限
+    const res = store.toggleCheckinPin(b.id)
+    expect(res.pinned).toBe(true)
+    expect(pinnedCheckinCount(store.state)).toBe(3)
+    w.unmount()
+  })
+
+  it('详情页可置顶/取消置顶并显示「已置顶」标记', async () => {
+    const c = store.addCheckin({ name: '阅读', dailyTargetCount: 1 })
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/checkins/:id', component: { template: '<div/>' } }, { path: '/checkins', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }] })
+    await router.push(`/checkins/${c.id}`)
+    await router.isReady()
+    const w = mount(CheckinDetailView, { global: { plugins: [router] } })
+    await nextTick()
+    const pinBtn = w.findAll('button').find((b) => b.text().includes('置顶'))
+    expect(pinBtn).toBeTruthy()
+    await pinBtn.trigger('click')
+    await nextTick()
+    expect(store.state.checkins[0].pinned).toBe(true)
+    expect(w.find('.pin-chip').text()).toBe('已置顶')
+    const offBtn = w.findAll('button').find((b) => b.text().includes('取消置顶'))
+    await offBtn.trigger('click')
+    await nextTick()
+    expect(store.state.checkins[0].pinned).toBe(false)
     w.unmount()
   })
 })
