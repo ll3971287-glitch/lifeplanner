@@ -60,6 +60,8 @@ export function defaultState() {
 const TODO_PATCH_KEYS = ['title', 'note', 'timeType', 'startAt', 'endAt', 'tagIds', 'parentId', 'recurrence', 'priority', 'projectId', 'estimatedHours', 'onHome', 'snoozeUntil', 'canceled', 'canceledAt']
 const PROJECT_PATCH_KEYS = ['name', 'desc', 'totalWorkload', 'workloadUnit', 'deadline', 'tagIds', 'completed', 'completedAt', 'progressMode', 'category']
 const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMin', 'startDate', 'endDate', 'rule', 'countUnlimited', 'archived', 'archivedAt']
+// 最多可置顶的打卡数量
+export const MAX_PINNED_CHECKINS = 3
 const REVIEW_PATCH_KEYS = ['type', 'periodDate', 'fields', 'goals']
 const TAG_PATCH_KEYS = ['name', 'color']
 const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBreakMin', 'dailyFocusGoalMin', 'navOrder', 'homeOrder', 'showProjectsOnHome', 'showBlueprintsOnCalendar', 'blueprintDims', 'focusChain', 'soundOn', 'shop']
@@ -459,6 +461,8 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
       countUnlimited: !!countUnlimited,
       archived: false,
       archivedAt: null,
+      pinned: false,
+      pinnedAt: null,
       createdAt: now(),
     }
     state.checkins.push(c)
@@ -475,6 +479,26 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     if ('countUnlimited' in p) c.countUnlimited = !!p.countUnlimited
     scheduleSave()
     return c
+  }
+
+  // 置顶打卡（最多 MAX_PINNED_CHECKINS 项，置顶的排在列表最前）
+  function toggleCheckinPin(id) {
+    const c = state.checkins.find((x) => x.id === id)
+    if (!c) return { ok: false, reason: 'not-found' }
+    if (c.pinned) {
+      c.pinned = false
+      c.pinnedAt = null
+      scheduleSave()
+      return { ok: true, pinned: false }
+    }
+    const pinnedCount = state.checkins.filter((x) => x.pinned).length
+    if (pinnedCount >= MAX_PINNED_CHECKINS) {
+      return { ok: false, reason: 'limit', text: `最多置顶 ${MAX_PINNED_CHECKINS} 项打卡` }
+    }
+    c.pinned = true
+    c.pinnedAt = now()
+    scheduleSave()
+    return { ok: true, pinned: true }
   }
 
   // 归档打卡：从打卡列表移入归档箱，记录与统计保留
@@ -1362,6 +1386,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     deleteCheckin,
     archiveCheckin,
     restoreCheckin,
+    toggleCheckinPin,
     addCheckinRecord,
     deleteCheckinRecord,
     addTag,
