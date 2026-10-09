@@ -35,12 +35,12 @@
     <div class="toolbar card">
       <div class="row-between gap8 wrap">
         <SegControl :model-value="view" :options="viewOptions" @update:model-value="view = $event" />
-        <button v-if="view === 'cards'" type="button" class="btn btn-primary btn-sm" @click="openCreate">
+        <button v-if="view === 'rows'" type="button" class="btn btn-primary btn-sm" @click="openCreate">
           <Icon name="plus" :size="15" /> 添加{{ catLabel(category) }}
         </button>
       </div>
 
-      <template v-if="view === 'cards'">
+      <template v-if="view === 'rows'">
         <SegControl :model-value="category" :options="catOptions" @update:model-value="category = $event" />
         <div class="row-between gap8 wrap filter-row">
           <SegControl :model-value="statusFilter" :options="statusOptions" @update:model-value="statusFilter = $event" />
@@ -51,8 +51,8 @@
       </template>
     </div>
 
-    <!-- 卡片视图 -->
-    <template v-if="view === 'cards'">
+    <!-- 条状列表视图 -->
+    <template v-if="view === 'rows'">
       <!-- 收藏清单 -->
       <div v-if="wishes.length" class="card wish-card">
         <button type="button" class="row-between wish-head" @click="wishOpen = !wishOpen">
@@ -70,8 +70,8 @@
         </div>
       </div>
 
-      <div v-if="list.length" class="grid">
-        <MediaCard v-for="m in list" :key="m.id" :item="m" @open="openDrawer" />
+      <div v-if="list.length" class="row-list">
+        <MediaRow v-for="m in list" :key="m.id" :item="m" @open="openDrawer" />
       </div>
       <EmptyState v-else icon="book" :text="emptyText" hint="把读过的书、看过的影视、玩过的游戏记录下来">
         <button type="button" class="btn btn-primary" style="margin-top: 14px" @click="openCreate">
@@ -99,7 +99,7 @@ import { MEDIA_CATS, MEDIA_STATUS_ORDER, catLabel, catColor, statusLabel, rating
 import SegControl from '../components/ui/SegControl.vue'
 import Icon from '../components/ui/Icon.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
-import MediaCard from '../components/media/MediaCard.vue'
+import MediaRow from '../components/media/MediaRow.vue'
 import MediaDrawer from '../components/media/MediaDrawer.vue'
 import MediaFormModal from '../components/media/MediaFormModal.vue'
 import MediaTimeline from '../components/media/MediaTimeline.vue'
@@ -107,10 +107,10 @@ import MediaTimeline from '../components/media/MediaTimeline.vue'
 const category = ref('book')
 const statusFilter = ref('all')
 const wishOpen = ref(true)
-const view = ref('cards')
+const view = ref('rows')
 
 const viewOptions = [
-  { label: '卡片', value: 'cards' },
+  { label: '条状', value: 'rows' },
   { label: '时间线', value: 'timeline' },
 ]
 const catOptions = MEDIA_CATS.map((c) => ({ label: c.label, value: c.key }))
@@ -333,9 +333,9 @@ function openDrawer(id) {
   margin-left: auto;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
+.row-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 </style>
