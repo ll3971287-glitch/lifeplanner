@@ -66,8 +66,8 @@ import MonthView from '../components/calendar/MonthView.vue'
 import BlueprintDrawer from '../components/blueprint/BlueprintDrawer.vue'
 import TodoFormModal from '../components/todo/TodoFormModal.vue'
 
-// 默认进入月视图
-const view = ref('month')
+// 打开日历默认定位到周视图
+const view = ref('week')
 const anchor = ref(Date.now())
 
 const viewOptions = [
