@@ -196,4 +196,72 @@ function dayNum(day) {
   text-align: center;
   padding: 2px 0;
 }
+
+/* 手机窄屏：7 列会挤成一团，改为按天纵向排列，任务行横向展示「时间 + 标题」 */
+@media (max-width: 700px) {
+  .week-list {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 8px 10px 14px;
+  }
+
+  .day-col {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .day-head {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    width: 46px;
+    flex: none;
+    padding: 2px 8px 2px 0;
+    border-bottom: none;
+    border-right: 1px dashed var(--line);
+  }
+
+  .wd {
+    font-size: 10.5px;
+  }
+
+  .dd {
+    font-size: 16px;
+  }
+
+  .items {
+    flex: 1;
+    min-width: 0;
+    gap: 6px;
+  }
+
+  .item {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    padding: 7px 9px;
+  }
+
+  .t {
+    flex: none;
+    width: 78px;
+    font-size: 11px;
+  }
+
+  .n {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    -webkit-line-clamp: 2;
+  }
+
+  .more,
+  .empty {
+    text-align: left;
+    padding-left: 4px;
+  }
+}
 </style>
