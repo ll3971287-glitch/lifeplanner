@@ -4,7 +4,7 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
 import { todoOverdue } from '../src/selectors.js'
-import { parseDateStr, parseDateTimeStr, startOfDayTs, addDaysTs, DAY_MS, fmtDate } from '../src/utils/date.js'
+import { startOfWeekTs, parseDateStr, parseDateTimeStr, startOfDayTs, addDaysTs, DAY_MS, fmtDate } from '../src/utils/date.js'
 import TodoFormModal from '../src/components/todo/TodoFormModal.vue'
 import TaskItem from '../src/components/todo/TaskItem.vue'
 import TaskDrawer from '../src/components/todo/TaskDrawer.vue'
@@ -460,8 +460,10 @@ describe('TodosView 列表与筛选', () => {
   })
 
   it('进入默认定位「今天」，分组筛选（全部/今天/逾期/本周/本月）生效', async () => {
-    store.addTodo({ title: '今天任务', timeType: 'date', startAt: dayStart() })
-    store.addTodo({ title: '昨天任务', timeType: 'date', startAt: dayStart() - DAY_MS })
+    const today = dayStart()
+    const past = today - DAY_MS
+    store.addTodo({ title: '今天任务', timeType: 'date', startAt: today })
+    store.addTodo({ title: '昨天任务', timeType: 'date', startAt: past })
     const { w } = mountView()
     await nextTick()
     // 默认今天：只显示今天任务
@@ -478,13 +480,26 @@ describe('TodosView 列表与筛选', () => {
     await nextTick()
     expect(w.text()).toContain('昨天任务')
     expect(w.text()).not.toContain('今天任务')
-    // 本周 / 本月：昨天与今天都在范围内
+
+    // 本周 / 本月：按日期动态计算应有条数（避免周一/月初等边界导致用例失效）
+    const inWeek = (ts) => {
+      const ws = startOfWeekTs(today)
+      return ts >= ws && ts < ws + 7 * DAY_MS
+    }
+    const inMonth = (ts) => {
+      const d = new Date(today)
+      return ts >= new Date(d.getFullYear(), d.getMonth(), 1).getTime() &&
+        ts < new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()
+    }
+    const weekCount = [today, past].filter(inWeek).length
+    const monthCount = [today, past].filter(inMonth).length
+
     await segs[3].trigger('click')
     await nextTick()
-    expect(w.findAll('.task-row')).toHaveLength(2)
+    expect(w.findAll('.task-row')).toHaveLength(weekCount)
     await segs[4].trigger('click')
     await nextTick()
-    expect(w.findAll('.task-row')).toHaveLength(2)
+    expect(w.findAll('.task-row')).toHaveLength(monthCount)
     w.unmount()
   })
 
