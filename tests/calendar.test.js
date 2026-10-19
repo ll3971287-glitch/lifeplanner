@@ -267,8 +267,21 @@ describe('周视图：每天只显示 3 条任务并标注时间', () => {
     expect(items[1].text()).toContain('九点会议')
     expect(items[2].text()).toContain('10:00')
     expect(items[2].text()).toContain('十点写稿')
-    // 超出部分提示
-    expect(todayCol.text()).toContain('+2 更多')
+    // 超出部分：展开按钮（折叠时只显示 3 条）
+    const toggle = todayCol.find('.toggle')
+    expect(toggle.text()).toContain('展开更多（+2）')
+    await toggle.trigger('click')
+    await nextTick()
+    const expandedCol = w.findAll('.day-col').find((c) => c.classes().includes('today'))
+    expect(expandedCol.findAll('.item')).toHaveLength(5) // 展开后全部显示
+    expect(expandedCol.text()).toContain('14:00')
+    expect(expandedCol.text()).toContain('18:00')
+    // 再点收起 → 恢复 3 条
+    await expandedCol.find('.toggle').trigger('click')
+    await nextTick()
+    const collapsedCol = w.findAll('.day-col').find((c) => c.classes().includes('today'))
+    expect(collapsedCol.findAll('.item')).toHaveLength(3)
+    expect(collapsedCol.find('.toggle').text()).toContain('展开更多（+2）')
     // 不再显示时间轴方块布局
     expect(w.find('.time-item').exists()).toBe(false)
     w.unmount()
