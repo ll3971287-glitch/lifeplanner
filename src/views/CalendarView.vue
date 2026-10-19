@@ -17,11 +17,19 @@
     </div>
 
     <div class="body-card card">
-      <TimelineView v-if="view !== 'month'" :days="timelineDays" @create="openCreate" @item-click="openEdit" />
+      <WeekListView
+        v-if="view === 'week'"
+        :days="timelineDays"
+        @create="openCreate"
+        @item-click="openEdit"
+      />
+      <TimelineView v-else-if="view === 'day'" :days="timelineDays" @create="openCreate" @item-click="openEdit" />
       <MonthView v-else :year="anchorYear" :month="anchorMonth" @day-create="openDayCreate" @item-click="openEdit" />
     </div>
 
-    <p class="tip muted">点空白处可快速新建该时刻的任务，点条目可编辑</p>
+    <p class="tip muted">
+      {{ view === 'week' ? '每天只显示 3 条任务（标注时间），点日期可新建；点条目可编辑' : '点空白处可快速新建该时刻的任务，点条目可编辑' }}
+    </p>
 
     <BaseModal :open="form.open" :title="form.todo ? '编辑任务' : '新建任务'" @close="form.open = false">
       <TodoFormModal
@@ -53,6 +61,7 @@ import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import TimelineView from '../components/calendar/TimelineView.vue'
+import WeekListView from '../components/calendar/WeekListView.vue'
 import MonthView from '../components/calendar/MonthView.vue'
 import BlueprintDrawer from '../components/blueprint/BlueprintDrawer.vue'
 import TodoFormModal from '../components/todo/TodoFormModal.vue'
