@@ -19,15 +19,22 @@
           <span class="t">{{ timeText(it) }}</span>
           <span class="n">{{ it.todo.title }}</span>
         </button>
-        <p v-if="moreOf(day)" class="more muted">+{{ moreOf(day) }} 更多</p>
-        <p v-if="!itemsOf(day).length" class="empty muted">暂无任务</p>
+        <button
+          v-if="totalOf(day) > MAX_PER_DAY"
+          type="button"
+          class="toggle"
+          @click="toggleDay(day)"
+        >
+          {{ isExpanded(day) ? '收起' : `展开更多（+${totalOf(day) - MAX_PER_DAY}）` }}
+        </button>
+        <p v-if="!totalOf(day)" class="empty muted">暂无任务</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { store } from '../../store.js'
 import { calendarItems } from '../../selectors.js'
 import { fmtDate, startOfDayTs, fmtTime, DAY_MS } from '../../utils/date.js'
@@ -42,6 +49,21 @@ const props = defineProps({
 defineEmits(['item-click', 'create'])
 
 const MAX_PER_DAY = 3
+
+// 每天默认折叠只显示 3 条，点「展开更多」查看全部
+const expanded = ref({})
+
+function isExpanded(day) {
+  return !!expanded.value[day]
+}
+
+function toggleDay(day) {
+  expanded.value = { ...expanded.value, [day]: !expanded.value[day] }
+}
+
+function totalOf(day) {
+  return (allByDay.value[day] || []).length
+}
 
 const allByDay = computed(() => {
   const map = {}
@@ -59,13 +81,10 @@ const allByDay = computed(() => {
   return map
 })
 
+// 折叠时只给前 3 条，展开后全部
 function itemsOf(day) {
-  return (allByDay.value[day] || []).slice(0, MAX_PER_DAY)
-}
-
-function moreOf(day) {
-  const total = (allByDay.value[day] || []).length
-  return total > MAX_PER_DAY ? total - MAX_PER_DAY : 0
+  const list = allByDay.value[day] || []
+  return isExpanded(day) ? list : list.slice(0, MAX_PER_DAY)
 }
 
 function timeText(it) {
@@ -189,7 +208,21 @@ function dayNum(day) {
   word-break: break-word;
 }
 
-.more,
+.toggle {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--accent-deep);
+  text-align: center;
+  padding: 3px 0;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.toggle:active {
+  transform: scale(0.98);
+}
+
 .empty {
   margin: 0;
   font-size: 10.5px;
@@ -258,7 +291,7 @@ function dayNum(day) {
     -webkit-line-clamp: 2;
   }
 
-  .more,
+  .toggle,
   .empty {
     text-align: left;
     padding-left: 4px;
