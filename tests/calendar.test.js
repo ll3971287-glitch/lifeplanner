@@ -28,7 +28,7 @@ describe('日历三视图聚合', () => {
     seed()
     const w = mount(CalendarView)
     await nextTick()
-    // 默认月视图，先切回日视图
+    // 默认周视图，先切到日视图
     await w.findAll('.seg-item')[0].trigger('click')
     await nextTick()
     expect(w.findAll('.all-day-item').length).toBe(1)
@@ -41,20 +41,21 @@ describe('日历三视图聚合', () => {
     w.unmount()
   })
 
-  it('默认进入月视图；周视图 7 列、月视图 42 格且聚合任务', async () => {
+  it('默认进入周视图；周视图 7 天、月视图 42 格且聚合任务', async () => {
     seed()
     const w = mount(CalendarView)
     await nextTick()
-    // 默认即月视图
-    expect(w.findAll('.cell')).toHaveLength(42)
-    const segs = w.findAll('.seg-item')
-    await segs[1].trigger('click') // 周
-    await nextTick()
+    // 默认即周视图
     expect(w.findAll('.day-col')).toHaveLength(7)
+    expect(w.find('.week-list').exists()).toBe(true)
+    expect(w.text()).toContain('上午会议')
+    const segs = w.findAll('.seg-item')
     await segs[2].trigger('click') // 月
     await nextTick()
     expect(w.findAll('.cell')).toHaveLength(42)
-    expect(w.text()).toContain('上午会议')
+    await segs[1].trigger('click') // 周
+    await nextTick()
+    expect(w.findAll('.day-col')).toHaveLength(7)
     w.unmount()
   })
 
@@ -100,7 +101,8 @@ describe('日历三视图聚合', () => {
     seed()
     const w = mount(CalendarView)
     await nextTick()
-    // 默认月视图：点击任务长条
+    await w.findAll('.seg-item')[2].trigger('click') // 切到月视图
+    await nextTick()
     const bar = w.findAll('.span-bar.todo').find((b) => b.text().includes('上午会议'))
     await bar.trigger('click')
     await nextTick()
@@ -133,6 +135,8 @@ describe('日历三视图聚合', () => {
   it('月视图点某天打开该天新建', async () => {
     const w = mount(CalendarView)
     await nextTick()
+    await w.findAll('.seg-item')[2].trigger('click') // 切到月视图
+    await nextTick()
     const todayCell = w.findAll('.cell').find((c) => c.classes().includes('today'))
     await todayCell.trigger('click')
     await nextTick()
@@ -153,6 +157,8 @@ describe('月视图跨期长条', () => {
     store.addTodo({ title: '跨期任务', timeType: 'range', startAt: ws + 9 * 3600000, endAt: addDaysTs(ws, 2) + 12 * 3600000 })
     const w = mount(CalendarView)
     await nextTick()
+    await w.findAll('.seg-item')[2].trigger('click') // 默认是周视图，切到月视图
+    await nextTick()
     const bars = w.findAll('.span-bar.todo')
     expect(bars).toHaveLength(1) // 一条长条，不分天重复
     expect(bars[0].text()).toContain('跨期任务')
@@ -165,6 +171,8 @@ describe('月视图跨期长条', () => {
     const d = today0()
     store.addTodo({ title: '昨天结束的跨天任务', timeType: 'range', startAt: addDaysTs(d, -3) + 9 * 3600000, endAt: addDaysTs(d, -1) + 18 * 3600000 })
     const w = mount(CalendarView)
+    await nextTick()
+    await w.findAll('.seg-item')[2].trigger('click') // 默认是周视图，切到月视图
     await nextTick()
     const bar = w.findAll('.span-bar.todo').find((b) => b.text().includes('昨天结束的跨天任务'))
     await bar.trigger('mouseenter', { clientX: 100, clientY: 120 })
@@ -183,6 +191,8 @@ describe('月视图跨期长条', () => {
     store.addTodo({ title: '跨周任务', timeType: 'range', startAt: addDaysTs(ws, 6) + 9 * 3600000, endAt: addDaysTs(ws, 7) + 12 * 3600000 })
     const w = mount(CalendarView)
     await nextTick()
+    await w.findAll('.seg-item')[2].trigger('click') // 默认是周视图，切到月视图
+    await nextTick()
     const bars = w.findAll('.span-bar.todo')
     expect(bars.filter((b) => b.text().includes('单日'))).toHaveLength(1)
     expect(bars.filter((b) => b.text().includes('跨周任务'))).toHaveLength(2)
@@ -197,6 +207,8 @@ describe('月视图跨期长条', () => {
       const p = store.addProject({ name: '官网项目' })
       store.addTodo({ title: '带信息的任务', timeType: 'range', startAt: d, endAt: addDaysTs(d, 1) + 3600000, tagIds: [tg.id], projectId: p.id, priority: 'high' })
       const w = mount(CalendarView)
+      await nextTick()
+      await w.findAll('.seg-item')[2].trigger('click') // 默认是周视图，切到月视图
       await nextTick()
       const bar = w.find('.span-bar.todo')
       // 桌面悬浮
