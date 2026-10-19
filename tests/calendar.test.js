@@ -223,3 +223,76 @@ describe('月视图跨期长条', () => {
     }
   })
 })
+
+describe('周视图：每天只显示 3 条任务并标注时间', () => {
+  function today0() {
+    return startOfDayTs(Date.now())
+  }
+
+  it('每天最多 3 条，显示时间标注，超出显示「+N 更多」', async () => {
+    const d = today0()
+    // 同一天放 5 条任务：全天 + 4 个时间点
+    store.addTodo({ title: '全天任务', timeType: 'date', startAt: d })
+    store.addTodo({ title: '九点会议', timeType: 'datetime', startAt: d + 9 * 3600000 })
+    store.addTodo({ title: '十点写稿', timeType: 'datetime', startAt: d + 10 * 3600000 })
+    store.addTodo({ title: '十四点评审', timeType: 'datetime', startAt: d + 14 * 3600000 })
+    store.addTodo({ title: '十八点跑步', timeType: 'datetime', startAt: d + 18 * 3600000 })
+
+    const w = mount(CalendarView)
+    await nextTick()
+    await w.findAll('.seg-item')[1].trigger('click') // 周视图
+    await nextTick()
+    expect(w.findAll('.day-col')).toHaveLength(7)
+
+    const todayCol = w.findAll('.day-col').find((c) => c.classes().includes('today'))
+    expect(todayCol).toBeTruthy()
+    const items = todayCol.findAll('.item')
+    expect(items).toHaveLength(3) // 只显示 3 条
+    // 全天排最前 + 按时间排序
+    expect(items[0].text()).toContain('全天')
+    expect(items[0].text()).toContain('全天任务')
+    expect(items[1].text()).toContain('09:00')
+    expect(items[1].text()).toContain('九点会议')
+    expect(items[2].text()).toContain('10:00')
+    expect(items[2].text()).toContain('十点写稿')
+    // 超出部分提示
+    expect(todayCol.text()).toContain('+2 更多')
+    // 不再显示时间轴方块布局
+    expect(w.find('.time-item').exists()).toBe(false)
+    w.unmount()
+  })
+
+  it('时间段任务显示起止时间；点条目进入编辑', async () => {
+    const d = today0()
+    const t = store.addTodo({ title: '写方案', timeType: 'range', startAt: d + 9 * 3600000, endAt: d + 11 * 3600000 })
+    const w = mount(CalendarView)
+    await nextTick()
+    await w.findAll('.seg-item')[1].trigger('click')
+    await nextTick()
+    const item = w.findAll('.item').find((x) => x.text().includes('写方案'))
+    expect(item.text()).toContain('09:00-11:00')
+    await item.trigger('click')
+    await nextTick()
+    const panel = document.body.querySelector('.modal-panel')
+    expect(panel).toBeTruthy()
+    expect(panel.textContent).toContain('编辑任务')
+    // 空的一天显示占位
+    expect(w.text()).toContain('暂无任务')
+    expect(t.id).toBeTruthy()
+    w.unmount()
+  })
+
+  it('点日期表头可新建当天任务（预填 09:00）', async () => {
+    const w = mount(CalendarView)
+    await nextTick()
+    await w.findAll('.seg-item')[1].trigger('click')
+    await nextTick()
+    const head = w.findAll('.day-head')[0]
+    await head.trigger('click')
+    await nextTick()
+    const panel = document.body.querySelector('.modal-panel')
+    expect(panel).toBeTruthy()
+    expect(panel.textContent).toContain('新建任务')
+    w.unmount()
+  })
+})
