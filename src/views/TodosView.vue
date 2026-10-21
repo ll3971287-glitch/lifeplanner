@@ -25,8 +25,44 @@
         v-model="tagFilter"
         :counts="tagCountMap"
         :no-tag-count="noTagCount"
+        :fleeting-count="fleetingCount"
       />
     </div>
+
+    <!-- 随想集：临时记录点子/创意，每月自动清理 -->
+    <section v-if="!archiveView" class="card fleeting-card">
+      <div class="row-between f-head">
+        <span class="f-title"><Icon name="sparkles" :size="14" /> 随想集</span>
+        <span class="muted mini">临时记录点子与创意 · 本月已记 {{ fleetingCount }} 条 · 每月自动清理</span>
+      </div>
+      <div class="row gap8 f-input-row">
+        <input
+          v-model="thoughtText"
+          class="input f-input"
+          placeholder="写下一个点子或想法，回车即可记录…"
+          @keyup.enter="addThought"
+        />
+        <select v-model="thoughtTag" class="select select-sm f-tag">
+          <option value="">无标签</option>
+          <option v-for="tg in store.state.tags" :key="tg.id" :value="tg.id">{{ tg.name }}</option>
+        </select>
+        <button type="button" class="btn btn-primary btn-sm" :disabled="!thoughtText.trim()" @click="addThought">
+          记录
+        </button>
+      </div>
+      <div v-if="fleetingList.length" class="f-list">
+        <button
+          v-for="t in fleetingList"
+          :key="t.id"
+          type="button"
+          class="f-item"
+          @click="openDrawer(t)"
+        >
+          <span class="f-text">{{ t.title }}</span>
+          <TagChips :tag-ids="t.tagIds" />
+        </button>
+      </div>
+    </section>
 
     <!-- 归档箱 -->
     <div v-if="archiveView" class="list-wrap card">
@@ -90,7 +126,7 @@ import { ref, computed, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { store } from '../store.js'
 import { selectDueTodos, todoRoots, visibleTreeSet, compareTasksByMode, isArchived, archivedTodos } from '../selectors.js'
-import { fmtDate } from '../utils/date.js'
+import { fmtDate, startOfDayTs } from '../utils/date.js'
 import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -100,6 +136,7 @@ import TaskItem from '../components/todo/TaskItem.vue'
 import TaskDrawer from '../components/todo/TaskDrawer.vue'
 import ScheduleModal from '../components/todo/ScheduleModal.vue'
 import TagFilterBar from '../components/tag/TagFilterBar.vue'
+import TagChips from '../components/ui/TagChips.vue'
 import { askConfirm, goFocus, showToast } from '../ui.js'
 
 const router = useRouter()
@@ -136,6 +173,12 @@ const hits = computed(() => {
   const modeList = selectDueTodos(tabTodos.value, dueMode.value, now)
   const set = new Set()
   for (const t of modeList) {
+    // 随想筛选：只看随想
+    if (tagFilter.value === '__fleeting') {
+      if (!t.fleeting) continue
+      set.add(t.id)
+      continue
+    }
     // 标签筛选：__none 表示收集箱（无标签任务）
     if (tagFilter.value === '__none') {
       if ((t.tagIds || []).length) continue
@@ -201,8 +244,32 @@ const tagCountMap = computed(() => {
 })
 const noTagCount = computed(() => {
   const modeList = selectDueTodos(tabTodos.value, dueMode.value, nowTs.value)
-  return modeList.filter((t) => !(t.tagIds || []).length).length
+  return modeList.filter((t) => !(t.tagIds || []).length && !t.fleeting).length
 })
+
+// 随想集：本月内的临时随想（附日期与标签）
+const fleetingList = computed(() =>
+  store.state.todos
+    .filter((t) => t.fleeting && !t.canceled)
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+)
+const fleetingCount = computed(() => fleetingList.value.length)
+const thoughtText = ref('')
+const thoughtTag = ref('')
+
+function addThought() {
+  const text = thoughtText.value.trim()
+  if (!text) return
+  store.addTodo({
+    title: text,
+    timeType: 'date',
+    startAt: startOfDayTs(Date.now()),
+    tagIds: thoughtTag.value ? [thoughtTag.value] : [],
+    fleeting: true,
+  })
+  thoughtText.value = ''
+  showToast('已记入随想集（月底自动清理）')
+}
 
 const form = ref({ open: false, todo: null, parentId: null, preset: null })
 
@@ -254,6 +321,67 @@ function startFocus(todo) {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.fleeting-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.f-head {
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.f-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.f-input-row {
+  flex-wrap: nowrap;
+}
+
+.f-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.f-tag {
+  width: 96px;
+  flex: none;
+}
+
+.f-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.f-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px dashed var(--line);
+  background: color-mix(in srgb, var(--line) 25%, transparent);
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.f-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
 }
 
 .toolbar {
