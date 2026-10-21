@@ -23,6 +23,7 @@
           <button v-if="canOneKeyDone" type="button" class="onekey" @click.stop="oneKeyDone">一键完成</button>
         </div>
         <div v-if="timeText || isOverdue || subInfo || todo.tagIds.length || projName || delayText" class="meta-line">
+          <span v-if="todo.fleeting" class="fleet-badge">随想</span>
           <span v-if="delayText" class="delay-badge">已延期</span>
           <span v-if="isOverdue" class="late-text">已逾期</span>
           <!-- 延期任务：时间跟随实际截止（延期后）日期展示 -->
@@ -218,6 +219,15 @@ function onDrop(e) {
   color: var(--text-dim);
   background: rgba(0, 0, 0, 0.04);
   border-radius: 6px;
+  padding: 1px 7px;
+}
+
+.fleet-badge {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  border-radius: 999px;
   padding: 1px 7px;
 }
 
