@@ -53,8 +53,13 @@ export function isArchived(t) {
   return !!(t.completed || t.canceled)
 }
 
+// 随想：只在待办页「随想」分类里展示，其它列表/日历/标签页都不出现
+export function isFleeting(t) {
+  return !!(t && t.fleeting)
+}
+
 export function selectDueTodos(todos, mode, nowTs = Date.now()) {
-  const open = todos.filter((t) => !isArchived(t))
+  const open = todos.filter((t) => !isArchived(t) && !isFleeting(t))
   if (mode === 'overdue') return open.filter((t) => todoOverdue(t, nowTs))
   if (mode === 'today') {
     const d = startOfDayTs(nowTs)
@@ -76,7 +81,7 @@ export function selectDueTodos(todos, mode, nowTs = Date.now()) {
 // 归档箱列表：按完成/取消时间倒序
 export function archivedTodos(state) {
   return state.todos
-    .filter(isArchived)
+    .filter((t) => isArchived(t) && !isFleeting(t))
     .sort((a, b) => (b.completedAt || b.canceledAt || 0) - (a.completedAt || a.canceledAt || 0))
 }
 
@@ -421,7 +426,7 @@ export function todayMetCount(state, nowTs = Date.now()) {
 export function calendarItems(state, startTs, endTsExclusive) {
   const items = []
   for (const t of state.todos) {
-    if (t.canceled) continue
+    if (t.canceled || isFleeting(t)) continue
     if (t.timeType === 'date') {
       if (t.startAt != null && t.startAt >= startTs && t.startAt < endTsExclusive) {
         items.push({ kind: 'allDay', id: t.id, ts: t.startAt, ref: 'todo', todo: t })
@@ -482,9 +487,9 @@ export function tagCounts(state) {
 export function tagEntities(state, tagId) {
   const has = (it) => (it.tagIds || []).includes(tagId)
   return {
-    todos: state.todos.filter((t) => has(t) && !t.projectId),
+    todos: state.todos.filter((t) => has(t) && !t.projectId && !isFleeting(t)),
     projects: state.projects.filter(has),
-    subTasks: state.todos.filter((t) => has(t) && !!t.projectId),
+    subTasks: state.todos.filter((t) => has(t) && !!t.projectId && !isFleeting(t)),
   }
 }
 
