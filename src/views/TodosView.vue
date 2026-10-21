@@ -33,7 +33,7 @@
     <section v-if="!archiveView" class="card fleeting-card">
       <div class="row-between f-head">
         <span class="f-title"><Icon name="sparkles" :size="14" /> 随想集</span>
-        <span class="muted mini">临时记录点子与创意 · 本月已记 {{ fleetingCount }} 条 · 每月自动清理</span>
+        <span class="muted mini">临时记录点子与创意 · 本月已记 {{ fleetingCount }} 条 · 每月自动清理 · 点上标签栏「随想」查看</span>
       </div>
       <div class="row gap8 f-input-row">
         <input
@@ -48,18 +48,6 @@
         </select>
         <button type="button" class="btn btn-primary btn-sm" :disabled="!thoughtText.trim()" @click="addThought">
           记录
-        </button>
-      </div>
-      <div v-if="fleetingList.length" class="f-list">
-        <button
-          v-for="t in fleetingList"
-          :key="t.id"
-          type="button"
-          class="f-item"
-          @click="openDrawer(t)"
-        >
-          <span class="f-text">{{ t.title }}</span>
-          <TagChips :tag-ids="t.tagIds" />
         </button>
       </div>
     </section>
@@ -136,7 +124,6 @@ import TaskItem from '../components/todo/TaskItem.vue'
 import TaskDrawer from '../components/todo/TaskDrawer.vue'
 import ScheduleModal from '../components/todo/ScheduleModal.vue'
 import TagFilterBar from '../components/tag/TagFilterBar.vue'
-import TagChips from '../components/ui/TagChips.vue'
 import { askConfirm, goFocus, showToast } from '../ui.js'
 
 const router = useRouter()
@@ -170,15 +157,17 @@ const tabTodos = computed(() => store.state.todos)
 
 const hits = computed(() => {
   const now = nowTs.value
-  const modeList = selectDueTodos(tabTodos.value, dueMode.value, now)
   const set = new Set()
-  for (const t of modeList) {
-    // 随想筛选：只看随想
-    if (tagFilter.value === '__fleeting') {
-      if (!t.fleeting) continue
+  // 随想分类：不受时间分组限制，直接列出全部未完成的随想
+  if (tagFilter.value === '__fleeting') {
+    for (const t of tabTodos.value) {
+      if (!t.fleeting || t.completed || t.canceled) continue
       set.add(t.id)
-      continue
     }
+    return set
+  }
+  const modeList = selectDueTodos(tabTodos.value, dueMode.value, now)
+  for (const t of modeList) {
     // 标签筛选：__none 表示收集箱（无标签任务）
     if (tagFilter.value === '__none') {
       if ((t.tagIds || []).length) continue
@@ -356,32 +345,6 @@ function startFocus(todo) {
 .f-tag {
   width: 96px;
   flex: none;
-}
-
-.f-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.f-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px dashed var(--line);
-  background: color-mix(in srgb, var(--line) 25%, transparent);
-  font-size: 12.5px;
-  text-align: left;
-}
-
-.f-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 220px;
 }
 
 .toolbar {
