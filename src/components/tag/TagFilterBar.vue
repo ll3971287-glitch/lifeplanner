@@ -11,6 +11,14 @@
         <Icon name="box" :size="12" /> 收集箱 {{ noTagCount }}
       </button>
       <button
+        type="button"
+        class="tag-chip fleeting"
+        :class="{ on: modelValue === '__fleeting' }"
+        @click="pick(modelValue === '__fleeting' ? '' : '__fleeting')"
+      >
+        <Icon name="sparkles" :size="12" /> 随想 {{ fleetingCount }}
+      </button>
+      <button
         v-for="tg in list"
         :key="tg.id"
         type="button"
@@ -36,6 +44,7 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   counts: { type: Object, default: () => ({}) },
   noTagCount: { type: Number, default: 0 },
+  fleetingCount: { type: Number, default: 0 },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -93,6 +102,10 @@ function pick(v) {
 
 .tag-chip.inbox {
   border-style: dashed;
+}
+
+.tag-chip.fleeting {
+  border-style: dotted;
 }
 
 .tag-dot {
