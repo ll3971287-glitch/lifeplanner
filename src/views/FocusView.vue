@@ -121,7 +121,7 @@
           <span class="picker-name">自由专注（不绑定任务）</span>
         </button>
         <template v-for="t in store.state.todos" :key="t.id">
-          <button v-if="!t.completed" type="button" class="picker-item" @click="pick('todo', t.id)">
+          <button v-if="!t.completed && !t.fleeting" type="button" class="picker-item" @click="pick('todo', t.id)">
             <span class="picker-name">{{ t.title }}</span>
             <span v-if="t.timeType !== 'none'" class="muted">{{ shortDate(t.startAt) }}</span>
           </button>
