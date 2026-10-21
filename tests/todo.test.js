@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
-import { todoOverdue } from '../src/selectors.js'
+import { todoOverdue, todoActiveOnDay, calendarItems, archivedTodos, selectDueTodos } from '../src/selectors.js'
 import { startOfWeekTs, parseDateStr, parseDateTimeStr, startOfDayTs, addDaysTs, DAY_MS, fmtDate } from '../src/utils/date.js'
 import TodoFormModal from '../src/components/todo/TodoFormModal.vue'
 import TaskItem from '../src/components/todo/TaskItem.vue'
@@ -853,5 +853,68 @@ describe('随想集', () => {
     // 行上有「随想」徽标
     expect(rows[0].find('.fleet-badge').text()).toBe('随想')
     w.unmount()
+  })
+})
+
+describe('随想只在自己的分类里可见', () => {
+  function mountTodos() {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }],
+    })
+    router.push('/')
+    return mount(TodosView, { global: { plugins: [router] } })
+  }
+
+  it('常规分组与收集箱/标签筛选里不出现随想，只有「随想」分类能看到', async () => {
+    const tg = store.addTag({ name: '灵感', color: '#0ea5e9' })
+    store.addTodo({ title: '正经任务', timeType: 'date', startAt: startOfDayTs(Date.now()) })
+    store.addTodo({ title: '一个点子', timeType: 'date', startAt: startOfDayTs(Date.now()), fleeting: true, tagIds: [tg.id] })
+
+    const w = mountTodos()
+    await nextTick()
+    // 默认「今天」分组：只看到正经任务
+    expect(w.text()).toContain('正经任务')
+    expect(w.text()).not.toContain('一个点子')
+    // 切「全部」仍不显示
+    await w.findAll('.seg-item')[0].trigger('click')
+    await nextTick()
+    expect(w.text()).not.toContain('一个点子')
+    // 收集箱不显示
+    const inbox = w.findAll('.tag-chip').find((c) => c.text().includes('收集箱'))
+    await inbox.trigger('click')
+    await nextTick()
+    expect(w.text()).not.toContain('一个点子')
+    // 标签筛选也不显示
+    const tagChip = w.findAll('.tag-chip').find((c) => c.text().includes('灵感'))
+    await tagChip.trigger('click')
+    await nextTick()
+    expect(w.text()).not.toContain('一个点子')
+    // 只有「随想」分类能看到
+    const fleetChip = w.findAll('.tag-chip').find((c) => c.text().includes('随想'))
+    await fleetChip.trigger('click')
+    await nextTick()
+    expect(w.text()).toContain('一个点子')
+    w.unmount()
+  })
+
+  it('随想不进入首页今日计划与日历', () => {
+    const d = startOfDayTs(Date.now())
+    const thought = store.addTodo({ title: '闪现的想法', timeType: 'date', startAt: d, fleeting: true })
+    // 首页
+    const todayRows = []
+    for (const t of store.state.todos) {
+      if (t.fleeting || t.parentId || t.completed || t.canceled || !todoActiveOnDay(t, d)) continue
+      todayRows.push(t.title)
+    }
+    expect(todayRows).not.toContain('闪现的想法')
+    // 日历聚合
+    const items = calendarItems(store.state, d, d + DAY_MS)
+    expect(items.some((it) => it.todo && it.todo.id === thought.id)).toBe(false)
+    // 归档箱也不含随想（即使完成）
+    store.toggleTodo(thought.id, true)
+    expect(archivedTodos(store.state)).toHaveLength(0)
+    // 常规列表选择器排除
+    expect(selectDueTodos(store.state.todos, 'all').some((t) => t.id === thought.id)).toBe(false)
   })
 })
