@@ -390,7 +390,7 @@ describe('TodosView 列表与筛选', () => {
   })
 
   it('取消任务：确认后移入归档箱，可恢复', async () => {
-    store.addTodo({ title: '要取消的任务', timeType: 'date', startAt: dayStart() })
+    store.addTodo({ title: '要取消的任务', timeType: 'date', startAt: startOfDayTs(Date.now()) })
     const { w } = mountView()
     await nextTick()
     await w.find('.cancel-btn').trigger('click')
@@ -791,6 +791,67 @@ describe('延期任务的展示', () => {
     await nextTick()
     expect(w.text()).toContain('首页延期任务')
     expect(w.text()).toContain('已延期 · 延期至')
+    w.unmount()
+  })
+})
+
+describe('随想集', () => {
+  it('随想按月自动清理：上个月的随想被删除，本月随想与普通任务保留', () => {
+    const nowD = new Date()
+    const thisMonth = new Date(nowD.getFullYear(), nowD.getMonth(), 3).getTime()
+    const lastMonth = new Date(nowD.getFullYear(), nowD.getMonth() - 1, 3).getTime()
+
+    const oldThought = store.addTodo({ title: '上月的点子', fleeting: true, timeType: 'date', startAt: lastMonth })
+    const newThought = store.addTodo({ title: '本月的点子', fleeting: true, timeType: 'date', startAt: thisMonth })
+    const normal = store.addTodo({ title: '普通任务', timeType: 'none' })
+    // 手动调整创建时间
+    store.state.todos.find((t) => t.id === oldThought.id).createdAt = lastMonth
+    store.state.todos.find((t) => t.id === newThought.id).createdAt = thisMonth
+    store.state.todos.find((t) => t.id === normal.id).createdAt = lastMonth
+
+    const removed = store.purgeFleetingTodos(Date.now())
+    expect(removed).toBe(1)
+    const titles = store.state.todos.map((t) => t.title)
+    expect(titles).not.toContain('上月的点子')
+    expect(titles).toContain('本月的点子')
+    expect(titles).toContain('普通任务') // 普通任务不会被清理
+  })
+
+  it('标签栏有「随想」分类，点击只显示随想；输入框可记录新随想并带标签', async () => {
+    const tg = store.addTag({ name: '灵感', color: '#0ea5e9' })
+    store.addTodo({ title: '普通任务', timeType: 'date', startAt: startOfDayTs(Date.now()) })
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }],
+    })
+    await router.push('/')
+    await router.isReady()
+    const w = mount(TodosView, { global: { plugins: [router] } })
+    await nextTick()
+    expect(w.text()).toContain('随想集')
+
+    // 输入并记录一条随想（带标签）
+    await w.find('.f-input').setValue('做一个记账小工具')
+    await w.find('.f-tag').setValue(tg.id)
+    await w.find('.fleeting-card .btn-primary').trigger('click')
+    await nextTick()
+    const created = store.state.todos.find((t) => t.title === '做一个记账小工具')
+    expect(created).toBeTruthy()
+    expect(created.fleeting).toBe(true)
+    expect(created.tagIds).toEqual([tg.id])
+
+    // 随想 chip 计数 +1
+    const fleetChip = w.findAll('.tag-chip').find((c) => c.text().includes('随想'))
+    expect(fleetChip.text()).toContain('1')
+
+    // 点开随想分类：只显示随想
+    await fleetChip.trigger('click')
+    await nextTick()
+    const rows = w.findAll('.task-row')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].text()).toContain('做一个记账小工具')
+    // 行上有「随想」徽标
+    expect(rows[0].find('.fleet-badge').text()).toBe('随想')
     w.unmount()
   })
 })
