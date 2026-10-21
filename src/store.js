@@ -57,7 +57,7 @@ export function defaultState() {
   }
 }
 
-const TODO_PATCH_KEYS = ['title', 'note', 'timeType', 'startAt', 'endAt', 'tagIds', 'parentId', 'recurrence', 'priority', 'projectId', 'estimatedHours', 'onHome', 'snoozeUntil', 'canceled', 'canceledAt']
+const TODO_PATCH_KEYS = ['title', 'note', 'timeType', 'startAt', 'endAt', 'tagIds', 'parentId', 'recurrence', 'priority', 'projectId', 'estimatedHours', 'onHome', 'snoozeUntil', 'canceled', 'canceledAt', 'fleeting']
 const PROJECT_PATCH_KEYS = ['name', 'desc', 'totalWorkload', 'workloadUnit', 'deadline', 'tagIds', 'completed', 'completedAt', 'progressMode', 'category']
 const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMin', 'startDate', 'endDate', 'rule', 'countUnlimited', 'archived', 'archivedAt']
 // 最多可置顶的打卡数量
@@ -148,7 +148,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
   }
 
   // ---------- 待办 ----------
-  function addTodo({ title, note = '', timeType = 'none', startAt = null, endAt = null, tagIds = [], parentId = null, recurrence = null, priority = null, projectId = null, estimatedHours = 0, onHome = false } = {}) {
+  function addTodo({ title, note = '', timeType = 'none', startAt = null, endAt = null, tagIds = [], parentId = null, recurrence = null, priority = null, projectId = null, estimatedHours = 0, onHome = false, fleeting = false } = {}) {
     const todo = {
       id: uid(),
       title,
@@ -168,6 +168,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
       canceled: false,
       canceledAt: null,
       snoozeUntil: null,
+      fleeting: !!fleeting,
       order: state.todos.length,
       createdAt: now(),
     }
@@ -319,6 +320,17 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     })
     scheduleSave()
     return copy
+  }
+
+  // 随想集：每月自动清理一次（删除上个月及更早创建的随想，普通任务不受影响）
+  function purgeFleetingTodos(nowTs = now()) {
+    const d = new Date(nowTs)
+    const monthStart = new Date(d.getFullYear(), d.getMonth(), 1).getTime()
+    const before = state.todos.length
+    state.todos = state.todos.filter((t) => !t.fleeting || (t.createdAt || 0) >= monthStart)
+    const removed = before - state.todos.length
+    if (removed) scheduleSave()
+    return removed
   }
 
   // ---------- 项目 ----------
@@ -1308,6 +1320,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
       await persistNow()
     }
     if (migrateLegacySubTasks()) await persistNow()
+    if (purgeFleetingTodos()) await persistNow()
     applyThemeAll()
     state.ready = true
   }
@@ -1316,6 +1329,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     const data = await dbImpl.load()
     if (data) Object.assign(state, normalizeData(data))
     if (migrateLegacySubTasks()) await persistNow()
+    if (purgeFleetingTodos()) await persistNow()
     applyThemeAll()
   }
 
@@ -1371,6 +1385,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     duplicateTodo,
     moveTodo,
     toggleTodo,
+    purgeFleetingTodos,
     addProject,
     updateProject,
     deleteProject,
