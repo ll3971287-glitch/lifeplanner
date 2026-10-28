@@ -279,3 +279,29 @@ describe('首页摘要', () => {
     w.unmount()
   })
 })
+
+describe('首页今日计划排序', () => {
+  it('默认按优先级排序：高 → 中 → 低 → 无优先级', async () => {
+    const d = startOfDayTs(Date.now())
+    store.addTodo({ title: '无优先级任务', timeType: 'datetime', startAt: d + 9 * 3600000 })
+    store.addTodo({ title: '低优先级任务', timeType: 'datetime', startAt: d + 8 * 3600000, priority: 'low' })
+    store.addTodo({ title: '高优先级任务', timeType: 'datetime', startAt: d + 11 * 3600000, priority: 'high' })
+    store.addTodo({ title: '中优先级任务', timeType: 'datetime', startAt: d + 10 * 3600000, priority: 'medium' })
+    const { w } = mountHome()
+    await nextTick()
+    const titles = w.findAll('.h-row-title').map((t) => t.text())
+    expect(titles).toEqual(['高优先级任务', '中优先级任务', '低优先级任务', '无优先级任务'])
+    w.unmount()
+  })
+
+  it('同优先级时按开始时间先后排列，无时间排最后', async () => {
+    const d = startOfDayTs(Date.now())
+    store.addTodo({ title: '十点', timeType: 'datetime', startAt: d + 10 * 3600000, priority: 'medium' })
+    store.addTodo({ title: '九点', timeType: 'datetime', startAt: d + 9 * 3600000, priority: 'medium' })
+    const { w } = mountHome()
+    await nextTick()
+    const titles = w.findAll('.h-row-title').map((t) => t.text())
+    expect(titles.slice(0, 2)).toEqual(['九点', '十点'])
+    w.unmount()
+  })
+})
