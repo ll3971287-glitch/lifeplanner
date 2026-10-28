@@ -310,6 +310,7 @@ import {
   recentMedia,
   foodAlerts as collectFoodAlerts,
   reviewsFor,
+  PRIORITY_WEIGHT,
 } from '../selectors.js'
 import { BLUEPRINT_STATUS, dimColor } from '../blueprintMeta.js'
 import { daysUntilBirthday, genderColor } from '../relationMeta.js'
@@ -482,13 +483,24 @@ const todayList = computed(() => {
       projectName: proj ? proj.name : '',
       tagIds: t.tagIds || [],
       snoozeUntil: t.snoozeUntil || null,
+      priority: t.priority || null,
+      startAt: t.startAt != null ? t.startAt : null,
       title: t.title,
       done: t.completed,
       timeText: todoTimeText(t),
       completedAt: t.completedAt,
     })
   }
-  return rows.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (b.completedAt || 0) - (a.completedAt || 0))
+  // 默认排序：未完成在前 → 优先级（高/中/低/无）→ 开始时间早的在前（无时间最后）
+  const pw = (r) => PRIORITY_WEIGHT[r.priority || 'none']
+  const tt = (r) => (r.startAt == null ? Number.MAX_SAFE_INTEGER : r.startAt)
+  return rows.sort(
+    (a, b) =>
+      (a.done ? 1 : 0) - (b.done ? 1 : 0) ||
+      pw(a) - pw(b) ||
+      tt(a) - tt(b) ||
+      (b.completedAt || 0) - (a.completedAt || 0)
+  )
 })
 
 function toggleRow(row) {
