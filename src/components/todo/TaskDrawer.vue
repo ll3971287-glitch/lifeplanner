@@ -72,6 +72,9 @@
       </section>
 
       <div class="actions">
+        <button v-if="isOverdue" type="button" class="btn btn-outline btn-sm" @click="completeBackdated">
+          <Icon name="checkCircle" :size="14" /> 补完成（记到昨天）
+        </button>
         <button v-if="canDelay" type="button" class="btn btn-outline btn-sm" @click="delayOpen = true">
           <Icon name="clock" :size="14" /> 调整推迟
         </button>
@@ -196,6 +199,22 @@ function duplicateTask() {
   if (!todo.value) return
   const copy = store.duplicateTodo(todo.value.id)
   if (copy) showToast('已创建副本')
+}
+
+// 补完成：逾期任务直接标记完成，完成时间记到前一天
+async function completeBackdated() {
+  if (!todo.value) return
+  const ok = await askConfirm({
+    title: '补完成',
+    message: `把「${todo.value.title}」标记为已完成，并记到昨天？`,
+    detail: '适合昨天没做完、今天补记的情况：完成后不再算逾期，完成时间归到前一天。',
+    okText: '补完成',
+  })
+  if (!ok) return
+  const res = store.completeTodoBackdated(todo.value.id)
+  if (!res) return
+  showToast('已补记为昨天完成')
+  emit('close')
 }
 
 async function removeTodo() {
