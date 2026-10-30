@@ -952,8 +952,6 @@ describe('逾期任务补完成', () => {
     expect(btn).toBeTruthy()
     btn.click()
     await nextTick()
-    settleConfirm(true)
-    await new Promise((r) => setTimeout(r, 10))
     const saved = store.state.todos.find((x) => x.id === t.id)
     expect(saved.completed).toBe(true)
     expect(startOfDayTs(saved.completedAt)).toBe(startOfDayTs(Date.now()) - DAY_MS)
@@ -967,6 +965,57 @@ describe('逾期任务补完成', () => {
     const panel = document.querySelector('.drawer-panel')
     const btn = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('补完成'))
     expect(btn).toBeUndefined()
+    w.unmount()
+  })
+})
+
+describe('逾期列表行内补完成', () => {
+  function mountTodos() {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }],
+    })
+    router.push('/')
+    return mount(TodosView, { global: { plugins: [router] } })
+  }
+
+  it('逾期分组的每个任务行都有「补完成」，点击直接完成并记到昨天（无确认弹窗）', async () => {
+    const d = startOfDayTs(Date.now())
+    const a = store.addTodo({ title: '逾期甲', timeType: 'date', startAt: d - DAY_MS })
+    const b = store.addTodo({ title: '逾期乙', timeType: 'date', startAt: d - 2 * DAY_MS })
+    store.addTodo({ title: '今天的事', timeType: 'date', startAt: d })
+
+    const w = mountTodos()
+    await nextTick()
+    await w.findAll('.seg-item')[2].trigger('click') // 逾期分组
+    await nextTick()
+    const rows = w.findAll('.task-row')
+    expect(rows).toHaveLength(2)
+    // 每行都有补完成按钮
+    expect(rows[0].find('.backfill-btn').exists()).toBe(true)
+    expect(rows[1].find('.backfill-btn').exists()).toBe(true)
+
+    await rows[0].find('.backfill-btn').trigger('click')
+    await nextTick()
+    // 没有确认弹窗
+    expect(document.body.querySelector('.confirm-panel')).toBeNull()
+    const savedA = store.state.todos.find((x) => x.id === a.id)
+    expect(savedA.completed).toBe(true)
+    expect(startOfDayTs(savedA.completedAt)).toBe(d - DAY_MS)
+    // 列表里少一条
+    expect(w.findAll('.task-row')).toHaveLength(1)
+    expect(b.id).toBeTruthy()
+    w.unmount()
+  })
+
+  it('未逾期任务行不显示「补完成」', async () => {
+    const d = startOfDayTs(Date.now())
+    store.addTodo({ title: '今天的事', timeType: 'date', startAt: d })
+    const w = mountTodos()
+    await nextTick()
+    const row = w.find('.task-row')
+    expect(row.exists()).toBe(true)
+    expect(row.find('.backfill-btn').exists()).toBe(false)
     w.unmount()
   })
 })
