@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 import { db } from './db.js'
 import { applyTheme } from './theme.js'
-import { nextRecurrenceTs } from './utils/date.js'
+import { nextRecurrenceTs, startOfDayTs } from './utils/date.js'
 import { RARITIES, TIME_HINTS } from './rewardMeta.js'
 import { rewardStatus, shopBalance } from './selectors.js'
 
@@ -298,6 +298,17 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     t.completedAt = target ? now() : null
     if (target) spawnRecurring(t)
     scheduleSave()
+  }
+
+  // 补完成：把逾期任务标记为已完成，并把完成时间记到「前一天」（按昨天统计）
+  function completeTodoBackdated(id) {
+    const t = state.todos.find((x) => x.id === id)
+    if (!t || t.canceled) return null
+    const yesterday = startOfDayTs(now()) - 24 * 3600000
+    t.completed = true
+    t.completedAt = yesterday + 12 * 3600000
+    scheduleSave()
+    return { todo: t, at: t.completedAt }
   }
 
   // 复制一份待办任务：内容一致、始终未完成；子任务/项目任务保持归属
@@ -1385,6 +1396,7 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
     duplicateTodo,
     moveTodo,
     toggleTodo,
+    completeTodoBackdated,
     purgeFleetingTodos,
     addProject,
     updateProject,
