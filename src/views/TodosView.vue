@@ -70,7 +70,7 @@
 
     <div v-else class="list-wrap card">
       <template v-if="roots.length">
-        <TaskItem v-for="r in roots" :key="r.id" :todo="r" :depth="0" :sort-mode="sortMode" :drag-enabled="sortMode === 'custom'" @open="openDrawer" @focus="startFocus" @cancel="cancelTask" @schedule="openSchedule" />
+        <TaskItem v-for="r in roots" :key="r.id" :todo="r" :depth="0" :sort-mode="sortMode" :drag-enabled="sortMode === 'custom'" @open="openDrawer" @focus="startFocus" @cancel="cancelTask" @schedule="openSchedule" @complete-backdated="completeBackdated" />
       </template>
       <EmptyState v-else-if="!store.state.todos.length" icon="todo" text="还没有任务" hint="点「新建任务」开始计划今天">
         <button type="button" class="btn btn-primary" style="margin-top: 14px" @click="openNew">
@@ -202,6 +202,13 @@ async function cancelTask(todo) {
   if (!ok) return
   store.cancelTodo(todo.id)
   showToast('已移入归档箱')
+}
+
+// 逾期任务一键补完成：不弹确认，直接记到昨天
+function completeBackdated(todo) {
+  const res = store.completeTodoBackdated(todo.id)
+  if (!res) return
+  showToast('已补记为昨天完成')
 }
 
 function openSchedule(todo) {
