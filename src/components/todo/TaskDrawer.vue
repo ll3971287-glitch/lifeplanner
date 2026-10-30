@@ -201,16 +201,9 @@ function duplicateTask() {
   if (copy) showToast('已创建副本')
 }
 
-// 补完成：逾期任务直接标记完成，完成时间记到前一天
-async function completeBackdated() {
+// 补完成：逾期任务直接标记完成，完成时间记到前一天（不弹确认）
+function completeBackdated() {
   if (!todo.value) return
-  const ok = await askConfirm({
-    title: '补完成',
-    message: `把「${todo.value.title}」标记为已完成，并记到昨天？`,
-    detail: '适合昨天没做完、今天补记的情况：完成后不再算逾期，完成时间归到前一天。',
-    okText: '补完成',
-  })
-  if (!ok) return
   const res = store.completeTodoBackdated(todo.value.id)
   if (!res) return
   showToast('已补记为昨天完成')
