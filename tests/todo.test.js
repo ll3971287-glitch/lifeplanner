@@ -918,3 +918,55 @@ describe('随想只在自己的分类里可见', () => {
     expect(selectDueTodos(store.state.todos, 'all').some((t) => t.id === thought.id)).toBe(false)
   })
 })
+
+describe('逾期任务补完成', () => {
+  it('补完成：标记完成并把完成时间记到前一天', () => {
+    const t = store.addTodo({ title: '昨天没做完', timeType: 'date', startAt: startOfDayTs(Date.now()) - DAY_MS })
+    expect(todoOverdue(store.state.todos[0], Date.now())).toBe(true)
+
+    const res = store.completeTodoBackdated(t.id)
+    expect(res).toBeTruthy()
+    const saved = store.state.todos.find((x) => x.id === t.id)
+    expect(saved.completed).toBe(true)
+    const expectDay = startOfDayTs(Date.now()) - DAY_MS
+    expect(startOfDayTs(saved.completedAt)).toBe(expectDay)
+    // 不再算逾期，也不再出现在未完成列表
+    expect(todoOverdue(saved, Date.now())).toBe(false)
+    expect(selectDueTodos(store.state.todos, 'overdue').some((x) => x.id === t.id)).toBe(false)
+    // 进入归档箱
+    expect(archivedTodos(store.state).some((x) => x.id === t.id)).toBe(true)
+  })
+
+  it('已取消的任务不能补完成', () => {
+    const t = store.addTodo({ title: '取消掉的', timeType: 'date', startAt: startOfDayTs(Date.now()) - DAY_MS })
+    store.cancelTodo(t.id)
+    expect(store.completeTodoBackdated(t.id)).toBeNull()
+  })
+
+  it('抽屉里逾期任务显示「补完成」，点击后任务完成并关闭抽屉', async () => {
+    const t = store.addTodo({ title: '逾期任务X', timeType: 'datetime', startAt: Date.now() - 6 * 3600000 })
+    const w = mount(TaskDrawer, { props: { open: true, todoId: t.id } })
+    await nextTick()
+    const panel = document.querySelector('.drawer-panel')
+    const btn = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('补完成'))
+    expect(btn).toBeTruthy()
+    btn.click()
+    await nextTick()
+    settleConfirm(true)
+    await new Promise((r) => setTimeout(r, 10))
+    const saved = store.state.todos.find((x) => x.id === t.id)
+    expect(saved.completed).toBe(true)
+    expect(startOfDayTs(saved.completedAt)).toBe(startOfDayTs(Date.now()) - DAY_MS)
+    w.unmount()
+  })
+
+  it('未逾期任务不显示「补完成」入口', async () => {
+    const t = store.addTodo({ title: '今天的任务', timeType: 'datetime', startAt: Date.now() + 3 * 3600000 })
+    const w = mount(TaskDrawer, { props: { open: true, todoId: t.id } })
+    await nextTick()
+    const panel = document.querySelector('.drawer-panel')
+    const btn = [...panel.querySelectorAll('button')].find((b) => b.textContent.includes('补完成'))
+    expect(btn).toBeUndefined()
+    w.unmount()
+  })
+})
