@@ -41,13 +41,22 @@
       <button type="button" class="mini focus-btn" title="开始专注" @click.stop="$emit('focus', todo)">
         <Icon name="clock" :size="15" />
       </button>
+      <button
+        v-if="isOverdue"
+        type="button"
+        class="backfill-btn"
+        title="补完成（记到昨天完成）"
+        @click.stop="$emit('complete-backdated', todo)"
+      >
+        补完成
+      </button>
       <button type="button" class="mini cancel-btn" title="取消任务（移入归档箱）" @click.stop="$emit('cancel', todo)">
         <Icon name="x" :size="15" />
       </button>
     </div>
 
     <div v-if="expanded && hasChildren" class="children">
-      <TaskItem v-for="c in children" :key="c.id" :todo="c" :depth="depth + 1" :sort-mode="sortMode" :drag-enabled="dragEnabled" @open="$emit('open', $event)" @focus="$emit('focus', $event)" @cancel="$emit('cancel', $event)" @schedule="$emit('schedule', $event)" />
+      <TaskItem v-for="c in children" :key="c.id" :todo="c" :depth="depth + 1" :sort-mode="sortMode" :drag-enabled="dragEnabled" @open="$emit('open', $event)" @focus="$emit('focus', $event)" @cancel="$emit('cancel', $event)" @schedule="$emit('schedule', $event)" @complete-backdated="$emit('complete-backdated', $event)" />
     </div>
   </div>
 </template>
@@ -69,7 +78,7 @@ const props = defineProps({
   dragEnabled: { type: Boolean, default: true },
 })
 
-defineEmits(['open', 'focus', 'cancel', 'schedule'])
+defineEmits(['open', 'focus', 'cancel', 'schedule', 'complete-backdated'])
 
 const expanded = ref(true)
 
@@ -243,6 +252,21 @@ function onDrop(e) {
 .time-badge.delay {
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+
+.backfill-btn {
+  flex: none;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+}
+
+.backfill-btn:active {
+  transform: scale(0.96);
 }
 
 .late-text {
