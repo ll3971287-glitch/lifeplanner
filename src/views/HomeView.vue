@@ -52,6 +52,25 @@
         <p v-else class="muted empty-tip">今天没有待办，享受轻松的一天。</p>
       </section>
 
+      <!-- 本周日历（周视图，每天折叠显示 2 条） -->
+      <section class="card h-card" :style="cardStyle('weekCalendar')">
+        <div class="h-head">
+          <div class="row gap4 head-left">
+            <button type="button" class="drag-handle" aria-label="拖动调整顺序" @pointerdown.stop="dragStart('weekCalendar', $event)">
+              <Icon name="grip" :size="14" />
+            </button>
+            <h2 class="h-title"><Icon name="calendar" :size="15" /> 本周日历</h2>
+          </div>
+          <button type="button" class="more-btn muted" @click="router.push('/calendar')">日历 ›</button>
+        </div>
+        <WeekListView
+          :days="homeWeekDays"
+          :max-per-day="2"
+          @item-click="openWeekTask"
+          @create="createAtDay"
+        />
+      </section>
+
       <!-- 未来蓝图：进行中 + 临近期望 -->
       <section v-if="homeBlueprints.length" class="card h-card" :style="cardStyle('blueprints')">
         <div class="h-head">
@@ -317,7 +336,7 @@ import { daysUntilBirthday, genderColor } from '../relationMeta.js'
 import { catColor as mediaCatColor, statusLabel as mediaStatusLabel, progressInfo as mediaProgressInfo } from '../mediaMeta.js'
 import { foodLevel, leftText as foodLeftText, placeLabel as foodPlaceLabel } from '../foodMeta.js'
 import MediaDrawer from '../components/media/MediaDrawer.vue'
-import { startOfDayTs, startOfWeekTs, fmtTime, fmtDate, DAY_MS } from '../utils/date.js'
+import { startOfDayTs, startOfWeekTs, weekDaysTs, fmtTime, fmtDate, DAY_MS } from '../utils/date.js'
 import { fmtFullDate, todoTimeText, fmtFocusMinute, deadlineText, snoozeText as snoozeTextOf } from '../format.js'
 import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
@@ -327,6 +346,7 @@ import CheckinRecordModal from '../components/checkin/CheckinRecordModal.vue'
 import BlueprintDrawer from '../components/blueprint/BlueprintDrawer.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import TaskDrawer from '../components/todo/TaskDrawer.vue'
+import WeekListView from '../components/calendar/WeekListView.vue'
 import TodoFormModal from '../components/todo/TodoFormModal.vue'
 import { goFocus, showToast, randomMotivation, fireConfetti } from '../ui.js'
 
@@ -341,7 +361,7 @@ const timer = setInterval(() => {
   nowTs.value = Date.now()
 }, 60000)
 
-const DEFAULT_CARD_ORDER = ['todayTodos', 'blueprints', 'relations', 'projects', 'focus', 'checkins', 'food', 'media', 'dueSoon', 'reviews']
+const DEFAULT_CARD_ORDER = ['todayTodos', 'weekCalendar', 'blueprints', 'relations', 'projects', 'focus', 'checkins', 'food', 'media', 'dueSoon', 'reviews']
 const homeGridRef = ref(null)
 const cardOrder = ref([...DEFAULT_CARD_ORDER])
 
@@ -465,6 +485,17 @@ const dueRange = computed(() => {
   const e = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()
   return [s, e]
 })
+
+// 本周 7 天（周一起）
+const homeWeekDays = computed(() => weekDaysTs(nowTs.value))
+
+function openWeekTask(todo) {
+  if (todo && todo.id) drawerId.value = todo.id
+}
+
+function createAtDay(ts) {
+  form.value = { open: true, todo: null, parentId: null, preset: { timeType: 'datetime', startAt: ts, endAt: null } }
+}
 
 const todayList = computed(() => {
   const [rs, re] = dueRange.value
