@@ -6,8 +6,8 @@
     </header>
 
     <div ref="homeGridRef" class="home-grid">
-      <!-- 今日待办 -->
-      <section class="card h-card" :style="cardStyle('todayTodos')">
+      <!-- 今日待办（可在设置里关闭显示） -->
+      <section v-if="showTodayTodosOnHome" class="card h-card" :style="cardStyle('todayTodos')">
         <div class="h-head">
           <div class="row gap4 head-left">
             <button type="button" class="drag-handle" aria-label="拖动调整顺序" @pointerdown.stop="dragStart('todayTodos', $event)">
@@ -15,7 +15,10 @@
             </button>
             <h2 class="h-title"><Icon name="todo" :size="16" /> 今日计划</h2>
           </div>
-          <button type="button" class="more-btn muted" @click="router.push('/todos')">全部 ›</button>
+          <div class="row gap6">
+            <button type="button" class="more-btn muted" title="不在首页显示（可在设置中恢复）" @click="hideTodayTodos">隐藏</button>
+            <button type="button" class="more-btn muted" @click="router.push('/todos')">全部 ›</button>
+          </div>
         </div>
         <div class="span-bar">
           <SegControl :model-value="dueSpan" :options="spanOptions" @update:model-value="dueSpan = $event" />
@@ -568,6 +571,12 @@ function isOverdue(p) {
 }
 
 const showProjectsOnHome = computed(() => store.state.settings.showProjectsOnHome !== false)
+const showTodayTodosOnHome = computed(() => store.state.settings.showTodayTodosOnHome !== false)
+
+function hideTodayTodos() {
+  store.setSetting('showTodayTodosOnHome', false)
+  showToast('今日计划已隐藏，可在 设置 → 首页内容 中恢复')
+}
 
 function hideProjects() {
   store.setSetting('showProjectsOnHome', false)
