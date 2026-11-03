@@ -145,7 +145,7 @@ describe('导航框架', () => {
     const w = mount(BottomNav, { global: { plugins: [router] } })
     expect(w.findAll('.nav-tab')).toHaveLength(5)
     const labels = w.findAll('.nav-label').map((n) => n.text())
-    expect(labels).toEqual(['首页', '待办', '项目', '日历', '打卡'])
+    expect(labels).toEqual(['首页', '待办', '打卡', '项目', '日历'])
     const active = w.findAll('.nav-tab').find((n) => n.classes().includes('active'))
     expect(active.text()).toContain('待办')
   })
