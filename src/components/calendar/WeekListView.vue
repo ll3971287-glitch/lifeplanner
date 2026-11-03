@@ -44,11 +44,13 @@ import { tagsOf } from '../../selectors.js'
 const props = defineProps({
   // 本周的 7 个日期戳（当天 00:00）
   days: { type: Array, required: true },
+  // 每天折叠时最多显示几条（首页用较小的值，页内可展开）
+  maxPerDay: { type: Number, default: 3 },
 })
 
 defineEmits(['item-click', 'create'])
 
-const MAX_PER_DAY = 3
+const MAX_PER_DAY = computed(() => Math.max(1, props.maxPerDay || 3))
 
 // 每天默认折叠只显示 3 条，点「展开更多」查看全部
 const expanded = ref({})
@@ -84,7 +86,7 @@ const allByDay = computed(() => {
 // 折叠时只给前 3 条，展开后全部
 function itemsOf(day) {
   const list = allByDay.value[day] || []
-  return isExpanded(day) ? list : list.slice(0, MAX_PER_DAY)
+  return isExpanded(day) ? list : list.slice(0, MAX_PER_DAY.value)
 }
 
 function timeText(it) {
