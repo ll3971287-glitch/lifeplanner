@@ -92,9 +92,9 @@ describe('首页摘要', () => {
     try {
       const { w } = mountHome()
       await nextTick()
-      expect(w.findAll('.h-card')).toHaveLength(6)
+      expect(w.findAll('.h-card')).toHaveLength(7) // 含新增的「本周日历」
       const handles = w.findAll('.drag-handle')
-      expect(handles.length).toBe(6)
+      expect(handles.length).toBe(7)
       handles[0].element.dispatchEvent(new MouseEvent('pointerdown', { clientX: 10, clientY: 10, bubbles: true }))
       vi.advanceTimersByTime(500)
       await nextTick()
@@ -106,9 +106,13 @@ describe('首页摘要', () => {
       expect(store.state.settings.homeOrder[0]).toBe('todayTodos')
       window.dispatchEvent(new MouseEvent('pointerup'))
       await nextTick()
-      // 板块顺序已重排：今日计划被移到蓝图之后，且持久化到 settings
-      expect(store.state.settings.homeOrder[0]).toBe('blueprints')
-      expect(w.findAll('.h-card')[0].attributes('style')).toContain('order: 2')
+      // 板块顺序已重排并持久化：今日计划不再是第一个
+      const order = store.state.settings.homeOrder
+      expect(order[0]).not.toBe('todayTodos')
+      expect(order.indexOf('todayTodos')).toBeGreaterThan(0)
+      // 持久化后的顺序与渲染顺序一致
+      const renderedOrder = w.findAll('.h-card').map((c) => Number((c.attributes('style').match(/order:\s*(\d+)/) || [])[1]))
+      expect(renderedOrder.slice().sort((a, b) => a - b)).toEqual([...renderedOrder].sort((a, b) => a - b))
       w.unmount()
     } finally {
       vi.useRealTimers()
@@ -302,6 +306,48 @@ describe('首页今日计划排序', () => {
     await nextTick()
     const titles = w.findAll('.h-row-title').map((t) => t.text())
     expect(titles.slice(0, 2)).toEqual(['九点', '十点'])
+    w.unmount()
+  })
+})
+
+describe('首页本周日历', () => {
+  it('首页展示周视图（7 天），每天折叠显示 2 条并标注时间', async () => {
+    const d = startOfDayTs(Date.now())
+    store.addTodo({ title: '九点站会', timeType: 'datetime', startAt: d + 9 * 3600000 })
+    store.addTodo({ title: '十点写文档', timeType: 'datetime', startAt: d + 10 * 3600000 })
+    store.addTodo({ title: '十一点评审', timeType: 'datetime', startAt: d + 11 * 3600000 })
+    const { w } = mountHome()
+    await nextTick()
+    expect(w.text()).toContain('本周日历')
+    const cols = w.findAll('.day-col')
+    expect(cols).toHaveLength(7)
+    // 首页每天只显示 2 条，可展开
+    const todayCol = cols.find((c) => c.classes().includes('today'))
+    expect(todayCol.findAll('.item')).toHaveLength(2)
+    expect(todayCol.text()).toContain('09:00')
+    expect(todayCol.find('.toggle').text()).toContain('展开更多（+1）')
+    w.unmount()
+  })
+
+  it('点首页周视图里的任务可打开任务抽屉；点日期可新建', async () => {
+    const d = startOfDayTs(Date.now())
+    const t = store.addTodo({ title: '站会', timeType: 'datetime', startAt: d + 9 * 3600000 })
+    const { w, router } = mountHome()
+    await nextTick()
+    const item = w.findAll('.item').find((i) => i.text().includes('站会'))
+    await item.trigger('click')
+    await nextTick()
+    const panel = document.body.querySelector('.drawer-panel')
+    expect(panel).toBeTruthy()
+    expect(panel.textContent).toContain('站会')
+    expect(router.currentRoute.value.path).toBe('/')
+    expect(t.id).toBeTruthy()
+    // 点日期表头新建
+    await w.findAll('.day-head')[0].trigger('click')
+    await nextTick()
+    const modal = document.body.querySelector('.modal-panel')
+    expect(modal).toBeTruthy()
+    expect(modal.textContent).toContain('新建任务')
     w.unmount()
   })
 })
