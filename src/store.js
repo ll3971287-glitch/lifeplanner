@@ -22,7 +22,7 @@ export function defaultState() {
       pomodoroFocusMin: 25,
       pomodoroBreakMin: 5,
       dailyFocusGoalMin: 120,
-      navOrder: ['home', 'todos', 'projects', 'calendar', 'checkins'],
+      navOrder: ['home', 'todos', 'checkins', 'projects', 'calendar'],
       homeOrder: ['todayTodos', 'blueprints', 'projects', 'focus', 'checkins', 'dueSoon', 'reviews'],
       showProjectsOnHome: true,
       showBlueprintsOnCalendar: false,
@@ -117,6 +117,11 @@ export function normalizeData(raw) {
     }
     if (raw.settings && typeof raw.settings === 'object') {
       out.settings = { ...def.settings, ...raw.settings }
+    }
+    // 默认导航顺序调整：打卡移到第三位（仅当仍是旧的默认顺序时迁移，用户自定义过的不动）
+    const LEGACY_NAV = ['home', 'todos', 'projects', 'calendar', 'checkins']
+    if (Array.isArray(out.settings.navOrder) && out.settings.navOrder.join(',') === LEGACY_NAV.join(',')) {
+      out.settings.navOrder = [...def.settings.navOrder]
     }
   }
   return out
