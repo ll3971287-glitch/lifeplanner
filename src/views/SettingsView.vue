@@ -85,6 +85,16 @@
       <h2 class="s-title"><Icon name="home" :size="16" /> 首页内容</h2>
       <div class="row-between opt-row">
         <div class="opt-text">
+          <span class="opt-name">在首页显示今日计划</span>
+          <p class="muted opt-desc">关闭后首页不再显示「今日计划」板块（待办数据不受影响），也可在首页该板块点「隐藏」。</p>
+        </div>
+        <Switch
+          :model-value="store.state.settings.showTodayTodosOnHome !== false"
+          @update:model-value="store.setSetting('showTodayTodosOnHome', $event)"
+        />
+      </div>
+      <div class="row-between opt-row">
+        <div class="opt-text">
           <span class="opt-name">在首页显示项目进度</span>
           <p class="muted opt-desc">关闭后首页不再显示“项目进度”板块，可在首页该板块点“隐藏”或随时在此恢复。</p>
         </div>
@@ -178,7 +188,7 @@
     <section class="card s-card">
       <h2 class="s-title"><Icon name="checkCircle" :size="16" /> 关于</h2>
       <p class="muted desc">
-        Ultimate Life System v3.13.0 · 本地任务与项目管理<br />
+        Ultimate Life System v3.13.1 · 本地任务与项目管理<br />
         数据存放于本机 IndexedDB，无需账号，离线可用。
       </p>
     </section>
