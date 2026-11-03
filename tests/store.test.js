@@ -595,3 +595,17 @@ describe('专注状态机', () => {
     expect(store.state.sessions[0].durationMin).toBe(2)
   })
 })
+
+describe('导航顺序默认值', () => {
+  it('默认导航顺序中打卡在第三位；旧的默认顺序会自动迁移，自定义顺序保持不动', () => {
+    expect(defaultState().settings.navOrder).toEqual(['home', 'todos', 'checkins', 'projects', 'calendar'])
+
+    // 旧默认顺序 → 迁移到新默认（打卡第三）
+    const legacy = normalizeData({ todos: [], settings: { navOrder: ['home', 'todos', 'projects', 'calendar', 'checkins'] } })
+    expect(legacy.settings.navOrder).toEqual(['home', 'todos', 'checkins', 'projects', 'calendar'])
+
+    // 用户自定义过的顺序 → 原样保留
+    const custom = normalizeData({ todos: [], settings: { navOrder: ['todos', 'home', 'projects', 'checkins', 'calendar'] } })
+    expect(custom.settings.navOrder).toEqual(['todos', 'home', 'projects', 'checkins', 'calendar'])
+  })
+})
