@@ -63,6 +63,19 @@ describe('设置页', () => {
     w.unmount()
   })
 
+
+  it('首页内容开关：今日计划 / 项目进度可分别关闭', async () => {
+    const w = mountView()
+    const todayRow = w.findAll('.opt-row').find((r) => r.text().includes('在首页显示今日计划'))
+    await todayRow.find('.switch').trigger('click')
+    expect(store.state.settings.showTodayTodosOnHome).toBe(false)
+    expect(store.state.settings.showProjectsOnHome).not.toBe(false)
+    const projRow = w.findAll('.opt-row').find((r) => r.text().includes('在首页显示项目进度'))
+    await projRow.find('.switch').trigger('click')
+    expect(store.state.settings.showProjectsOnHome).toBe(false)
+    w.unmount()
+  })
+
   it('首页内容开关控制项目进度在首页的显示', async () => {
     const w = mountView()
     expect(w.text()).toContain('首页内容')
