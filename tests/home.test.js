@@ -220,7 +220,9 @@ describe('首页摘要', () => {
     const { w } = mountHome()
     await nextTick()
     expect(w.text()).toContain('要隐藏的项目')
-    const hideBtn = w.findAll('button').find((b) => b.text().includes('隐藏'))
+    // 定位「项目进度」卡片里的隐藏按钮（今日计划卡片也有一个隐藏按钮）
+    const projCard = w.findAll('.h-card').find((c) => c.text().includes('项目进度'))
+    const hideBtn = projCard.findAll('button').find((b) => b.text().includes('隐藏'))
     await hideBtn.trigger('click')
     await nextTick()
     expect(store.state.settings.showProjectsOnHome).toBe(false)
@@ -348,6 +350,34 @@ describe('首页本周日历', () => {
     const modal = document.body.querySelector('.modal-panel')
     expect(modal).toBeTruthy()
     expect(modal.textContent).toContain('新建任务')
+    w.unmount()
+  })
+})
+
+describe('今日计划板块可隐藏', () => {
+  it('卡片内点「隐藏」后不再显示，并写入设置', async () => {
+    const d = startOfDayTs(Date.now())
+    store.addTodo({ title: '今天的任务', timeType: 'datetime', startAt: d + 10 * 3600000 })
+    const { w } = mountHome()
+    await nextTick()
+    expect(w.text()).toContain('今日计划')
+    const todayCard = w.findAll('.h-card').find((c) => c.text().includes('今日计划'))
+    const hideBtn = todayCard.findAll('button').find((b) => b.text().includes('隐藏'))
+    await hideBtn.trigger('click')
+    await nextTick()
+    expect(store.state.settings.showTodayTodosOnHome).toBe(false)
+    expect(w.text()).not.toContain('今日计划')
+    w.unmount()
+  })
+
+  it('设置里关闭后首页不显示今日计划板块，其它板块照常', async () => {
+    const d = startOfDayTs(Date.now())
+    store.addTodo({ title: '今天的任务', timeType: 'datetime', startAt: d + 10 * 3600000 })
+    store.setSetting('showTodayTodosOnHome', false)
+    const { w } = mountHome()
+    await nextTick()
+    expect(w.text()).not.toContain('今日计划')
+    expect(w.text()).toContain('本周日历') // 其它板块不受影响（任务仍会出现在周视图里）
     w.unmount()
   })
 })
