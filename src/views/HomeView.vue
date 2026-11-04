@@ -178,13 +178,17 @@
         <div v-if="projList.length" class="proj-list">
           <button v-for="p in projList" :key="p.id" type="button" class="proj-row" @click="router.push(`/projects/${p.id}`)">
             <div class="row-between">
-              <span class="proj-name">{{ p.name }}</span>
-              <span class="muted proj-dead" :class="{ late: isOverdue(p) }">{{ deadlineText(p.deadline) }}</span>
+              <span class="row gap4 proj-name-wrap">
+                <span v-if="hpDisplay.category" class="proj-cat" :style="{ background: catColorOf(p) }">{{ catShortOf(p) }}</span>
+                <span class="proj-name">{{ p.name }}</span>
+              </span>
+              <span v-if="hpDisplay.deadline" class="muted proj-dead" :class="{ late: isOverdue(p) }">{{ deadlineText(p.deadline) }}</span>
             </div>
-            <div class="row gap8">
+            <div v-if="hpDisplay.progress" class="row gap8">
               <ProgressBar :value="statsOf(p).pct" />
               <span class="pct">{{ statsOf(p).pct }}%</span>
             </div>
+            <TagChips v-if="hpDisplay.tags && p.tagIds && p.tagIds.length" :tag-ids="p.tagIds" />
           </button>
         </div>
         <p v-else-if="!store.state.projects.length" class="muted empty-tip">还没有项目，去建一个吧。</p>
@@ -335,6 +339,7 @@ import {
   PRIORITY_WEIGHT,
 } from '../selectors.js'
 import { BLUEPRINT_STATUS, dimColor } from '../blueprintMeta.js'
+import { catMeta as catMetaOf } from '../projectMeta.js'
 import { daysUntilBirthday, genderColor } from '../relationMeta.js'
 import { catColor as mediaCatColor, statusLabel as mediaStatusLabel, progressInfo as mediaProgressInfo } from '../mediaMeta.js'
 import { foodLevel, leftText as foodLeftText, placeLabel as foodPlaceLabel } from '../foodMeta.js'
@@ -560,7 +565,23 @@ function startFocus(todo) {
   goFocus(router, { mode: 'pomodoro', targetType: 'todo', targetId: todo.id })
 }
 
-const projList = computed(() => activeProjects(store.state).slice(0, 3))
+// 首页项目板块显示内容（可在设置里自定义）
+const hpDisplay = computed(() => ({
+  progress: true,
+  deadline: true,
+  tags: false,
+  category: false,
+  count: 3,
+  ...(store.state.settings.homeProjectDisplay || {}),
+}))
+
+const projList = computed(() => {
+  const n = Math.max(1, Math.min(10, Number(hpDisplay.value.count) || 3))
+  return activeProjects(store.state).slice(0, n)
+})
+
+const catShortOf = (p) => catMetaOf(p).short
+const catColorOf = (p) => catMetaOf(p).color
 
 function statsOf(p) {
   return projectStats(store.state, p.id)
@@ -971,6 +992,19 @@ const todayReviewDone = computed(() => reviewsFor(store.state, 'day').some((r) =
 
 .proj-row:last-child {
   border-bottom: none;
+}
+
+.proj-name-wrap {
+  min-width: 0;
+}
+
+.proj-cat {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 7px;
 }
 
 .proj-name {
