@@ -171,6 +171,7 @@
             <h2 class="h-title"><Icon name="briefcase" :size="16" /> 项目进度</h2>
           </div>
           <div class="row gap4">
+            <button type="button" class="more-btn muted" title="选择哪些项目显示在首页" @click="projPickOpen = true">选择</button>
             <button type="button" class="more-btn muted" title="不在首页显示（可在设置中恢复）" @click="hideProjects">隐藏</button>
             <button type="button" class="more-btn muted" @click="router.push('/projects')">全部 ›</button>
           </div>
@@ -192,7 +193,8 @@
           </button>
         </div>
         <p v-else-if="!store.state.projects.length" class="muted empty-tip">还没有项目，去建一个吧。</p>
-        <p v-else class="muted empty-tip">全部项目已完成。</p>
+        <p v-else-if="!allActiveProjects.length" class="muted empty-tip">全部项目已完成。</p>
+        <p v-else class="muted empty-tip">已隐藏全部项目，可点右上「选择」恢复显示。</p>
       </section>
 
       <!-- 专注 -->
@@ -307,6 +309,23 @@
       @focus="startFocus"
       @add-sub="openAddSub"
     />
+    <BaseModal :open="projPickOpen" title="首页显示哪些项目" @close="projPickOpen = false">
+      <div class="proj-pick">
+        <p class="muted mini">打开的项目会出现在首页「项目进度」板块（最多显示 {{ hpDisplay.count }} 个）。</p>
+        <div v-if="allActiveProjects.length" class="pick-list">
+          <div v-for="p in allActiveProjects" :key="p.id" class="pick-row">
+            <span class="pick-name">{{ p.name }}</span>
+            <span class="muted mini">{{ catShortOf(p) }}</span>
+            <Switch :model-value="p.onHome !== false" @update:model-value="toggleProjectHome(p)" />
+          </div>
+        </div>
+        <p v-else class="muted mini">暂无进行中的项目</p>
+        <div class="row gap8" style="justify-content: flex-end">
+          <button type="button" class="btn btn-primary btn-sm" @click="projPickOpen = false">完成</button>
+        </div>
+      </div>
+    </BaseModal>
+
     <BaseModal :open="form.open" :title="form.todo ? '编辑任务' : '新建任务'" @close="form.open = false">
       <TodoFormModal
         v-if="form.open"
@@ -348,6 +367,7 @@ import { startOfDayTs, startOfWeekTs, weekDaysTs, fmtTime, fmtDate, DAY_MS } fro
 import { fmtFullDate, todoTimeText, fmtFocusMinute, deadlineText, snoozeText as snoozeTextOf } from '../format.js'
 import Icon from '../components/ui/Icon.vue'
 import SegControl from '../components/ui/SegControl.vue'
+import Switch from '../components/ui/Switch.vue'
 import ProgressBar from '../components/ui/ProgressBar.vue'
 import TagChips from '../components/ui/TagChips.vue'
 import CheckinRecordModal from '../components/checkin/CheckinRecordModal.vue'
@@ -577,8 +597,15 @@ const hpDisplay = computed(() => ({
 
 const projList = computed(() => {
   const n = Math.max(1, Math.min(10, Number(hpDisplay.value.count) || 3))
-  return activeProjects(store.state).slice(0, n)
+  return activeProjects(store.state).filter((p) => p.onHome !== false).slice(0, n)
 })
+
+// 首页项目板块：选择哪些项目显示在首页
+const projPickOpen = ref(false)
+const allActiveProjects = computed(() => activeProjects(store.state))
+function toggleProjectHome(p) {
+  store.updateProject(p.id, { onHome: p.onHome === false })
+}
 
 const catShortOf = (p) => catMetaOf(p).short
 const catColorOf = (p) => catMetaOf(p).color
@@ -992,6 +1019,37 @@ const todayReviewDone = computed(() => reviewsFor(store.state, 'day').some((r) =
 
 .proj-row:last-child {
   border-bottom: none;
+}
+
+.proj-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 2px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.pick-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .proj-name-wrap {
