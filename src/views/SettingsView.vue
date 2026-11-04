@@ -103,6 +103,48 @@
           @update:model-value="store.setSetting('showProjectsOnHome', $event)"
         />
       </div>
+
+      <template v-if="store.state.settings.showProjectsOnHome !== false">
+        <div class="row-between opt-row">
+          <div class="opt-text">
+            <span class="opt-name">项目板块显示进度条</span>
+            <p class="muted opt-desc">每条项目右侧的进度条与百分比。</p>
+          </div>
+          <Switch :model-value="hpDisplay.progress" @update:model-value="setHp('progress', $event)" />
+        </div>
+        <div class="row-between opt-row">
+          <div class="opt-text">
+            <span class="opt-name">项目板块显示截止日期</span>
+            <p class="muted opt-desc">项目名右侧的截止日期提示（逾期标红）。</p>
+          </div>
+          <Switch :model-value="hpDisplay.deadline" @update:model-value="setHp('deadline', $event)" />
+        </div>
+        <div class="row-between opt-row">
+          <div class="opt-text">
+            <span class="opt-name">项目板块显示分类标签</span>
+            <p class="muted opt-desc">项目名前的小分类标签（学习 / 项目 / 规划）。</p>
+          </div>
+          <Switch :model-value="hpDisplay.category" @update:model-value="setHp('category', $event)" />
+        </div>
+        <div class="row-between opt-row">
+          <div class="opt-text">
+            <span class="opt-name">项目板块显示项目标签</span>
+            <p class="muted opt-desc">项目名下方的标签。</p>
+          </div>
+          <Switch :model-value="hpDisplay.tags" @update:model-value="setHp('tags', $event)" />
+        </div>
+        <div class="field">
+          <span class="field-label">项目板块最多显示几个项目</span>
+          <input
+            :value="hpDisplay.count"
+            type="number"
+            min="1"
+            max="10"
+            class="input"
+            @change="setHp('count', Math.max(1, Math.min(10, Math.round(Number($event.target.value)) || 3)))"
+          />
+        </div>
+      </template>
     </section>
 
     <section class="card s-card">
@@ -188,7 +230,7 @@
     <section class="card s-card">
       <h2 class="s-title"><Icon name="checkCircle" :size="16" /> 关于</h2>
       <p class="muted desc">
-        Ultimate Life System v3.13.3 · 本地任务与项目管理<br />
+        Ultimate Life System v3.14.0 · 本地任务与项目管理<br />
         数据存放于本机 IndexedDB，无需账号，离线可用。
       </p>
     </section>
@@ -254,6 +296,14 @@ const coinPerFocusMin = ref(shopRate(store.state.settings).coinPerFocusMin)
 const coinPerTodo = ref(shopRate(store.state.settings).coinPerTodo)
 const coinPerCheckin = ref(shopRate(store.state.settings).coinPerCheckin)
 const coinPerReview = ref(shopRate(store.state.settings).coinPerReview)
+const DEFAULT_HP_DISPLAY = { progress: true, deadline: true, tags: false, category: false, count: 3 }
+const hpDisplay = computed(() => ({ ...DEFAULT_HP_DISPLAY, ...(store.state.settings.homeProjectDisplay || {}) }))
+
+function setHp(key, value) {
+  store.setSetting('homeProjectDisplay', { ...hpDisplay.value, [key]: value })
+  showToast('首页项目板块已更新')
+}
+
 const allowDebt = ref(shopDebtRule(store.state.settings).allowDebt)
 const maxDebt = ref(shopDebtRule(store.state.settings).maxDebt)
 
