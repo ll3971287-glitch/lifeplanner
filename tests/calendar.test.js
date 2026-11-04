@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
 import { startOfDayTs, addDaysTs, fmtDate, DAY_MS, startOfWeekTs } from '../src/utils/date.js'
 import CalendarView from '../src/views/CalendarView.vue'
+import { calendarItems } from '../src/selectors.js'
 
 beforeEach(() => {
   store._replace(defaultState())
@@ -319,5 +320,63 @@ describe('周视图：每天只显示 3 条任务并标注时间', () => {
     expect(panel).toBeTruthy()
     expect(panel.textContent).toContain('新建任务')
     w.unmount()
+  })
+})
+
+describe('循环的时间段任务只在当天展示', () => {
+  it('循环时间段任务只在开始当天出现，不跨天也不画整条长条', async () => {
+    const d = startOfDayTs(Date.now())
+    // 每天 09:00-11:00 的循环任务（时间段）
+    const t = store.addTodo({
+      title: '晨练计划',
+      timeType: 'range',
+      startAt: d + 9 * 3600000,
+      endAt: d + 11 * 3600000,
+      recurrence: { freq: 'daily', step: 1 },
+    })
+    // 聚合结果：只在当天有，且区间被限制在当天
+    const items = calendarItems(store.state, d, d + DAY_MS)
+    const mine = items.filter((it) => it.todo && it.todo.id === t.id)
+    expect(mine).toHaveLength(1)
+    expect(mine[0].kind).toBe('range')
+    expect(mine[0].startTs).toBe(d + 9 * 3600000)
+    expect(mine[0].endTs).toBe(d + 11 * 3600000)
+
+    // 次日不再出现（普通跨天任务才会延续）
+    const nextDayItems = calendarItems(store.state, d + DAY_MS, d + 2 * DAY_MS)
+    expect(nextDayItems.some((it) => it.todo && it.todo.id === t.id)).toBe(false)
+
+    // 周视图当天显示一条，标注起止时间
+    const w = mount(CalendarView)
+    await nextTick()
+    await w.findAll('.seg-item')[1].trigger('click')
+    await nextTick()
+    const item = w.findAll('.item').find((x) => x.text().includes('晨练计划'))
+    expect(item.text()).toContain('09:00-11:00')
+    w.unmount()
+  })
+
+  it('跨整天的时间段循环任务也不会串到第二天', () => {
+    const d = startOfDayTs(Date.now())
+    const t = store.addTodo({
+      title: '通宵赶工',
+      timeType: 'range',
+      startAt: d + 20 * 3600000,
+      endAt: d + 30 * 3600000, // 到第二天 06:00
+      recurrence: { freq: 'weekly', step: 1 },
+    })
+    const today = calendarItems(store.state, d, d + DAY_MS).find((it) => it.todo && it.todo.id === t.id)
+    expect(today.endTs).toBe(d + DAY_MS) // 截到当天结束
+    const tomorrow = calendarItems(store.state, d + DAY_MS, d + 2 * DAY_MS).some((it) => it.todo && it.todo.id === t.id)
+    expect(tomorrow).toBe(false)
+  })
+
+  it('普通（非循环）时间段任务保持原样：可跨天展示', () => {
+    const d = startOfDayTs(Date.now())
+    const t = store.addTodo({ title: '连续项目', timeType: 'range', startAt: d, endAt: d + 2 * 24 * 3600000 })
+    const today = calendarItems(store.state, d, d + DAY_MS).find((it) => it.todo && it.todo.id === t.id)
+    expect(today.endTs).toBe(d + DAY_MS) // 按天切片（原有行为）
+    const tomorrow = calendarItems(store.state, d + DAY_MS, d + 2 * DAY_MS).some((it) => it.todo && it.todo.id === t.id)
+    expect(tomorrow).toBe(true) // 非循环任务仍然延续到次日
   })
 })
