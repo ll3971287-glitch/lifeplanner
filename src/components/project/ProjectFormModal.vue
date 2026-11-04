@@ -10,6 +10,11 @@
       <SegControl v-model="form.category" :options="catOptions" />
     </div>
 
+    <div class="row-between">
+      <span class="field-label" style="margin: 0">在首页「项目进度」显示</span>
+      <Switch :model-value="form.onHome !== false" @update:model-value="form.onHome = $event" />
+    </div>
+
     <div class="field">
       <span class="field-label">项目内容</span>
       <textarea v-model="form.desc" class="textarea" rows="3" placeholder="项目目标 / 内容说明（可选）" />
@@ -72,6 +77,7 @@ import { store } from '../../store.js'
 import { fmtDate, parseDateStr } from '../../utils/date.js'
 import { showToast } from '../../ui.js'
 import SegControl from '../ui/SegControl.vue'
+import Switch from '../ui/Switch.vue'
 import { PROJECT_CATS, catOf } from '../../projectMeta.js'
 import TagPicker from '../form/TagPicker.vue'
 
@@ -91,6 +97,7 @@ function buildForm(src) {
   return {
     name: src ? src.name : '',
     category: src ? catOf(src) : 'project',
+    onHome: src ? src.onHome !== false : true,
     desc: src ? src.desc : '',
     totalWorkload: src ? src.totalWorkload ?? 0 : 0,
     workloadUnit: src ? src.workloadUnit : '小时',
@@ -126,6 +133,7 @@ function save() {
   const payload = {
     name,
     category: form.value.category,
+    onHome: form.value.onHome !== false,
     desc: form.value.desc,
     totalWorkload: Number(form.value.totalWorkload) || 0,
     workloadUnit: form.value.workloadUnit.trim() || '小时',
