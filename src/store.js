@@ -26,6 +26,8 @@ export function defaultState() {
       homeOrder: ['todayTodos', 'weekCalendar', 'blueprints', 'projects', 'focus', 'checkins', 'dueSoon', 'reviews'],
       showProjectsOnHome: true,
       showTodayTodosOnHome: true,
+      // 首页「项目进度」板块显示内容（可自定义）
+      homeProjectDisplay: { progress: true, deadline: true, tags: false, category: false, count: 3 },
       showBlueprintsOnCalendar: false,
       soundOn: true,
       focusChain: {
@@ -65,7 +67,7 @@ const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMi
 export const MAX_PINNED_CHECKINS = 3
 const REVIEW_PATCH_KEYS = ['type', 'periodDate', 'fields', 'goals']
 const TAG_PATCH_KEYS = ['name', 'color']
-const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBreakMin', 'dailyFocusGoalMin', 'navOrder', 'homeOrder', 'showProjectsOnHome', 'showTodayTodosOnHome', 'showBlueprintsOnCalendar', 'blueprintDims', 'focusChain', 'soundOn', 'shop']
+const SETTINGS_KEYS = ['theme', 'mode', 'style', 'pomodoroFocusMin', 'pomodoroBreakMin', 'dailyFocusGoalMin', 'navOrder', 'homeOrder', 'showProjectsOnHome', 'showTodayTodosOnHome', 'homeProjectDisplay', 'showBlueprintsOnCalendar', 'blueprintDims', 'focusChain', 'soundOn', 'shop']
 const BLUEPRINT_PATCH_KEYS = ['title', 'goalDateTs', 'goalStartTs', 'goalEndTs', 'goalText', 'dimension', 'desc', 'status', 'notes', 'level']
 const RELATION_PATCH_KEYS = ['name', 'gender', 'age', 'birthYear', 'birthMonth', 'birthDay', 'place', 'affinity', 'note']
 const GOAL_PATCH_KEYS = ['name', 'desc', 'done', 'year', 'scope', 'index', 'order']
