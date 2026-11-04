@@ -61,7 +61,7 @@ export function defaultState() {
 }
 
 const TODO_PATCH_KEYS = ['title', 'note', 'timeType', 'startAt', 'endAt', 'tagIds', 'parentId', 'recurrence', 'priority', 'projectId', 'estimatedHours', 'onHome', 'snoozeUntil', 'canceled', 'canceledAt', 'fleeting']
-const PROJECT_PATCH_KEYS = ['name', 'desc', 'totalWorkload', 'workloadUnit', 'deadline', 'tagIds', 'completed', 'completedAt', 'progressMode', 'category']
+const PROJECT_PATCH_KEYS = ['name', 'desc', 'totalWorkload', 'workloadUnit', 'deadline', 'tagIds', 'completed', 'completedAt', 'progressMode', 'category', 'onHome']
 const CHECKIN_PATCH_KEYS = ['name', 'unit', 'dailyTargetCount', 'fixedDurationMin', 'startDate', 'endDate', 'rule', 'countUnlimited', 'archived', 'archivedAt']
 // 最多可置顶的打卡数量
 export const MAX_PINNED_CHECKINS = 3
@@ -360,10 +360,11 @@ export function createStore({ dbImpl = db, now = () => Date.now() } = {}) {
   }
 
   // ---------- 项目 ----------
-  function addProject({ name, desc = '', totalWorkload = 0, workloadUnit = '小时', deadline = null, tagIds = [], progressMode = 'count', category = null } = {}) {
+  function addProject({ name, desc = '', totalWorkload = 0, workloadUnit = '小时', deadline = null, tagIds = [], progressMode = 'count', category = null, onHome = true } = {}) {
     const p = {
       id: uid(),
       name,
+      onHome: onHome !== false,
       category: category || 'project',
       desc,
       totalWorkload,
