@@ -5,6 +5,7 @@ import { nextTick } from 'vue'
 import { store, defaultState } from '../src/store.js'
 import { startOfDayTs, startOfWeekTs, DAY_MS } from '../src/utils/date.js'
 import HomeView from '../src/views/HomeView.vue'
+import ProjectFormModal from '../src/components/project/ProjectFormModal.vue'
 import { confirmState } from '../src/ui.js'
 
 beforeEach(() => {
@@ -414,6 +415,60 @@ describe('首页项目板块可自定义显示内容', () => {
     await nextTick()
     const card = w.findAll('.h-card').find((c) => c.text().includes('项目进度'))
     expect(card.findAll('.proj-row')).toHaveLength(2)
+    w.unmount()
+  })
+})
+
+describe('首页项目板块：可选择显示哪些项目', () => {
+  it('默认显示全部进行中项目；关闭某个项目后首页不再展示它', async () => {
+    const a = store.addProject({ name: '项目甲' })
+    store.addProject({ name: '项目乙' })
+    const { w } = mountHome()
+    await nextTick()
+    let card = w.findAll('.h-card').find((c) => c.text().includes('项目进度'))
+    expect(card.text()).toContain('项目甲')
+    expect(card.text()).toContain('项目乙')
+
+    // 打开「选择」弹层，关掉项目甲
+    await card.findAll('button').find((b) => b.text().includes('选择')).trigger('click')
+    await nextTick()
+    const modal = document.body.querySelector('.modal-panel')
+    expect(modal.textContent).toContain('首页显示哪些项目')
+    const row = [...modal.querySelectorAll('.pick-row')].find((r) => r.textContent.includes('项目甲'))
+    row.querySelector('.switch').click()
+    await nextTick()
+    expect(store.state.projects.find((x) => x.id === a.id).onHome).toBe(false)
+
+    card = w.findAll('.h-card').find((c) => c.text().includes('项目进度'))
+    expect(card.text()).not.toContain('项目甲')
+    expect(card.text()).toContain('项目乙')
+    w.unmount()
+  })
+
+  it('全部隐藏时给出提示；新建项目默认显示在首页', async () => {
+    const p = store.addProject({ name: '唯一项目' })
+    store.updateProject(p.id, { onHome: false })
+    const { w } = mountHome()
+    await nextTick()
+    const card = w.findAll('.h-card').find((c) => c.text().includes('项目进度'))
+    expect(card.text()).toContain('已隐藏全部项目')
+    w.unmount()
+
+    // 新建项目默认 onHome = true
+    const created = store.addProject({ name: '新项目' })
+    expect(created.onHome).toBe(true)
+  })
+
+  it('项目编辑表单可切换是否在首页显示', async () => {
+    const p = store.addProject({ name: '待配置文件' })
+    const w = mount(ProjectFormModal, { props: { project: p } })
+    await nextTick()
+    expect(w.text()).toContain('在首页「项目进度」显示')
+    const rows = w.findAll('.row-between')
+    const target = rows.find((r) => r.text().includes('在首页「项目进度」显示'))
+    await target.find('.switch').trigger('click')
+    await w.find('.btn-primary').trigger('click')
+    expect(store.state.projects[0].onHome).toBe(false)
     w.unmount()
   })
 })
