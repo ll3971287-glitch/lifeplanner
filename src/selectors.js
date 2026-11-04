@@ -437,8 +437,12 @@ export function calendarItems(state, startTs, endTsExclusive) {
       }
     } else if (t.timeType === 'range') {
       if (t.startAt != null && t.endAt != null) {
+        // 循环的时间段任务：只在匹配到的当天展示（不产生跨天/整条时间段任务）
+        const endLimit = t.recurrence
+          ? Math.min(t.endAt, startOfDayTs(t.startAt) + DAY_MS)
+          : t.endAt
         const s = Math.max(t.startAt, startTs)
-        const e = Math.min(t.endAt, endTsExclusive)
+        const e = Math.min(endLimit, endTsExclusive)
         if (s < e) {
           items.push({ kind: 'range', id: t.id, ts: s, startTs: s, endTs: e, ref: 'todo', todo: t })
         }
