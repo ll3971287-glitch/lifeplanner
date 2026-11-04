@@ -76,6 +76,19 @@ describe('设置页', () => {
     w.unmount()
   })
 
+
+  it('首页项目板块显示内容可自定义', async () => {
+    const w = mountView()
+    const row = w.findAll('.opt-row').find((r) => r.text().includes('项目板块显示进度条'))
+    await row.find('.switch').trigger('click')
+    expect(store.state.settings.homeProjectDisplay.progress).toBe(false)
+    const row2 = w.findAll('.opt-row').find((r) => r.text().includes('项目板块显示分类标签'))
+    await row2.find('.switch').trigger('click')
+    expect(store.state.settings.homeProjectDisplay.category).toBe(true)
+    expect(store.state.settings.homeProjectDisplay.deadline).toBe(true)
+    w.unmount()
+  })
+
   it('首页内容开关控制项目进度在首页的显示', async () => {
     const w = mountView()
     expect(w.text()).toContain('首页内容')
@@ -154,7 +167,9 @@ describe('设置页', () => {
 
   it('兑换商店金币费率与欠款规则可修改并保存', async () => {
     const w = mountView()
-    const coinInputs = w.findAll('input[type="number"]').slice(-5)
+    // 只在「兑换商店」卡片里找这 5 个数字输入（页面其它小节也有 number 输入）
+    const shopCard = w.findAll('.s-card').find((c) => c.text().includes('兑换商店'))
+    const coinInputs = shopCard.findAll('input[type="number"]')
     expect(coinInputs).toHaveLength(5)
     await coinInputs[0].setValue(2)
     await coinInputs[0].trigger('change')
@@ -180,7 +195,8 @@ describe('设置页', () => {
     await nextTick()
     expect(store.state.settings.shop.allowDebt).toBe(false)
     expect(w.text()).not.toContain('最多可欠') // 关闭后不再显示欠款上限输入
-    expect(w.findAll('input[type="number"]')).toHaveLength(6)
+    const shopCard2 = w.findAll('.s-card').find((c) => c.text().includes('兑换商店'))
+    expect(shopCard2.findAll('input[type="number"]')).toHaveLength(4)
     w.unmount()
   })
 })
