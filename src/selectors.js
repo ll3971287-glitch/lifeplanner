@@ -437,10 +437,11 @@ export function calendarItems(state, startTs, endTsExclusive) {
       }
     } else if (t.timeType === 'range') {
       if (t.startAt != null && t.endAt != null) {
+        let endLimit = t.endAt
         // 循环的时间段任务：只在匹配到的当天展示（不产生跨天/整条时间段任务）
-        const endLimit = t.recurrence
-          ? Math.min(t.endAt, startOfDayTs(t.startAt) + DAY_MS)
-          : t.endAt
+        if (t.recurrence) endLimit = Math.min(endLimit, startOfDayTs(t.startAt) + DAY_MS)
+        // 已完成的时间段任务：板块在完成时刻结束，之后的时间不再显示内容
+        if (t.completed && t.completedAt != null) endLimit = Math.min(endLimit, t.completedAt)
         const s = Math.max(t.startAt, startTs)
         const e = Math.min(endLimit, endTsExclusive)
         if (s < e) {
