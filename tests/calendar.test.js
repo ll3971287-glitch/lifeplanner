@@ -380,3 +380,43 @@ describe('循环的时间段任务只在当天展示', () => {
     expect(tomorrow).toBe(true) // 非循环任务仍然延续到次日
   })
 })
+
+describe('时间段任务完成后的板块截断', () => {
+  it('普通时间段任务在完成时刻结束板块，之后的时间不再显示内容', () => {
+    const d = startOfDayTs(Date.now())
+    const t = store.addTodo({ title: '写方案', timeType: 'range', startAt: d + 9 * 3600000, endAt: d + 17 * 3600000 })
+    // 未完成：完整区间
+    let it = calendarItems(store.state, d, d + DAY_MS).find((x) => x.todo && x.todo.id === t.id)
+    expect(it.endTs).toBe(d + 17 * 3600000)
+
+    // 10:30 完成 → 板块截到 10:30
+    store.state.todos.find((x) => x.id === t.id).completed = true
+    store.state.todos.find((x) => x.id === t.id).completedAt = d + 10.5 * 3600000
+    it = calendarItems(store.state, d, d + DAY_MS).find((x) => x.todo && x.todo.id === t.id)
+    expect(it.endTs).toBe(d + 10.5 * 3600000)
+    expect(it.startTs).toBe(d + 9 * 3600000)
+  })
+
+  it('完成时间晚于任务结束时间时保持原区间', () => {
+    const d = startOfDayTs(Date.now())
+    const t = store.addTodo({ title: '短会', timeType: 'range', startAt: d + 9 * 3600000, endAt: d + 10 * 3600000 })
+    store.state.todos.find((x) => x.id === t.id).completed = true
+    store.state.todos.find((x) => x.id === t.id).completedAt = d + 12 * 3600000
+    const it = calendarItems(store.state, d, d + DAY_MS).find((x) => x.todo && x.todo.id === t.id)
+    expect(it.endTs).toBe(d + 10 * 3600000)
+  })
+
+  it('周视图里完成的时间段任务只显示到完成时刻', async () => {
+    const d = startOfDayTs(Date.now())
+    const t = store.addTodo({ title: '整理资料', timeType: 'range', startAt: d + 9 * 3600000, endAt: d + 13 * 3600000 })
+    store.state.todos.find((x) => x.id === t.id).completed = true
+    store.state.todos.find((x) => x.id === t.id).completedAt = d + 10 * 3600000
+    const w = mount(CalendarView)
+    await nextTick()
+    await w.findAll('.seg-item')[1].trigger('click')
+    await nextTick()
+    const item = w.findAll('.item').find((x) => x.text().includes('整理资料'))
+    expect(item.text()).toContain('09:00-10:00')
+    w.unmount()
+  })
+})
