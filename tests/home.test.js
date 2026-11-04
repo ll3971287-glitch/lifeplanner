@@ -381,3 +381,39 @@ describe('今日计划板块可隐藏', () => {
     w.unmount()
   })
 })
+
+describe('首页项目板块可自定义显示内容', () => {
+  it('默认显示进度与截止日期，隐藏标签/分类；可关闭进度、打开标签与分类', async () => {
+    const tg = store.addTag({ name: '学习', color: '#0ea5e9' })
+    const d = startOfDayTs(Date.now())
+    store.addProject({ name: '考研计划', deadline: d + 10 * 86400000, tagIds: [tg.id], category: 'study' })
+    const { w } = mountHome()
+    await nextTick()
+    const card = w.findAll('.h-card').find((c) => c.text().includes('项目进度'))
+    expect(card.find('.progress').exists()).toBe(true) // 默认显示进度条
+    expect(card.find('.proj-dead').exists()).toBe(true) // 默认显示截止日期
+    expect(card.find('.proj-cat').exists()).toBe(false) // 默认不显示分类
+    expect(card.find('.tag-chip').exists()).toBe(false) // 默认不显示标签
+    w.unmount()
+
+    store.setSetting('homeProjectDisplay', { progress: false, deadline: false, tags: true, category: true, count: 3 })
+    const { w: w2 } = mountHome()
+    await nextTick()
+    const card2 = w2.findAll('.h-card').find((c) => c.text().includes('项目进度'))
+    expect(card2.find('.progress').exists()).toBe(false)
+    expect(card2.find('.proj-dead').exists()).toBe(false)
+    expect(card2.find('.proj-cat').exists()).toBe(true)
+    expect(card2.find('.tag-chip').exists()).toBe(true)
+    w2.unmount()
+  })
+
+  it('可自定义最多显示几个项目', async () => {
+    for (const n of ['甲', '乙', '丙', '丁']) store.addProject({ name: '项目' + n })
+    store.setSetting('homeProjectDisplay', { count: 2 })
+    const { w } = mountHome()
+    await nextTick()
+    const card = w.findAll('.h-card').find((c) => c.text().includes('项目进度'))
+    expect(card.findAll('.proj-row')).toHaveLength(2)
+    w.unmount()
+  })
+})
