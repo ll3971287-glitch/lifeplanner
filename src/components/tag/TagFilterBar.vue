@@ -1,6 +1,15 @@
 <template>
   <div class="tag-bar">
-    <div class="bar-scroll">
+    <div
+      ref="barRef"
+      class="bar-scroll"
+      :class="{ dragging: isDragging }"
+      @pointerdown="onDragStart"
+      @pointermove="onDragMove"
+      @pointerup="onDragEnd"
+      @pointercancel="onDragEnd"
+      @click.capture="onBarClick"
+    >
       <button type="button" class="tag-chip" :class="{ on: modelValue === '' }" @click="pick('')">全部</button>
       <button
         type="button"
@@ -36,7 +45,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../ui/Icon.vue'
 import { store } from '../../store.js'
 
@@ -49,6 +58,62 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const list = computed(() => store.state.tags)
+
+// —— 按住拖动横向滚动（待办页不需要排序，只要能拖着浏览）——
+const barRef = ref(null)
+const isDragging = ref(false)
+let startX = 0
+let startScroll = 0
+let dragging = false
+let moved = false
+
+function onDragStart(e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  const el = barRef.value
+  if (!el) return
+  dragging = true
+  moved = false
+  isDragging.value = false
+  startX = e.clientX
+  startScroll = el.scrollLeft
+}
+
+function onDragMove(e) {
+  if (!dragging) return
+  const el = barRef.value
+  if (!el) return
+  const dx = e.clientX - startX
+  if (!moved && Math.abs(dx) > 6) {
+    moved = true
+    isDragging.value = true
+  }
+  if (moved) el.scrollLeft = startScroll - dx
+}
+
+function onDragEnd() {
+  dragging = false
+  isDragging.value = false
+}
+
+// 拖动后松手不要误触发标签筛选
+function onBarClick(e) {
+  if (!moved) return
+  e.preventDefault()
+  e.stopPropagation()
+  moved = false
+}
+
+// 手指/鼠标移出标签栏时也能继续拖
+onMounted(() => {
+  window.addEventListener('pointermove', onDragMove)
+  window.addEventListener('pointerup', onDragEnd)
+  window.addEventListener('pointercancel', onDragEnd)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('pointermove', onDragMove)
+  window.removeEventListener('pointerup', onDragEnd)
+  window.removeEventListener('pointercancel', onDragEnd)
+})
 
 function countOf(id) {
   return props.counts[id] || 0
@@ -74,8 +139,20 @@ function pick(v) {
   padding: 2px 0 4px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
+  /* 纵向滑动仍交给页面滚动，横向由拖动手势控制 */
+  touch-action: pan-y;
   overscroll-behavior-x: contain;
+  cursor: grab;
+}
+
+.bar-scroll.dragging {
+  cursor: grabbing;
+  scroll-behavior: auto;
+  user-select: none;
+}
+
+.bar-scroll.dragging .tag-chip {
+  pointer-events: none;
 }
 
 .bar-scroll::-webkit-scrollbar {
