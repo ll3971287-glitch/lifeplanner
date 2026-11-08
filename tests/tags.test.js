@@ -293,3 +293,55 @@ describe('标签页拖拽排序', () => {
     }
   })
 })
+
+describe('标签拖拽：按下时阻止系统默认行为', () => {
+  function mountTags() {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/tags/:id', component: { template: '<div/>' } }] })
+    router.push('/')
+    return mount(TagsView, { global: { plugins: [router] } })
+  }
+
+  it('pointerdown 会 preventDefault，避免安卓长按打断拖拽', async () => {
+    store.addTag({ name: '甲', color: '#111' })
+    const w = mountTags()
+    await nextTick()
+    const card = w.find('.tag-card')
+    // 模拟触摸：pointerType = touch
+    const ev = new MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 })
+    Object.defineProperty(ev, 'pointerType', { value: 'touch' })
+    card.element.dispatchEvent(ev)
+    expect(ev.defaultPrevented).toBe(true)
+
+    // 鼠标：不阻止默认（保留点击进入标签详情）
+    const ev2 = new MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 })
+    Object.defineProperty(ev2, 'pointerType', { value: 'mouse' })
+    card.element.dispatchEvent(ev2)
+    expect(ev2.defaultPrevented).toBe(false)
+    // 卡片上阻止了右键菜单/选择/原生拖拽
+    expect(card.attributes('oncontextmenu')).toBeUndefined() // Vue 用事件修饰符，不是内联属性
+    w.unmount()
+  })
+
+  it('长按 280ms 内未移动时不进入排序模式；超过后进入且可拖拽落位', async () => {
+    vi.useFakeTimers()
+    try {
+      store.addTag({ name: '甲', color: '#111' })
+      store.addTag({ name: '乙', color: '#222' })
+      const w = mountTags()
+      await nextTick()
+      const cards = w.findAll('.tag-card')
+      cards[0].element.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
+      vi.advanceTimersByTime(150)
+      await nextTick()
+      expect(w.find('.tag-grid').classes()).not.toContain('sorting')
+      vi.advanceTimersByTime(200)
+      await nextTick()
+      expect(w.find('.tag-grid').classes()).toContain('sorting')
+      window.dispatchEvent(new MouseEvent('pointerup'))
+      await nextTick()
+      w.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
