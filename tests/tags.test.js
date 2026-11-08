@@ -345,3 +345,57 @@ describe('标签拖拽：按下时阻止系统默认行为', () => {
     }
   })
 })
+
+describe('待办页标签栏：按住拖动横向滚动', () => {
+  function mountTodos() {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: { template: '<div/>' } }, { path: '/focus', component: { template: '<div/>' } }],
+    })
+    router.push('/')
+    return mount(TodosView, { global: { plugins: [router] } })
+  }
+
+  it('拖动时按位移改变横向滚动位置，且不触发标签筛选', async () => {
+    const tg = store.addTag({ name: '工作', color: '#111' })
+    const w = mountTodos()
+    await nextTick()
+    const bar = w.find('.bar-scroll')
+    // 模拟初始已滚动到 0，拖动 60px 向左 → scrollLeft 变 60
+    bar.element.scrollLeft = 0
+    const down = new MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 200, clientY: 10 })
+    Object.defineProperty(down, 'pointerType', { value: 'touch' })
+    bar.element.dispatchEvent(down)
+    const move = new MouseEvent('pointermove', { bubbles: true, cancelable: true, clientX: 140, clientY: 12 })
+    Object.defineProperty(move, 'pointerType', { value: 'touch' })
+    bar.element.dispatchEvent(move)
+    await nextTick()
+    expect(bar.element.scrollLeft).toBe(60)
+    expect(bar.classes()).toContain('dragging')
+    // 松手
+    window.dispatchEvent(new MouseEvent('pointerup'))
+    await nextTick()
+    expect(bar.classes()).not.toContain('dragging')
+    // 拖动后的点击不应切换筛选
+    const chip = [...bar.element.querySelectorAll('.tag-chip')].find((c) => c.textContent.includes('工作'))
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    chip.dispatchEvent(click)
+    await nextTick()
+    const activeChip = w.findAll('.tag-chip').find((c) => c.text().includes('工作'))
+    expect(activeChip.classes()).not.toContain('on')
+    expect(tg.id).toBeTruthy()
+    w.unmount()
+  })
+
+  it('轻点标签仍可正常筛选（未拖动）', async () => {
+    store.addTag({ name: '学习', color: '#222' })
+    const w = mountTodos()
+    await nextTick()
+    const chip = w.findAll('.tag-chip').find((c) => c.text().includes('学习'))
+    await chip.trigger('click')
+    await nextTick()
+    const active = w.findAll('.tag-chip').find((c) => c.text().includes('学习'))
+    expect(active.classes()).toContain('on')
+    w.unmount()
+  })
+})
