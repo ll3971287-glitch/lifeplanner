@@ -73,6 +73,9 @@ function pick(v) {
   overflow-x: auto;
   padding: 2px 0 4px;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
 }
 
 .bar-scroll::-webkit-scrollbar {
@@ -90,6 +93,7 @@ function pick(v) {
   background: var(--panel);
   color: var(--muted);
   font-size: 12.5px;
+  touch-action: manipulation;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
