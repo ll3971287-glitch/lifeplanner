@@ -128,7 +128,8 @@ import { askConfirm, goFocus, showToast } from '../ui.js'
 
 const router = useRouter()
 
-const sortMode = ref('custom')
+// 默认按优先级排序（高 → 中 → 低 → 无）
+const sortMode = ref('priority')
 const archiveView = ref(false)
 
 // 进入待办页默认定位到「今天」
