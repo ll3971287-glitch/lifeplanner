@@ -24,6 +24,9 @@
           :style="cardStyle(tg)"
           @click="openTag(tg)"
           @pointerdown="onCardDown(tg, idx, $event)"
+          @contextmenu.prevent
+          @dragstart.prevent
+          @selectstart.prevent
         >
           <span class="tag-dot" :style="{ background: tg.color }" />
           <span class="tag-name">{{ tg.name }}</span>
@@ -105,6 +108,8 @@ function slotBefore(id) {
 }
 
 function onCardDown(tg, idx, e) {
+  // 触摸/手写笔：阻止默认行为，否则安卓长按会弹系统选择/菜单并打断指针序列（拖拽被取消）
+  if (e.cancelable && e.pointerType && e.pointerType !== 'mouse') e.preventDefault()
   downIdx = idx
   downX = e.clientX
   downY = e.clientY
