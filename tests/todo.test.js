@@ -429,7 +429,16 @@ describe('TodosView 列表与筛选', () => {
     await nextTick()
     const sel = w.find('select')
     const titles = () => w.findAll('.task-row').map((r) => r.text())
-    // 默认自定义：按创建顺序
+    // 默认按重要程度：高 > 中 > 无
+    expect(sel.element.value).toBe('priority')
+    expect(titles()[0]).toContain('B早而高优先级')
+    expect(titles()[1]).toContain('C中优先级无时间')
+    expect(titles()[2]).toContain('A晚而无优先级')
+    // 非默认（priority）模式禁用拖拽
+    expect(w.findAll('.task-row')[0].element.getAttribute('draggable')).toBe('false')
+    // 自定义顺序：按创建顺序
+    sel.element.value = 'custom'
+    await sel.trigger('change')
     expect(titles()[0]).toContain('A晚而无优先级')
     expect(titles()[2]).toContain('C中优先级无时间')
     // 按时间：B 最早在前，无时间的 C 沉底
@@ -438,14 +447,6 @@ describe('TodosView 列表与筛选', () => {
     expect(titles()[0]).toContain('B早而高优先级')
     expect(titles()[1]).toContain('A晚而无优先级')
     expect(titles()[2]).toContain('C中优先级无时间')
-    // 非自定义模式禁用拖拽
-    expect(w.findAll('.task-row')[0].element.getAttribute('draggable')).toBe('false')
-    // 按重要程度：高 > 中 > 无
-    sel.element.value = 'priority'
-    await sel.trigger('change')
-    expect(titles()[0]).toContain('B早而高优先级')
-    expect(titles()[1]).toContain('C中优先级无时间')
-    expect(titles()[2]).toContain('A晚而无优先级')
     // 回到自定义顺序恢复拖拽
     sel.element.value = 'custom'
     await sel.trigger('change')
@@ -995,7 +996,8 @@ describe('逾期列表行内补完成', () => {
     expect(rows[0].find('.backfill-btn').exists()).toBe(true)
     expect(rows[1].find('.backfill-btn').exists()).toBe(true)
 
-    await rows[0].find('.backfill-btn').trigger('click')
+    const rowA = rows.find((r) => r.text().includes('逾期甲'))
+    await rowA.find('.backfill-btn').trigger('click')
     await nextTick()
     // 没有确认弹窗
     expect(document.body.querySelector('.confirm-panel')).toBeNull()
